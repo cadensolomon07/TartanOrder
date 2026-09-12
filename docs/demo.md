@@ -6,7 +6,7 @@ This prototype creates simulated orders only: no payment, purchase or restaurant
 
 ## Finding the controls in the new kiosk
 
-On desktop, **Your food requirements** sits above the menu cards; the accepted cart and active requirement summary are on the right. Category buttons and **Order from** are on the left. On a phone these sections stack, and the cart's **Edit requirements** link jumps to the controls. A pending decision appears first in the requirements panel. The microphone icon visibly changes to **Stop — I’m done** while listening; **Submit** also accepts dietary declarations and corrections.
+On desktop, **Your food requirements** is in the left sidebar, below the category buttons and before **Order from** and the location details. The main column starts immediately with the menu; the accepted cart and active requirement summary remain on the right. On narrow screens these sections stack, and the cart's **Edit requirements** link jumps to the existing controls. A pending decision appears first in the requirements panel. The microphone icon visibly changes to **Stop — I’m done** while listening; **Submit** also accepts dietary declarations and corrections.
 
 ## Two-to-three-minute meal and dietary demonstration
 

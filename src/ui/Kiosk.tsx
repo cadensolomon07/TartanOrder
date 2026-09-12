@@ -408,11 +408,11 @@ export function Kiosk({ controller, replay }: KioskProps) {
         <main className={styles.main}>
           <aside className={styles.rail} aria-label="Browse the menu">
             <CategoryRail locationId={locationId} value={filter} onChange={setFilter} />
+            <RequirementsPanel key={`${state.sessionId}:${requirementsDraftEpoch}`} requirements={state.requirements} lines={state.lines} acceptedTotalCents={state.totalCents} locationId={locationId} disabled={busy && !requirementsDraftActive} onAction={act} onStartDraft={startRequirementsDraft} onEndDraft={endRequirementsDraft} />
             <DiningLocation locationId={locationId} onChange={changeLocation} />
           </aside>
 
           <div className={styles.center}>
-            <RequirementsPanel key={`${state.sessionId}:${requirementsDraftEpoch}`} requirements={state.requirements} lines={state.lines} acceptedTotalCents={state.totalCents} locationId={locationId} disabled={busy && !requirementsDraftActive} onAction={act} onStartDraft={startRequirementsDraft} onEndDraft={endRequirementsDraft} />
             <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} filter={filter} profile={state.requirements?.profile} onMealItem={state.requirements?.meal ? itemId => act({ type: "REQUIREMENTS", locationId, changes: [{ type: "SELECT_ITEM", itemId, modifiers: [], locked: false }] }) : undefined} />
           </div>
 

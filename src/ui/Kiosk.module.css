@@ -125,7 +125,7 @@
   max-width: none; /* A's global main rule caps width; the kiosk is full-bleed */
   margin: 0;
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr) 300px;
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
   gap: 0;
   padding: 0;
   align-items: stretch;
@@ -314,19 +314,15 @@
 
 /* ---------- responsive (kept last: same specificity, source order wins) ---------- */
 @media (max-width: 1100px) {
-  .main { grid-template-columns: minmax(0, 1fr) 290px; }
-  .rail { grid-column: 1; border-right: none; border-bottom: 1px solid var(--line); padding: 0; }
-  .railList { flex-direction: row; flex-wrap: wrap; }
-  .railOn { box-shadow: inset 0 -3px 0 var(--red); }
-  .locationPanel { padding-bottom: 12px; }
-  .center { grid-column: 1; }
-  .right { grid-column: 2; grid-row: 1 / span 2; }
-  .mainDone .right { grid-row: auto; }
+  .main { grid-template-columns: 260px minmax(0, 1fr) 280px; }
+  .mainDone { grid-template-columns: minmax(0, 1fr) 280px; }
 }
 @media (max-width: 860px) {
   .main { grid-template-columns: 1fr; }
   .right { position: static; grid-column: auto; grid-row: auto; order: 0; border-left: none; border-bottom: 1px solid var(--line); min-height: 0; }
-  .rail { order: 1; grid-column: auto; }
+  .rail { order: 1; grid-column: auto; border-right: none; border-bottom: 1px solid var(--line); }
+  .railList { flex-direction: row; flex-wrap: wrap; }
+  .railOn { box-shadow: inset 0 -3px 0 var(--red); }
   .center { order: 2; grid-column: auto; }
   .menu { padding: 14px 16px 24px; }
   .menuGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
