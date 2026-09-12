@@ -1,0 +1,60 @@
+{
+  "baseURL": "https://tartan-order.vercel.app",
+  "completed": true,
+  "input": "Synthetic Spanish/Mandarin macOS speech samples, injected as Chromium fake microphone; real MediaRecorder WebM and real Gemini transcription + interpretation; not human microphone evidence",
+  "results": [
+    {
+      "language": "es-ES",
+      "audioStatus": 200,
+      "transcript": {
+        "v": 1,
+        "language": "es-ES",
+        "transcriber": "gemini",
+        "text": "Un agua con hielo extra, por favor."
+      },
+      "parseStatus": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "water",
+            "qty": 1,
+            "modifiers": [],
+            "note": "hielo extra"
+          }
+        ]
+      },
+      "asrConfidence": null
+    },
+    {
+      "language": "zh-CN",
+      "audioStatus": 200,
+      "transcript": {
+        "v": 1,
+        "language": "zh-CN",
+        "transcriber": "gemini",
+        "text": "请给我一杯加冰的水。"
+      },
+      "parseStatus": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "water",
+            "qty": 1,
+            "modifiers": [],
+            "note": "加冰"
+          }
+        ]
+      },
+      "asrConfidence": null
+    }
+  ],
+  "pageErrors": []
+}
