@@ -1,5 +1,14 @@
 # Integration — conversational V2 release
 
+## Gemini audio transcription — September 12, 2026
+
+Non-English microphone input now uses MediaRecorder → `POST /api/transcribe` → Gemini native-language transcript → the existing controller/parser/engine. English keeps Web Speech. The separate strict audio envelope does not change API 3 order contracts or the runtime catalog. The route accepts Spanish/Mandarin and supported audio MIME types, bounds actual bytes at 2 MB, and applies a 15-second server deadline. The browser caps capture at 30 seconds, applies an 18-second upload deadline, releases microphone tracks, ignores cancelled/obsolete results and never invents ASR confidence. Only final validated text reaches normal ordering. No raw audio is persisted or logged by this application; it is sent inline to Gemini. Official API reference: https://ai.google.dev/gemini-api/docs/audio.
+
+Pinned Node 22.23.2 checks passed: typecheck, lint, **830 unit/contract tests (30 opt-in skips)**, production build and the 12-client-asset secret check. Playwright passed **41 checks (3 database-dependent skips)**, including HTTP 503 fallback, English voice, notes, language switching and mocked non-English recording/upload cancellation. Local database-free production journeys then passed in both languages using synthetic macOS speech injected into Chromium’s microphone, real MediaRecorder WebM, and **four real Gemini requests** (two transcription, two interpretation), with no parser fallback or page errors. Each reviewed and confirmed water with an ice note at $1.50. [Recorded audio evidence](../evals/runs/gemini-audio-local-2026-09-12.json). This is bounded synthetic test evidence, not a human microphone trial or an accuracy benchmark.
+
+Before this audio deployment, public health was independently verified as API 3, Gemini, catalog `cmu-dietary-2026-09-12` from Supabase and Supabase order persistence. Production environment settings are preserved. Earlier records below describe their original checkpoints.
+
+
 ## Main integration — September 12, 2026
 
 Main combines the API 3 runtime catalog/persistence and inferred dietary marks from `d01de17` with sidebar, per-item notes and language selection from `997f3a9`. The shared catalog version remains `cmu-dietary-2026-09-12`; no teammate catalog/database implementation was replaced. Notes parsing, review readback and translated controls now consume the loaded catalog. Optional language and note fields preserve older API 3 payloads. Historical API 2 handoffs below describe the separately deployed release, not this combined main checkout.

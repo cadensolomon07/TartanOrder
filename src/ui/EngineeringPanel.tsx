@@ -12,7 +12,7 @@ export type EngineeringProps = {
   lastAsrConfidence: number | null;
   localOnly: boolean;
   onLocalOnly: (v: boolean) => void;
-  voiceEngine: "cloud" | "on-device" | "none";
+  voiceEngine: "cloud" | "on-device" | "gemini" | "none";
   onDevice: "unknown" | "unsupported" | "unavailable" | "downloadable" | "downloading" | "available";
   isBrave: boolean;
   onDownloadOnDevice: () => void;

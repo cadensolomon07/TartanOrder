@@ -19,6 +19,7 @@ export type InputBarProps = {
   voiceSupported: boolean;
   // from Talk press until the capture settles (covers the permission prompt)
   voiceActive: boolean;
+  transcribing?: boolean;
   // the engine has actually started listening
   listening: boolean;
   interim: string;
@@ -73,6 +74,7 @@ export function InputBar(p: InputBarProps) {
             className={styles.talkBtn}
             data-testid={p.voiceActive ? "stop-talk" : "talk"}
             aria-pressed={p.voiceActive}
+            disabled={p.transcribing}
             aria-label={translate(p.voiceActive ? "Stop — I’m done" : "Talk",language)}
             title={translate(p.voiceActive ? "Stop — I’m done" : "Talk",language)}
             onClick={p.voiceActive ? p.onStopTalking : p.onTalk}
@@ -120,7 +122,7 @@ export function InputBar(p: InputBarProps) {
       </div>
 
       <div className={styles.transcript} data-testid="transcript" aria-live="polite">
-        {p.voiceActive ? (
+        {p.transcribing ? <span data-testid="transcribing"><T>Transcribing with Gemini…</T></span> : p.voiceActive ? (
           <span className={styles.listeningDot}><T>
             Listening… </T><em>{p.interim || (p.listening ? "say your order" : "starting mic…")}</em>
           </span>

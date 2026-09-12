@@ -9,6 +9,7 @@ import { LANGUAGES, translate, type Language } from "@/contracts/languages";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Op, OrderController, UiAction, LocationId, Line } from "@/contracts";
 import { CAMPUS_DISCLOSURE, DEMO_DISCLOSURE } from "@/contracts";
+import { useGeminiSpeech } from "@/voice/useGeminiSpeech";
 import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useSpeaking, useTtsAvailable } from "@/voice/tts";
 import styles from "./Kiosk.module.css";
@@ -122,7 +123,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
   }, [controller]);
 
   // ---- voice -----------------------------------------------------------
-  const speech = useSpeech({
+  const browserSpeech = useSpeech({
     lang: language,
     onFinal: (text, conf) => {
       setLastTranscript(text);
@@ -136,6 +137,20 @@ export function Kiosk({ controller, replay }: KioskProps) {
       setMicNotice(micFailureMessage(reason, ctx));
     },
   });
+
+  const geminiSpeech = useGeminiSpeech({
+    language, localOnly,
+    onFinal: (text, conf) => {
+      setLastTranscript(text); setLastConf(conf); setMicNotice(null);
+      void controller.submit(text, "voice", conf);
+    },
+    onFail: code => {
+      controller.endInput();
+      setMicNotice(translate(code === "RECORDING_TOO_LONG" ? "Please keep recordings under 30 seconds. Nothing was submitted." : "Gemini could not transcribe this recording. Please type your order or try again.", language));
+    },
+  });
+  const speech = language === "en-US" ? browserSpeech : geminiSpeech;
+  const transcribing = language !== "en-US" && geminiSpeech.transcribing;
 
   const downloadOnDevice = useCallback(() => {
     setMicNotice("Downloading on-device speech recognition (one-time)…");
@@ -307,11 +322,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   const setLocalOnly = useCallback(
     (v: boolean) => {
-      cancelSpeech();
-      endNoteDraft();
+      stopAnyCapture();
       controller.setLocalOnly(v);
     },
-    [controller, endNoteDraft],
+    [controller, stopAnyCapture],
   );
 
   // Read menu details and clearly labelled requests from the review snapshot.
@@ -362,7 +376,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const canReview = phase === "editing" && state.lines.length > 0 && !state.pending && !busy && requirementsReady;
   const canConfirm = phase === "reviewing" && !busy && !speech.active && !draftStarted && requirementsReady;
   const editable = phase === "editing" || phase === "clarifying";
-  const conversationStatus = speech.active ? "Listening" : parsing ? "Processing" : speaking ? "Responding" : "Ready";
+  const conversationStatus = transcribing ? "Processing" : speech.active ? "Listening" : parsing ? "Processing" : speaking ? "Responding" : "Ready";
   const venue = locationId === "demo"
     ? { name: "Demo Counter", location: "Seeded menu · sample prices" }
     : menu.location(locationId) ?? { name: menu.locationName(locationId), location: "" };
@@ -433,6 +447,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
             parsing={parsing}
             voiceSupported={speech.supported}
             voiceActive={speech.active}
+            transcribing={transcribing}
             listening={speech.listening}
             interim={speech.interim}
             onTalk={talk}
@@ -441,6 +456,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
             lastTranscript={lastTranscript}
             micNotice={micNotice}
           />
+          {language!=="en-US" && <p className={styles.muted} data-testid="gemini-audio-notice"><T>Gemini transcribes your microphone recording. Internet required. Keep it under 30 seconds.</T></p>}
           {language!=="en-US" && !tts && <p className={styles.muted} data-testid="language-voice-unavailable"><T>No matching readback voice is installed. Read the review on screen.</T></p>}
           {language!=="en-US" && localOnly && <p className={styles.muted} data-testid="language-local-only"><T>Local rules understand simple English orders. Use the menu buttons offline.</T></p>}
         </section>
@@ -576,7 +592,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
             {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
             {busy && (
               <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
-                {speech.active ? "listening" : draftStarted || requirementsDraftActive || noteLineId ? "typing" : "working"}
+                {transcribing ? "transcribing" : speech.active ? "listening" : draftStarted || requirementsDraftActive || noteLineId ? "typing" : "working"}
               </span>
             )}
           </div>
