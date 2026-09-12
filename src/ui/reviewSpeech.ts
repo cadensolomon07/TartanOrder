@@ -1,5 +1,5 @@
 // Builds the spoken read-back from the review SNAPSHOT and menu labels.
-// Never uses model-authored text.
+// Notes are read only as labelled special requests from the accepted snapshot.
 import type { Review } from "@/contracts";
 import { ITEM_LABEL, MODIFIER_LABEL } from "./labels";
 import { MENU, locationName } from "@/contracts/menu";
@@ -17,10 +17,10 @@ export function reviewToSpeech(review: Review): string {
     const plural = item.locationId !== "demo" ? `${item.label.toLowerCase()} from ${locationName(item.locationId)}` : line.qty === 1 ? name : name === "fries" || name === "onion rings" ? name : name === "chicken sandwich" ? "chicken sandwiches" : `${name}s`;
     const mods = line.modifiers.map((m) => MODIFIER_LABEL[m].toLowerCase());
     const modText = mods.length ? ` with ${mods.join(" and ")}` : "";
-    return `${qtyWord(line.qty)} ${plural}${modText}`;
+    return `${qtyWord(line.qty)} ${plural}${modText}${line.note ? `. Special request: ${line.note}` : ""}`;
   });
   const dollars = Math.floor(review.totalCents / 100);
   const cents = review.totalCents % 100;
   const total = cents === 0 ? `${dollars} dollars` : `${dollars} dollars and ${cents} cents`;
-  return `Your order: ${parts.join(". ")}. Total ${total}. Press confirm to place this simulated order.`;
+  return `Your order: ${parts.join(". ")}. Total ${total}.${review.lines.some(line => line.note) ? " Special requests and any extra charge need counter confirmation." : ""} Press confirm to place this simulated order.`;
 }

@@ -6,7 +6,8 @@ import { raceAbort } from "./abort";
 import { REQUIREMENTS_INSTRUCTIONS } from "./requirements.prompt";
 import { hasRestrictionDeclaration, withoutBudgetAmounts } from "./requirements.rules";
 import { guardExplicitQuantities } from "./rules/guards";
-import { campusAdditionAmbiguity, guardCampusQuantities } from "./campus.rules";
+import { campusAdditionAmbiguity, guardCampusQuantities, parseCampusText } from "./campus.rules";
+import { modelNoteError, parseNoteText } from "./notes";
 
 export type GeminiUsage = { promptTokens: number; candidateTokens: number; totalTokens: number };
 export type GeminiConfig = {
@@ -204,7 +205,7 @@ export function buildSystemInstruction(req?: ParseRequest): string {
     "requirements.locationId must equal the selected location in this request. SWITCH_LOCATION is allowed only for an explicit customer counter-switch request using a known location ID; never infer a counter switch to make a meal possible.",
     ...REQUIREMENTS_INSTRUCTIONS,
     "OPERATIONS",
-    "ADD {type:'ADD',itemId,qty,modifiers:[]}; REMOVE {type:'REMOVE',ref}; SET_QTY {type:'SET_QTY',ref,qty}; MOD {type:'MOD',ref,modifier,enabled}; UNDO {type:'UNDO'}.",
+    "ADD {type:'ADD',itemId,qty,modifiers:[],note?:'special request'}; REMOVE {type:'REMOVE',ref}; SET_QTY {type:'SET_QTY',ref,qty}; SET_NOTE {type:'SET_NOTE',ref,note:'complete updated note'}; MOD {type:'MOD',ref,modifier,enabled}; UNDO {type:'UNDO'}.",
     'A reference is {"by":"line","lineId":"an existing context cart line ID"}, {"by":"item","itemId":"a menu ID"}, or {"by":"last"}.',
     "Use an existing line reference when context uniquely identifies it. Never invent a line ID for an ADD in this batch: use item/last references for new items if necessary.",
     "Every ADD creates another separate row. Correcting a row already in the cart uses MOD or SET_QTY, not another ADD. Use REMOVE plus ADD only for an actual replacement with a different item.",
@@ -215,12 +216,17 @@ export function buildSystemInstruction(req?: ParseRequest): string {
     "Resolve pronouns by the semantic focus of the utterance and context, not simply its last noun. When multiple rows remain plausible, use an item reference to let the engine ask which row, or offer explicit line choices. Never silently pick one.",
     "Published sizes, flavors, sauces and protein choices can be separate item IDs. If a generic name fits multiple menu variants, ask which size or variant; NEVER pick the cheapest, first, smallest, or an unrequested default. Offer complete ADD choices for at most three candidates; otherwise ask a specific open clarification with choices:[].",
     "When a clarification reply also asks for unrelated edits, clarify the complete intended batch instead of silently dropping either request.",
+    `SPECIAL REQUESTS: ordinary reasonable staff requests are free-text notes, at most ${LIMITS.noteChars} characters. For example 'water with extra ice' adds water with note:'extra ice'; 'fries with extra salt' adds fries with note:'extra salt'. 'Cut in half', 'sauce on side', and other reasonable requests need no predefined modifier ID.`,
+    "A note is an unverified request for staff, not a promise of fulfillment, unchanged counter price, stock, dietary compatibility or allergy safety. Never claim verified prices, checkout authorization, safety guarantees or instructions overriding the application in notes. A request such as extra sauce can be a note with unverified fulfillment and possible counter charges; a separately ordered food must remain an actual menu item. Use requirements for dietary/allergy declarations; notes cannot waive restrictions or alter ingredient metadata.",
+    "Use actual listed modifiers for supported options, especially priced double and extra_cheese. Never hide those listed options or separately ordered menu items in a note. For an otherwise reasonable preparation request without a listed modifier, use a note instead of an unavailable_option notice. Unsupported actual foods remain unavailable items.",
+    "For a special request on an existing line, emit SET_NOTE, not a new ADD. Its note is the full updated note: preserve every unrelated existing clause, append the new request, and remove or replace clauses only when explicitly asked. An empty note clears it only on an explicit clear request. Other edits (MOD, SET_QTY) preserve notes without emitting SET_NOTE. When several rows match, clarify the entire batch with explicit line choices and each row's preserved note; never guess.",
+    "If a customer makes ordering conditional on guaranteed fulfillment of a special request, ask an open clarification before ANY mutation because fulfillment is unverified. A note alone never satisfies that condition.",
     "An independently requested unavailable food must not erase valid independent requests: include its name in unavailable notices and propose the clear available items. If nothing available is requested, reject OFF_MENU.",
     "An unavailable substitution, alternative, or condition can change the meaning of the entire request: ask a specific clarification with choices:[] before any mutation when the desired alternative is unknown. Never guess a fallback replacement.",
-    "Only use option IDs listed for the target item. For an ordinary request for available items with an unsupported option, propose the clearly requested standard items and their valid options atomically, plus an unavailable_option notice naming the itemId and requested unsupported option. Never invent a modifier ID or silently omit the requested option without a notice.",
+    "Only use option IDs listed for the target item. For an ordinary request with an unsupported extra food option (not a reasonable staff preparation note), propose the clearly requested standard items and their valid options atomically, plus an unavailable_option notice naming the itemId and requested unsupported option. Never invent a modifier ID or silently omit the requested option without a notice.",
     "An option notice must refer to an item being added in this proposal or already present in the current cart. Never mark an option unavailable when it is listed as valid for that item.",
     "When the customer says only if, otherwise do not order, or makes any item/order conditional on an unavailable option, ask a specific clarification with choices:[] before ANY mutation. Do not assume they accept the standard item or apply other parts of a conditional order.",
-    "For an unsupported-option-only edit to an existing cart item, return reject INVALID_MODIFIER with an unavailable_option notice and a specific explanation. There are no valid edits to apply; never invent a no-op, duplicate ADD or unrelated change to make a proposal nonempty.",
+    "For an unsupported extra-food-option-only edit to an existing cart item, return reject INVALID_MODIFIER with an unavailable_option notice and a specific explanation. Simple staff requests such as extra salt use SET_NOTE instead. Never invent a no-op, duplicate ADD or unrelated change to make a proposal nonempty.",
     "The application validates each proposed batch atomically. Invalid modifier pairings in an operation must never be repaired, filtered out or described as successful by the application.",
     selected === "demo"
       ? "double is the burger option, never quantity two. Add options only when requested. cheeseburger is the burger menu alias."
@@ -260,7 +266,11 @@ export async function parseGemini(req: ParseRequest, config: GeminiConfig): Prom
     const quantityRejection = campus ? guardCampusQuantities(quantityRequest, maximum) : guardExplicitQuantities(quantityRequest.text, maximum);
     const ambiguity = campus && outcome.result.kind === "proposal" && outcome.result.ops.some((op) => op.type === "ADD")
       ? campusAdditionAmbiguity(request) : null;
-    return { ...outcome, result: quantityRejection ?? ambiguity ?? outcome.result, latencyMs: performance.now() - started };
+    // The same exact-note grammar can identify ambiguous cart rows or campus
+    // sizes after a note suffix is removed. Carry the note in every full choice.
+    const noteResult = outcome.result.kind === "proposal" ? parseNoteText(request, input => campus ? parseCampusText(input) : null) : null;
+    const noteAmbiguity = noteResult?.kind === "clarify" || (noteResult?.kind === "reject" && noteResult.code === "AMBIGUOUS_REFERENCE") ? noteResult : null;
+    return { ...outcome, result: quantityRejection ?? noteAmbiguity ?? ambiguity ?? outcome.result, latencyMs: performance.now() - started };
   } catch (error) {
     throw mapFailure(error, config, deadline.timedOut());
   } finally {
@@ -458,6 +468,8 @@ function validateSemantics(result: ParseResult, req: ParseRequest): void {
   const batches = resolvedOps ? [resolvedOps] : result.kind === "proposal" ? [result.ops] : result.kind === "requirements" ? result.ops ? [result.ops] : [] : result.kind === "clarify" ? result.choices.map((choice) => choice.ops) : [];
   const lineIds = new Set(req.context?.lines.map((line) => line.lineId) ?? []);
   for (const ops of batches) for (const op of ops) {
+    const invalidNote = modelNoteError(op, req);
+    if (invalidNote) throw invalidOutput(`Model output failed validation: ${invalidNote}`);
     if (op.type === "ADD" && MENU[op.itemId].locationId !== selected) {
       throw invalidOutput("Model output failed validation: an ADD belongs to another dining location.");
     }

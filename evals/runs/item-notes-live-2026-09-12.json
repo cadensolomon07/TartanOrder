@@ -1,0 +1,96 @@
+{
+  "baseURL": "http://127.0.0.1:3201",
+  "completed": true,
+  "checks": [
+    "Two items added with their own requests and unchanged menu subtotal",
+    "Existing note updated while retaining extra salt",
+    "Known double modifier still priced at +$2.50",
+    "Both notes retained in full review and simulated receipt",
+    "Published campus fries accepts staff note with listed menu price",
+    "Mobile manual note editor fits and saves without a model call"
+  ],
+  "responses": [
+    {
+      "text": "A water with extra ice and fries with extra salt, please.",
+      "status": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "water",
+            "qty": 1,
+            "modifiers": [],
+            "note": "extra ice"
+          },
+          {
+            "type": "ADD",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": [],
+            "note": "extra salt"
+          }
+        ]
+      }
+    },
+    {
+      "text": "Also put the fries in a separate bag. Keep the extra salt.",
+      "status": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "SET_NOTE",
+            "ref": {
+              "by": "line",
+              "lineId": "r1:1"
+            },
+            "note": "extra salt, put in a separate bag"
+          }
+        ]
+      }
+    },
+    {
+      "text": "Add a double burger.",
+      "status": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": [
+              "double"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "text": "One Fresh Cut Fries with extra salt please.",
+      "status": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "cmu_188_fresh_cut_fries",
+            "qty": 1,
+            "modifiers": [],
+            "note": "extra salt"
+          }
+        ]
+      }
+    }
+  ],
+  "pageErrors": []
+}

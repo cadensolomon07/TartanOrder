@@ -2,6 +2,14 @@
 
 The September 12 end-to-end goal supersedes the earlier ownership restrictions, V1 freeze and rules-only deployment plan. A now integrates and fixes the complete app. The former integration heartbeat is paused. The V1 notes below are historical evidence, not current implementation instructions or blockers.
 
+## Item special requests — September 12, 2026
+
+The API 2 deployed app supports optional nonempty `ADD.note` and `Line.note` (trimmed, 160 characters), plus `SET_NOTE {ref,note}`; empty text clears a note. Existing payloads and current-version exports remain valid. Notes are unverified requests, never price, quantity or dietary evidence. Whole-batch validation, targeted ambiguity, revision/request guards, undo, copied review/receipt and deterministic replay include notes. Same-item meal recomputation retains notes; replacements do not inherit them, and wait alternatives are withheld for noted lines.
+
+The cart offers Add note/Edit note, Save and Cancel. Opening an editor starts owned input and blocks review; switching input or actions discards that draft. Cart, proposed meals, staff summary, review, TTS and receipt show the accepted request. Gemini accepts natural requests and note edits; local rules support common ice/salt requests and explicit note syntax. Listed modifiers still use their defined prices; fulfillment and possible extra counter charges stay unconfirmed.
+
+Executed: 747 unit/contract/property tests passed, 29 opt-in tests skipped, typecheck/lint/build passed, and all 34 browser tests passed, including actual-client HTTP 503 fallbacks and offline typed ordering. Four real local production-browser Gemini requests passed with no fallback or page errors; see [the synthetic typed notes evidence](../evals/runs/item-notes-live-2026-09-12.json). No new human microphone test is claimed. Visual inspection caught a narrow form layout; the editor was stacked before release. This release builds on the deployed sidebar branch; newer Supabase/main work stays separate until its hosting configuration and integration are ready.
+
 ## Food requirements sidebar — September 12, 2026
 
 Moved the existing, single requirements panel below menu categories in the left sidebar. The menu now starts at the top of the center column. Fields and decision controls stack within a 280px desktop sidebar (260px at medium widths); phones retain a single-column layout and the cart's Edit requirements anchor. No controller, menu, parser, contract, or transaction changes.

@@ -6,6 +6,7 @@ import { MENU, MODIFIERS } from "@/contracts/menu";
 import { totalCents } from "@/core/engine";
 import { formatCents } from "./labels";
 import styles from "./RequirementsPanel.module.css";
+import { ItemNote } from "./ItemNote";
 
 const EMPTY_PROFILE: DietaryProfile = { preference: "none", allergies: [], dislikes: [], exceptions: [] };
 const COMPONENTS: { id: MealComponent; label: string }[] = [{ id: "mains", label: "Main" }, { id: "sides", label: "Side" }, { id: "drinks", label: "Drink" }];
@@ -76,7 +77,7 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
     <p className={styles.note}>Preferences, allergies and dislikes stay separate. Changing them rechecks your cart; it does not silently remove food.</p>
     {decision && <div className={styles.decision} data-testid="requirements-decision" role="group" aria-label="Choose how to continue">
       <h3>Your choice</h3><p>{decision.message}</p>
-      {proposedTotal !== null && <div className={styles.proposal} data-testid="proposed-meal"><strong>Proposed · not applied</strong><ul>{decision.proposedLines.map(line => <li key={line.lineId}>{line.qty} × {MENU[line.itemId].label}{line.modifiers.length ? ` · ${line.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}</li>)}</ul><p>Proposed menu subtotal: <strong>{formatCents(proposedTotal)}</strong>. {proposedTotal === acceptedTotalCents ? "Same subtotal as your accepted cart." : `${formatCents(Math.abs(proposedTotal - acceptedTotalCents))} ${proposedTotal > acceptedTotalCents ? "more" : "less"} than your accepted cart (${formatCents(acceptedTotalCents)}).`}</p></div>}
+      {proposedTotal !== null && <div className={styles.proposal} data-testid="proposed-meal"><strong>Proposed · not applied</strong><ul>{decision.proposedLines.map(line => <li key={line.lineId}>{line.qty} × {MENU[line.itemId].label}{line.modifiers.length ? ` · ${line.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}<ItemNote note={line.note} /></li>)}</ul><p>Proposed menu subtotal: <strong>{formatCents(proposedTotal)}</strong>. {proposedTotal === acceptedTotalCents ? "Same subtotal as your accepted cart." : `${formatCents(Math.abs(proposedTotal - acceptedTotalCents))} ${proposedTotal > acceptedTotalCents ? "more" : "less"} than your accepted cart (${formatCents(acceptedTotalCents)}).`}</p></div>}
       {decision.minimumCents !== null && <p>Minimum subtotal for this proposed requirement set: {formatCents(decision.minimumCents)}.</p>}
       <div className={styles.buttons}>{decision.choices.map(choice => <button key={choice.id} type="button" disabled={disabled || drafting} data-testid={`requirement-choice-${choice.id}`} onClick={() => onAction({ type: "DECIDE_REQUIREMENTS", pendingId: decision.id, revision: decision.revision, choiceId: choice.id })}>{choice.label}</button>)}</div>
     </div>}
@@ -142,7 +143,7 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
     {(profile.allergies.length > 0 || staffIssues.length > 0) && <details className={styles.staff} data-testid="staff-summary" open={staffIssues.length > 0}>
       <summary>Show a summary to dining staff</summary>
       <p><strong>Please verify these allergies: {profile.allergies.join(", ") || "See item notes below"}.</strong></p>
-      {lines.map(line => <p key={line.lineId}>{line.qty} × {MENU[line.itemId].label}{line.modifiers.length ? ` · ${line.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}</p>)}
+      {lines.map(line => <p key={line.lineId}>{line.qty} × {MENU[line.itemId].label}{line.modifiers.length ? ` · ${line.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}<ItemNote note={line.note} /></p>)}
       <p>Please check complete ingredients, preparation and cross-contact. No staff member has been contacted. This app cannot guarantee allergy safety or override missing evidence.</p>
       <a href={FOOD_GUIDANCE_URL} target="_blank" rel="noreferrer">FARE: questions about cross-contact</a>
     </details>}

@@ -5,6 +5,7 @@ import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
+import { ItemNote, NoteDisclosure } from "./ItemNote";
 
 /** A short, stable display number derived from the receipt id (the full id stays visible below). */
 export function ticketNumber(id: string): string {
@@ -46,11 +47,13 @@ export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewO
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
               <WaitEstimate wait={wait} lineId={l.lineId} />
+              <ItemNote note={l.note} />
             </span>
             <span className={styles.sumPrice}><LinePrice line={l} /></span>
           </li>
         ))}
       </ul>
+      {receipt.lines.some(line => line.note) && <NoteDisclosure />}
       <div className={styles.reviewTotal}>
         <span>Menu subtotal</span>
         <span>{formatCents(receipt.totalCents)}</span>
