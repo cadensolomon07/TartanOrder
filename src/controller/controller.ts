@@ -90,7 +90,7 @@ export function createOrderController(deps:Dependencies = {}) {
     if(localOnly===value)return;
     localOnly=value;cancel();
     if(getView(engine).phase!=="committed")dispatch({type:"INPUT_STARTED"});
-    notice=value?"Local rules selected. Typed ordering works without internet.":"Parser connection enabled; availability depends on the parser handoff.";
+    notice=value?"Local rules selected. Typed ordering works without internet.":"Parser connection enabled. Local rules remain available if the server is unavailable.";
     publish();
   }
   function reset() {
