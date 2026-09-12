@@ -66,7 +66,7 @@ In Vercel, open the correct project's Production Deployment tile and choose **In
 5. Cancel input, review again, explicitly confirm. Show the simulated receipt. Start a new order before editing.
 6. Show actual parser mode in the engineering panel and export the audit. The replay engine reconstructs it without a live action. The on-page replay/import viewer is not yet implemented; it is B-owned and can be cut under the agreed plan. Do not promise a visible replay button in the current demo.
 
-Starter mode: **typed input + small real local rules grammar**. Unsupported language is rejected; fixtures are explicitly marked. B owns voice and the finished kiosk. C owns provider verification and expanded rules/client/server behavior. Keep `PARSER_MODE=rules` until C verifies Gemini. Never commit `.env.local` or output secrets.
+Current mode: **typed input + C's real rules grammar**, local by default or through the server when Local only is unchecked. Unsupported language is rejected; fixtures are explicitly marked. B's voice/finished kiosk handoff awaits integration. Keep `PARSER_MODE=rules` until C verifies Gemini. Never commit `.env.local` or output secrets.
 
 ## Executed A verification
 
@@ -86,12 +86,14 @@ Follow-up evidence, September 11 around 10:44 p.m.: downloaded **Export audit** 
 
 ## Deployment and remaining handoffs
 
+**Latest verified deployment:** `8d55268` contains C's corrected parser and measured repeated-word fix, A's health integration and C's evaluation harness. Deployment `dpl_4FE8vFjQMwC4n98c2cKHmEGh7HgR` serves https://tartan-order.vercel.app; public rules health, GitHub CI and a fresh logged-out browser journey passed. The browser exercised real HTTP edits, repeated words, ambiguity, undo, review invalidation and explicit simulated receipt, then offline local-only typed confirmation. B's draft correction remains pending; the public UI is still the typed starter. The records below describe earlier verification and are retained as historical evidence.
+
 Vercel sign-in verified for `cadensolomon07-8134`. **Public demo: https://tartan-order.vercel.app**. Implementation SHA `3ca392b219b90d24574bca21aa3f77cba51eb8b5`; deployment `dpl_B1nB1ppEWiriuZMQm8QUdgWziWeE` is READY and its API reports Node 22.x. The project now explicitly uses Node 22.x and `npm ci`. No purchase was made. Keep environment variables server-only. Health reports rules until C verifies Gemini integration.
 
 Public health returned HTTP 200 with `{v:1,menuVersion:'demo-v1',parser:'rules'}`. The deployed receipt journey passed in a fresh logged-out Chromium context; the public page was also visually inspected in the in-app browser. Share the primary public URL above: Vercel's alternate deployment/team URLs require sign-in.
 
 A second deployed browser check also passed the $13.50 → $16.00 → undo journey, second-burger ambiguity and row choice, huge-quantity rejection without cart changes, immediate review invalidation on input, and final explicit receipt. No browser page errors were observed.
 
-B/C received their temporary files with `1676b3d`; A stopped editing them at handoff. The starter client always uses local rules, even with Local only unchecked. C must supply the HTTP client, cancellation-aware fallback, 5-second server / 6-second client deadlines, expanded grammar, provider validation and evals. B must supply voice, review speech and the finished kiosk. No B/C commits were available at this checkpoint. Add C's eval command when that handoff arrives.
+B/C received their temporary files with `1676b3d`; A stopped editing them at handoff. C's corrected parser now supplies the HTTP client, cancellation-aware fallback, 5-second server / 6-second client deadlines, grammar and provider validation. A has added `npm run eval` for C's separately reviewed harness. Default evaluation uses development/adversarial cases and no network; add `EVAL_BASE_URL=https://tartan-order.vercel.app` for deployed HTTP. Do not include `heldout` before H8 or tune on it afterward. B's ready V1 handoff remains the next integration; Gemini verification and voice evidence remain pending.
 
 Remaining release gates: integrate B/C sequentially and repeat deployment/browser checks after integration. If H3 fails, fix the vertical slice before feature expansion. Cut import/replay UI and visual extras first; preserve atomicity, confirmation and engine/export/replay tests.

@@ -62,6 +62,11 @@ export const DROP_MARKERS: readonly (readonly string[])[] = [
   ["scratch", "that"], ["scratch", "it"], ["forget", "that"], ["forget", "it"], ["never", "mind"], ["nevermind"],
 ];
 
+/** Function words whose immediate repetition is a browser-ASR stutter with no alternative reading ("remove the the fries"). */
+export const STUTTER_WORDS: readonly string[] = ["the", "a", "an", "and", "um", "uh", "please", "to", "of"];
+/** Verbs that may open a stuttered command prefix ("make that make that two"); item nouns and numbers never do. */
+export const STUTTER_COMMAND_VERBS: ReadonlySet<string> = new Set(["make", "remove", "delete", "take", "cancel", "drop", "add"]);
+
 const FUNCTION_WORDS = ["a", "an", "the", "my", "with", "without", "on", "for", "to", "of", "like", "and", "then", "plus",
   "not", "no", "add", "make", "take", "off", "go", "back", "undo"];
 
