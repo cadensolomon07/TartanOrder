@@ -331,24 +331,6 @@ export function Kiosk({ controller, replay }: KioskProps) {
             </li>
           ))}
         </ol>
-        <div className={styles.headerMeta}>
-          <span className={styles.subBrand} data-testid="disclosure">{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</span>
-          <div className={styles.badges} aria-label="Current modes">
-            <span className={styles.badge} data-testid="badge-parser">
-              parser: {parser}
-            </span>
-            <span className={styles.badge} data-testid="badge-input">
-              input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
-            </span>
-            {localOnly && <span className={styles.badge}>local only</span>}
-            {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
-            {busy && (
-              <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
-                {speech.active ? "listening" : draftStarted ? "typing" : "working"}
-              </span>
-            )}
-          </div>
-        </div>
       </header>
 
       {notice && (
@@ -492,6 +474,26 @@ export function Kiosk({ controller, replay }: KioskProps) {
         <button type="button" className={styles.linkBtn} data-testid="reset" onClick={newOrder}>
           New order
         </button>
+        <div className={styles.footerRight}>
+          <span className={styles.subBrand} data-testid="disclosure">{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</span>
+          <div className={styles.badges} aria-label="Current modes">
+            <span className={styles.badge} data-testid="badge-parser">
+              parser: {parser}
+            </span>
+            <span className={styles.badge} data-testid="badge-input">
+              input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
+            </span>
+            {localOnly && <span className={styles.badge}>local only</span>}
+            {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
+            {busy && (
+              <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
+                {speech.active ? "listening" : draftStarted ? "typing" : "working"}
+              </span>
+            )}
+          </div>
+        </div>
+      </footer>
+      <div className={styles.engArea}>
         <EngineeringPanel
           controller={controller}
           inputMode={inputMode}
@@ -505,7 +507,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
           onDownloadOnDevice={downloadOnDevice}
           replay={replay}
         />
-      </footer>
+      </div>
     </div>
   );
 }

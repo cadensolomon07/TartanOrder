@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import type { Receipt, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
-import { LinePrice } from "./LinePrice";
+import { totalCents } from "@/core/engine";
 import { WaitEstimate } from "./WaitEstimate";
 
 /** A short, stable display number derived from the receipt id (the full id stays visible below). */
@@ -42,15 +42,15 @@ export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewO
       <h3 className={styles.categoryTitle}>Order summary</h3>
       <ul className={styles.reviewList}>
         {receipt.lines.map((l) => (
-          <li key={l.lineId} className={styles.reviewRow}>
+          <li key={l.lineId} className={`${styles.reviewRow} ${styles.sumRow}`}>
             <span>
               {l.qty}× {ITEM_LABEL[l.itemId]}
               {l.modifiers.length > 0 && (
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
-              <LinePrice line={l} />
               <WaitEstimate wait={wait} lineId={l.lineId} />
             </span>
+            <span className={styles.sumPrice}>{formatCents(totalCents([l]))}</span>
           </li>
         ))}
       </ul>

@@ -58,7 +58,7 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
           disabled={!canConfirm}
           onClick={() => onConfirm(review.id, review.revision)}
         >
-          Confirm simulated order
+          Confirm simulated order · {review.lines.reduce((n, l) => n + l.qty, 0)} {review.lines.reduce((n, l) => n + l.qty, 0) === 1 ? "item" : "items"}
         </button>
       </div>
       <p className={styles.muted}>Talking or editing again cancels this review.</p>

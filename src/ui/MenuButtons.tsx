@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Op, LocationId } from "@/contracts";
 import { UNPRICED_MENU_ITEMS } from "@/contracts/campus";
-import { MENU, itemsForLocation, type MenuCategory } from "@/contracts/menu";
+import { MENU, itemsForLocation, locationName, type MenuCategory } from "@/contracts/menu";
 import styles from "./Kiosk.module.css";
 import { ITEM_IDS, formatCents } from "./labels";
 
@@ -29,7 +29,7 @@ const GLYPHS: readonly [RegExp, string][] = [
   [/fruit|apple|banana/i, "🍎"], [/coffee|latte|espresso|mocha/i, "☕"], [/tea|chai|matcha/i, "🍵"], [/lemonade|lemon/i, "🍋"],
   [/smoothie|shake|juice/i, "🥤"], [/water/i, "💧"], [/soda|cola|sprite|pop/i, "🥤"],
 ];
-function glyphFor(label: string, category: MenuCategory): string {
+export function glyphFor(label: string, category: MenuCategory): string {
   return GLYPHS.find(([pattern]) => pattern.test(label))?.[1] ?? ICON[category];
 }
 
@@ -89,6 +89,7 @@ export function MenuButtons({ disabled, onOps, locationId = "demo", filter = "al
           <span className={PLATE[category.id]} aria-hidden="true">{glyphFor(MENU[id].label, category.id)}</span>
           <span className={styles.menuBody}>
             <span className={styles.menuItemHeading}><span>{MENU[id].label}</span><span className={styles.menuBtnPlus} aria-hidden="true">+</span></span>
+            <span className={styles.menuVendor}>{locationName(locationId)}</span>
             {MENU[id].description !== GENERIC_DESCRIPTION && <span className={styles.menuDescription}>{MENU[id].description}</span>}
             <span className={styles.menuPrice}>{formatCents(MENU[id].priceCents)}</span>
           </span>
