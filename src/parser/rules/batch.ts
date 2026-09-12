@@ -9,9 +9,10 @@ type PendingOp = { readonly kind: "op"; readonly op: Op };
 type Pending = PendingAdd | PendingOp;
 
 /**
- * The batch under construction. Corrections rewrite it in place of emitting
- * compensating operations (D3); `topic` and `awaitingCorrection` carry the
- * "not X, I mean Y" form; `carry` remembers a marker with nothing after it yet.
+ * The batch under construction. Only correction syntax rewrites it in place of emitting
+ * compensating operations (D3); plain edit commands become sequential ops whose references
+ * the engine resolves in order on its temporary cart. `topic` and `awaitingCorrection` carry
+ * the "not X, I mean Y" form; `carry` remembers a marker with nothing after it yet.
  */
 type BatchState = {
   readonly pending: readonly Pending[];
@@ -21,6 +22,7 @@ type BatchState = {
 };
 type Flags = { readonly corrected: boolean; readonly drop: boolean };
 type Step = { readonly ok: true; readonly state: BatchState } | { readonly ok: false; readonly rejection: Rejection };
+type ModClause = Extract<Clause, { kind: "mod" }>;
 
 const INITIAL: BatchState = { pending: [], topic: null, awaitingCorrection: false, carry: false };
 const UNSUPPORTED = reject("UNSUPPORTED", MESSAGES.unsupported);
@@ -48,19 +50,25 @@ function push(state: BatchState, op: Op): BatchState {
   return { ...state, pending: [...state.pending, { kind: "op", op }] };
 }
 
+function pushMods(state: BatchState, ref: ModelRef, changes: readonly ModifierChange[]): BatchState {
+  return changes.reduce((current, change) => push(current, { type: "MOD", ref, modifier: change.modifier, enabled: change.enabled }), state);
+}
+
 /** "remove it" after "not the fries, I mean the lemonade" means the lemonade. */
 function resolveTopic(state: BatchState, ref: ModelRef): { ref: ModelRef; state: BatchState } {
   if (ref.by !== "last" || state.topic === null) return { ref, state };
   return { ref: { by: "item", itemId: state.topic }, state: { ...state, topic: null } };
 }
 
-function applyRemove(state: BatchState, ref: ModelRef): BatchState {
+/** "scratch the fries" retracts a pending ADD; with none pending it is a cart REMOVE. */
+function retract(state: BatchState, ref: ModelRef): BatchState {
   const index = pendingAddIndex(state.pending, ref);
   if (index < 0) return push(state, { type: "REMOVE", ref });
   return { ...state, pending: state.pending.filter((_, position) => position !== index) };
 }
 
-function applySetQty(state: BatchState, ref: ModelRef, qty: number): BatchState {
+/** "actually make that three" re-quantifies a pending ADD; with none pending it is a cart SET_QTY. */
+function requantify(state: BatchState, ref: ModelRef, qty: number): BatchState {
   const index = pendingAddIndex(state.pending, ref);
   if (index < 0) return push(state, { type: "SET_QTY", ref, qty });
   const add = state.pending[index] as PendingAdd;
@@ -72,14 +80,27 @@ function attach(state: BatchState, index: number, changes: readonly ModifierChan
   return { ...state, pending: replaceAt(state.pending, index, { ...add, modifiers: applyChanges(add.modifiers, changes) }) };
 }
 
-function applyMod(state: BatchState, ref: ModelRef | null, changes: readonly ModifierChange[]): BatchState {
-  const index = pendingAddIndex(state.pending, ref ?? { by: "last" });
+/** "actually make it a double" modifies a pending ADD; with none pending it is a cart MOD. */
+function remodify(state: BatchState, ref: ModelRef, changes: readonly ModifierChange[]): BatchState {
+  const index = pendingAddIndex(state.pending, ref);
+  return index >= 0 ? attach(state, index, changes) : pushMods(state, ref, changes);
+}
+
+/** A bare modifier phrase is inline for the ADD it follows; otherwise it targets the sole accepting item or the last line (D2). */
+function applyBareMod(state: BatchState, changes: readonly ModifierChange[]): BatchState {
+  const index = pendingAddIndex(state.pending, { by: "last" });
   if (index >= 0) return attach(state, index, changes);
   return changes.reduce((current, change) => {
     const sole = SOLE_ITEM_FOR_MODIFIER[change.modifier];
-    const target: ModelRef = ref ?? (sole ? { by: "item", itemId: sole } : { by: "last" });
+    const target: ModelRef = sole ? { by: "item", itemId: sole } : { by: "last" };
     return push(current, { type: "MOD", ref: target, modifier: change.modifier, enabled: change.enabled });
   }, state);
+}
+
+function applyMod(state: BatchState, clause: ModClause, corrected: boolean): BatchState {
+  if (clause.ref === null) return applyBareMod(state, clause.changes);
+  const resolved = resolveTopic(state, clause.ref);
+  return corrected ? remodify(resolved.state, resolved.ref, clause.changes) : pushMods(resolved.state, resolved.ref, clause.changes);
 }
 
 function applyAdd(state: BatchState, clause: Extract<Clause, { kind: "add" }>, corrected: boolean): BatchState {
@@ -88,6 +109,7 @@ function applyAdd(state: BatchState, clause: Extract<Clause, { kind: "add" }>, c
   return { ...state, pending: [...kept, entry] };
 }
 
+/** Corrections rewrite the pending batch; plain REMOVE/SET_QTY/MOD commands keep their references for the engine. */
 function applyParsed(state: BatchState, clause: Clause, corrected: boolean): Step {
   switch (clause.kind) {
     case "reject": return fail(clause);
@@ -97,18 +119,14 @@ function applyParsed(state: BatchState, clause: Clause, corrected: boolean): Ste
       if (clause.negated) return ok({ ...state, awaitingCorrection: true });
       return corrected ? ok({ ...state, topic: clause.itemId }) : fail(UNSUPPORTED);
     case "remove": {
-      const resolved = resolveTopic(state, clause.ref);
-      return ok(applyRemove(resolved.state, resolved.ref));
+      const { ref, state: current } = resolveTopic(state, clause.ref);
+      return ok(corrected || clause.retracts ? retract(current, ref) : push(current, { type: "REMOVE", ref }));
     }
     case "setQty": {
-      const resolved = resolveTopic(state, clause.ref);
-      return ok(applySetQty(resolved.state, resolved.ref, clause.qty));
+      const { ref, state: current } = resolveTopic(state, clause.ref);
+      return ok(corrected ? requantify(current, ref, clause.qty) : push(current, { type: "SET_QTY", ref, qty: clause.qty }));
     }
-    case "mod": {
-      if (clause.ref === null) return ok(applyMod(state, null, clause.changes));
-      const resolved = resolveTopic(state, clause.ref);
-      return ok(applyMod(resolved.state, resolved.ref, clause.changes));
-    }
+    case "mod": return ok(applyMod(state, clause, corrected));
   }
 }
 

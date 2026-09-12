@@ -79,6 +79,19 @@ describe("rules parser properties", () => {
     }), { numRuns: NUM_RUNS });
   });
 
+  it("P2b: any negative quantity, as signed digits or spoken 'negative' words, is QUANTITY_LIMIT and never a proposal", () => {
+    const rendering = fc.tuple(fc.integer({ min: 1, max: 1_000_000 }), fc.constantFrom("digits", "words"), fc.constantFrom(...ALIASES))
+      .map(([n, form, alias]) => {
+        const rendered = form === "words" && n <= 999_999 ? `negative ${toWords(n)}` : `-${n}`;
+        return `${rendered} ${alias}`;
+      });
+    fc.assert(fc.property(rendering, (text) => {
+      const out = parseRules(requestWith(text));
+      expect(out.result.kind).toBe("reject");
+      expect(out.result.kind === "reject" ? out.result.code : "").toBe("QUANTITY_LIMIT");
+    }), { numRuns: NUM_RUNS });
+  });
+
   it("P3: the envelope always echoes requestId, baseRevision and menuVersion", () => {
     fc.assert(fc.property(validRequest, (req) => {
       const out = parseRules(req);

@@ -214,6 +214,60 @@ describe("guardTranscript", () => {
   });
 });
 
+describe("signed quantities (first C intake, normalize.ts)", () => {
+  it("rejects a negative digit quantity in every dash rendering instead of dropping the sign", () => {
+    for (const text of ["-2 lemonades", "−2 lemonades", "–2 lemonades", "-1 burger", "-18,000 lemonades", "a burger and -2 fries"]) {
+      expect(rejectionOf(run(text)).code).toBe("QUANTITY_LIMIT");
+    }
+  });
+
+  it("rejects spoken signs", () => {
+    for (const text of ["negative two burgers", "minus one fries", "negative zero burgers", "minus 3 lemonades"]) {
+      expect(rejectionOf(run(text)).code).toBe("QUANTITY_LIMIT");
+    }
+  });
+
+  it("carries the sign into the self-normalizing guard on raw text", () => {
+    expect(guardTranscript("-2 lemonades")?.code).toBe("QUANTITY_LIMIT");
+    expect(guardTranscript("−2 lemonades")?.code).toBe("QUANTITY_LIMIT");
+    expect(guardTranscript("negative two burgers")?.code).toBe("QUANTITY_LIMIT");
+    expect(guardTranscript("minus one fries")?.code).toBe("QUANTITY_LIMIT");
+  });
+
+  it("keeps hyphens between letters as word breaks", () => {
+    expect(guardTranscript("twenty-one burgers")?.code).toBe("QUANTITY_LIMIT");
+    expect(rejectionOf(run("twenty-one burgers")).code).toBe("QUANTITY_LIMIT");
+    expect(run("a lemon-ade").result.kind).toBe("clarify");
+    expect(run("a lemon-ade").result).toEqual(run("a lemon ade").result);
+    expect(opsOf(run("a burger - fries"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+    ]);
+  });
+});
+
+describe("number grammar (first C intake, numbers.ts)", () => {
+  it("rejects adjacent numbers as malformed instead of summing them", () => {
+    for (const text of ["one two burgers", "two three fries", "2 two burgers", "two 2 burgers", "1 2 burgers", "twenty twenty burgers", "one two"]) {
+      expect(rejectionOf(run(text)).code).toBe("UNSUPPORTED");
+      expect(guardTranscript(text)?.code).toBe("UNSUPPORTED");
+    }
+    expect(rejectionOf(run("make that one two")).code).toBe("UNSUPPORTED");
+  });
+
+  it("keeps grammatical compounds as quantities and still caps large ones", () => {
+    for (const text of ["twenty one burgers", "one hundred burgers", "two hundred fifty lemonades", "one thousand fries", "a hundred fifty burgers", "two dozen burgers"]) {
+      expect(rejectionOf(run(text)).code).toBe("QUANTITY_LIMIT");
+    }
+    expect(opsOf(run("two burgers"))).toEqual([{ type: "ADD", itemId: "burger", qty: 2, modifiers: [] }]);
+    expect(opsOf(run("a couple of burgers"))).toEqual([{ type: "ADD", itemId: "burger", qty: 2, modifiers: [] }]);
+    expect(opsOf(run("a burger, make that three"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "SET_QTY", ref: { by: "last" }, qty: 3 },
+    ]);
+  });
+});
+
 describe("adds and modifiers", () => {
   it("accepts every menu alias, singular and derived plural", () => {
     for (const item of Object.values(MENU)) {
@@ -243,14 +297,18 @@ describe("adds and modifiers", () => {
   it("attaches a following modifier clause to the pending add and dedupes", () => {
     expect(opsOf(run("a burger, no onions"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: ["no_onions"] }]);
     expect(opsOf(run("a burger with no onions and no onions"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: ["no_onions"] }]);
-    expect(opsOf(run("a burger with no onions and extra cheese, make it a double"))).toEqual([
+    expect(opsOf(run("a burger with no onions and extra cheese and a double"))).toEqual([
       { type: "ADD", itemId: "burger", qty: 1, modifiers: ["no_onions", "extra_cheese", "double"] },
     ]);
   });
 
   it("does not check item/modifier pairings (D1)", () => {
     expect(opsOf(run("fries with cheese"))).toEqual([{ type: "ADD", itemId: "fries", qty: 1, modifiers: ["extra_cheese"] }]);
-    expect(opsOf(run("a lemonade, make it a double"))).toEqual([{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: ["double"] }]);
+    expect(opsOf(run("a double lemonade"))).toEqual([{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: ["double"] }]);
+    expect(opsOf(run("a lemonade, make it a double"))).toEqual([
+      { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
+      { type: "MOD", ref: { by: "last" }, modifier: "double", enabled: true },
+    ]);
   });
 
   it("supports 'a couple of' as two and 'add' as a verb", () => {
@@ -299,14 +357,47 @@ describe("references and modifications", () => {
     expect(opsOf(run("a double burger"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: ["double"] }]);
   });
 
-  it("re-quantifies and modifies pending adds by item within the batch (D3)", () => {
+  it("keeps plain edit commands after adds as sequential ops with references (first C intake)", () => {
     expect(opsOf(run("a burger and fries, make the burger two"))).toEqual([
-      { type: "ADD", itemId: "burger", qty: 2, modifiers: [] },
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
       { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "SET_QTY", ref: { by: "item", itemId: "burger" }, qty: 2 },
     ]);
     expect(opsOf(run("a burger and fries, make the burger a double"))).toEqual([
-      { type: "ADD", itemId: "burger", qty: 1, modifiers: ["double"] },
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
       { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "double", enabled: true },
+    ]);
+    expect(opsOf(run("a burger, make that two"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "SET_QTY", ref: { by: "last" }, qty: 2 },
+    ]);
+    expect(opsOf(run("a burger and fries, remove the fries"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "REMOVE", ref: { by: "item", itemId: "fries" } },
+    ]);
+    expect(opsOf(run("a burger and fries, no onions on the burger"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "no_onions", enabled: true },
+    ]);
+  });
+
+  it("never resolves an ambiguous item reference inside the parser (first C intake)", () => {
+    expect(opsOf(run("a burger and a burger and make the burger a double"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "double", enabled: true },
+    ]);
+  });
+
+  it("leaves 'it' for the engine, which tracks the most recently affected line (first C intake)", () => {
+    expect(opsOf(run("a burger and fries and make the burger a double and make it two"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "double", enabled: true },
+      { type: "SET_QTY", ref: { by: "last" }, qty: 2 },
     ]);
   });
 });
@@ -318,9 +409,28 @@ describe("corrections and interruptions (D3)", () => {
   });
 
   it("handles every marker form as a replacement", () => {
-    for (const marker of ["no wait", "wait no", "wait", "actually", "actually no", "i mean", "sorry", "scratch that", "never mind"]) {
+    for (const marker of ["no wait", "wait no", "wait", "actually", "actually no", "i mean", "sorry", "scratch that", "never mind", "forget that"]) {
       expect(opsOf(run(`a burger, ${marker}, fries`))).toEqual([{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }]);
     }
+    expect(opsOf(run("a burger, fries instead"))).toEqual([{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }]);
+  });
+
+  it("rewrites the pending batch only behind a correction marker (first C intake)", () => {
+    expect(opsOf(run("a burger, no wait, fries"))).toEqual([{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }]);
+    expect(opsOf(run("two lemonades, actually make that three"))).toEqual([{ type: "ADD", itemId: "lemonade", qty: 3, modifiers: [] }]);
+    expect(opsOf(run("a burger, actually make it a double"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: ["double"] }]);
+    expect(opsOf(run("a burger, make that two instead"))).toEqual([{ type: "ADD", itemId: "burger", qty: 2, modifiers: [] }]);
+    expect(opsOf(run("a burger and fries, scratch the fries"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }]);
+    expect(opsOf(run("a burger — actually no — fries and a lemonade"))).toEqual([
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
+    ]);
+    expect(opsOf(run("forget the burger"))).toEqual([{ type: "REMOVE", ref: { by: "item", itemId: "burger" } }]);
+    expect(opsOf(run("a burger, no onions"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: ["no_onions"] }]);
+    expect(opsOf(run("a burger, no onions, make that two"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: ["no_onions"] },
+      { type: "SET_QTY", ref: { by: "last" }, qty: 2 },
+    ]);
   });
 
   it("drops the previous pending clause and fails closed when nothing remains", () => {

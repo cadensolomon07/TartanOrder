@@ -92,11 +92,12 @@
     ] }
   },
   {
-    "name": "#14 make that N re-quantifies the last pending add",
+    "name": "#14 make that N after adds is a sequential SET_QTY on last (engine resolves)",
     "text": "a burger and fries, make that two",
     "expect": { "kind": "proposal", "ops": [
       { "type": "ADD", "itemId": "burger", "qty": 1, "modifiers": [] },
-      { "type": "ADD", "itemId": "fries", "qty": 2, "modifiers": [] }
+      { "type": "ADD", "itemId": "fries", "qty": 1, "modifiers": [] },
+      { "type": "SET_QTY", "ref": { "by": "last" }, "qty": 2 }
     ] }
   },
   {

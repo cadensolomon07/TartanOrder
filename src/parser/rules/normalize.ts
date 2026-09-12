@@ -1,4 +1,4 @@
-import { CORRECTION_MARKERS, DROP_MARKERS } from "./lexicon";
+import { CORRECTION_MARKERS, DROP_MARKERS, TRAILING_CORRECTION_MARKERS } from "./lexicon";
 
 /** Closed filler list. "like" is handled per clause because it is filler only at a clause start. */
 const FILLER_PHRASES = [
@@ -11,15 +11,29 @@ const CLAUSE_LEAD_FILLERS: ReadonlySet<string> = new Set(["like", "and"]);
 /** Commas split clauses except inside a thousands group; so do "and", "then" and "plus". */
 const CLAUSE_SEPARATOR = /(?<!\d),|,(?!\d{3}\b)|\s+(?:and|then|plus)\s+/;
 
+/**
+ * A hyphen, minus sign or en dash directly before a digit at token start is a numeric
+ * sign ("-2", "−2", "–2"); it must survive to the quantity guard. Every other hyphen
+ * or minus is a word break ("twenty-one", "lemon-ade").
+ */
+const SIGN_DASH = /(?<![a-z0-9])[-−–](?=\d)/g;
+const HYPHEN = /(?<=[a-z0-9])[-−]|[-−](?!\d)/g;
+
 export type MarkedTokens = { readonly tokens: readonly string[]; readonly corrected: boolean; readonly drop: boolean };
+
+/** Canonicalizes dashes in lower-cased text: numeric signs become "-", hyphens become spaces. */
+export function foldDashes(text: string): string {
+  return text.replace(SIGN_DASH, "-").replace(HYPHEN, " ");
+}
 
 export function normalizeText(raw: string): string {
   return raw
     .toLowerCase()
     .replace(/[‘’`]/g, "'")
     .replace(/&/g, " and ")
+    .replace(SIGN_DASH, "-")
     .replace(/[—–;]|\s-+\s/g, " , ")
-    .replace(/-/g, " ")
+    .replace(HYPHEN, " ")
     .replace(FILLER_PATTERN, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -47,7 +61,12 @@ function leadingMarker(tokens: readonly string[], markers: readonly (readonly st
   return match ? match.length : 0;
 }
 
-/** Strips leading correction/drop markers, recording which kind appeared. */
+function trailingMarker(tokens: readonly string[], markers: readonly (readonly string[])[]): number {
+  const match = markers.find((marker) => marker.length <= tokens.length && startsWith(tokens, tokens.length - marker.length, marker));
+  return match ? match.length : 0;
+}
+
+/** Strips leading correction/drop markers and a trailing "instead", recording which kind appeared. */
 export function stripMarkers(tokens: readonly string[]): MarkedTokens {
   let rest = tokens;
   let corrected = false;
@@ -57,6 +76,9 @@ export function stripMarkers(tokens: readonly string[]): MarkedTokens {
     if (dropLength > 0) { drop = true; rest = rest.slice(dropLength); continue; }
     const correctionLength = leadingMarker(rest, CORRECTION_MARKERS);
     if (correctionLength > 0) { corrected = true; rest = rest.slice(correctionLength); continue; }
-    return { tokens: rest, corrected, drop };
+    break;
   }
+  const trailingLength = trailingMarker(rest, TRAILING_CORRECTION_MARKERS);
+  if (trailingLength > 0) return { tokens: rest.slice(0, -trailingLength), corrected: true, drop };
+  return { tokens: rest, corrected, drop };
 }

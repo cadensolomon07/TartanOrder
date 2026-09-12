@@ -41,7 +41,10 @@ export const SOLE_ITEM_FOR_MODIFIER: Readonly<Partial<Record<ModifierId, ItemId>
   }),
 );
 
-export const REMOVE_VERBS: ReadonlySet<string> = new Set(["remove", "drop", "cancel", "forget", "scratch", "delete"]);
+/** Correction verbs: "scratch the fries" retracts a pending ADD; only with nothing pending is it a cart REMOVE. */
+export const RETRACT_VERBS: ReadonlySet<string> = new Set(["scratch", "forget"]);
+/** Every verb that names a line to take off; the non-retracting ones are plain sequential commands. */
+export const REMOVE_VERBS: ReadonlySet<string> = new Set(["remove", "drop", "cancel", "delete", ...RETRACT_VERBS]);
 export const DETERMINERS: ReadonlySet<string> = new Set(["the", "a", "an", "my"]);
 export const LAST_PHRASES: readonly (readonly string[])[] = [
   ["the", "last", "item"], ["the", "last", "one"], ["last", "one"], ["that", "one"], ["that"], ["it"],
@@ -52,13 +55,15 @@ export const UNDO_PHRASES: ReadonlySet<string> = new Set(["undo", "undo that", "
 export const CORRECTION_MARKERS: readonly (readonly string[])[] = [
   ["no", "wait"], ["wait", "no"], ["no", "actually"], ["actually", "no"], ["i", "mean"], ["actually"], ["wait"], ["sorry"],
 ];
+/** A correction marker at the end of a clause ("fries instead", "make that two instead"). */
+export const TRAILING_CORRECTION_MARKERS: readonly (readonly string[])[] = [["instead"]];
 /** A drop marker retracts the previous pending clause outright. */
 export const DROP_MARKERS: readonly (readonly string[])[] = [
   ["scratch", "that"], ["scratch", "it"], ["forget", "that"], ["forget", "it"], ["never", "mind"], ["nevermind"],
 ];
 
 const FUNCTION_WORDS = ["a", "an", "the", "my", "with", "without", "on", "for", "to", "of", "like", "and", "then", "plus",
-  "not", "no", "add", "make", "take", "off", "instead", "go", "back", "undo"];
+  "not", "no", "add", "make", "take", "off", "go", "back", "undo"];
 
 /** Every token the grammar can consume; anything else is unknown and fails closed. */
 export const VOCABULARY: ReadonlySet<string> = new Set([
@@ -67,6 +72,7 @@ export const VOCABULARY: ReadonlySet<string> = new Set([
   ...REMOVE_VERBS,
   ...LAST_PHRASES.flat(),
   ...CORRECTION_MARKERS.flat(),
+  ...TRAILING_CORRECTION_MARKERS.flat(),
   ...DROP_MARKERS.flat(),
   ...FUNCTION_WORDS,
 ]);

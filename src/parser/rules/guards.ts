@@ -1,8 +1,9 @@
 import { LIMITS } from "@/contracts";
 import { MESSAGES, reject, type Rejection } from "./messages";
+import { foldDashes } from "./normalize";
 import { readNumber } from "./numbers";
 
-const THOUSANDS_TOKEN = /^\d{1,3}(?:,\d{3})+$/;
+const THOUSANDS_TOKEN = /^-?\d{1,3}(?:,\d{3})+$/;
 const EDGE_PUNCTUATION = /^,+|[,.]+$/g;
 
 /** Closed list; word-bounded so "no onions please" and "freeze" never trigger. */
@@ -17,11 +18,10 @@ function splitLooseCommas(token: string): string[] {
   return THOUSANDS_TOKEN.test(token) ? [token] : token.split(",");
 }
 
+/** Lower-cased alphanumerics with thousands commas, decimal points and numeric signs kept. */
 function quantityTokens(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/-/g, " ")
-    .replace(/[^a-z0-9,.]+/g, " ")
+  return foldDashes(text.toLowerCase())
+    .replace(/[^a-z0-9,.-]+/g, " ")
     .split(" ")
     .flatMap(splitLooseCommas)
     .map((token) => token.replace(EDGE_PUNCTUATION, ""))
@@ -36,6 +36,8 @@ function guardQuantities(text: string): Rejection | null {
     if (!reading) { index += 1; continue; }
     if (reading.form === "decimal") return reject("UNSUPPORTED", MESSAGES.quantityDecimal);
     if (reading.form === "vague") return reject("UNSUPPORTED", MESSAGES.quantityVague);
+    if (reading.form === "malformed") return reject("UNSUPPORTED", MESSAGES.quantityMalformed);
+    // Negative values arrive here with their sign intact and fail the lower bound.
     if (reading.form === "integer" && (reading.value < 1 || reading.value > LIMITS.quantity)) {
       return reject("QUANTITY_LIMIT", MESSAGES.quantityLimit);
     }

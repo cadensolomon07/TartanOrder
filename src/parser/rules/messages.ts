@@ -18,6 +18,7 @@ export const MESSAGES = {
   quantityLimit: `Quantities must be between 1 and ${LIMITS.quantity} per item; quantities are never rounded.`,
   quantityVague: `Please say an exact number from 1 to ${LIMITS.quantity}.`,
   quantityDecimal: `Please use a whole number from 1 to ${LIMITS.quantity}.`,
+  quantityMalformed: `I heard more than one number in a row. Please say a single quantity from 1 to ${LIMITS.quantity}.`,
   injection: "I can only take menu orders.",
   undoAlone: "Say 'undo' on its own to reverse the last change.",
   tooManyOps: `Please make up to ${LIMITS.operations} changes at a time.`,

@@ -1,6 +1,6 @@
 import { LIMITS, type CoreCode, type ItemId, type ModifierId } from "@/contracts";
 import {
-  ALIAS_TOKENS, DETERMINERS, ITEM_ALIASES, LAST_PHRASES, MODIFIER_PHRASES, REMOVE_VERBS, UNDO_PHRASES, VOCABULARY,
+  ALIAS_TOKENS, DETERMINERS, ITEM_ALIASES, LAST_PHRASES, MODIFIER_PHRASES, REMOVE_VERBS, RETRACT_VERBS, UNDO_PHRASES, VOCABULARY,
   type ModifierChange,
 } from "./lexicon";
 import { MESSAGES, deferralMessage, reject } from "./messages";
@@ -9,10 +9,10 @@ import { readNumber } from "./numbers";
 
 export type ModelRef = { readonly by: "last" } | { readonly by: "item"; readonly itemId: ItemId };
 
-/** What one clause means before batch-level correction logic is applied. */
+/** What one clause means before batch-level correction logic is applied; `retracts` marks "scratch"/"forget" verbs. */
 export type Clause =
   | { readonly kind: "add"; readonly itemId: ItemId; readonly qty: number; readonly modifiers: readonly ModifierId[] }
-  | { readonly kind: "remove"; readonly ref: ModelRef }
+  | { readonly kind: "remove"; readonly ref: ModelRef; readonly retracts: boolean }
   | { readonly kind: "setQty"; readonly ref: ModelRef; readonly qty: number }
   | { readonly kind: "mod"; readonly ref: ModelRef | null; readonly changes: readonly ModifierChange[] }
   | { readonly kind: "undo" }
@@ -96,29 +96,23 @@ function parseRemove(tokens: readonly string[]): Clause | null {
     if (tokens[index] !== "off") return UNSUPPORTED;
     index += 1;
   }
-  return index === tokens.length ? { kind: "remove", ref: target.value } : UNSUPPORTED;
+  if (index !== tokens.length) return UNSUPPORTED;
+  return { kind: "remove", ref: target.value, retracts: RETRACT_VERBS.has(tokens[0]) };
 }
 
-/** "make that two" is a quantity; "make the burger a double" is a modifier. */
+/** "make that two" is a quantity; "make the burger a double" is a modifier. A trailing "instead" is a marker, stripped earlier. */
 function parseMake(tokens: readonly string[]): Clause | null {
   if (tokens[0] !== "make") return null;
   const target = matchTarget(tokens, 1);
   if (!target) return UNSUPPORTED;
   const articleSkipped = tokens[target.next] === "a" || tokens[target.next] === "an" ? target.next + 1 : target.next;
   const modifier = matchModifier(tokens, target.next) ?? matchModifier(tokens, articleSkipped);
-  let next: number;
-  let clause: Clause;
   if (modifier) {
-    clause = { kind: "mod", ref: target.value, changes: [modifier.value] };
-    next = modifier.next;
-  } else {
-    const number = readNumber(tokens, target.next);
-    if (!number || number.form !== "integer" || number.value < 1 || number.value > LIMITS.quantity) return UNSUPPORTED;
-    clause = { kind: "setQty", ref: target.value, qty: number.value };
-    next = target.next + number.length;
+    return modifier.next === tokens.length ? { kind: "mod", ref: target.value, changes: [modifier.value] } : UNSUPPORTED;
   }
-  if (tokens[next] === "instead") next += 1;
-  return next === tokens.length ? clause : UNSUPPORTED;
+  const number = readNumber(tokens, target.next);
+  if (!number || number.form !== "integer" || number.value < 1 || number.value > LIMITS.quantity) return UNSUPPORTED;
+  return target.next + number.length === tokens.length ? { kind: "setQty", ref: target.value, qty: number.value } : UNSUPPORTED;
 }
 
 /** A clause that is only modifier phrases ("no onions", "a double"), optionally "on the burger" / "on that". */
@@ -167,6 +161,7 @@ function parseAdd(tokens: readonly string[]): Clause {
     // The guard already rejected these on the whole string; this only keeps the matcher total.
     if (number.form === "decimal") return reject("UNSUPPORTED", MESSAGES.quantityDecimal);
     if (number.form === "vague") return reject("UNSUPPORTED", MESSAGES.quantityVague);
+    if (number.form === "malformed") return reject("UNSUPPORTED", MESSAGES.quantityMalformed);
     if (number.value < 1 || number.value > LIMITS.quantity) return reject("QUANTITY_LIMIT", MESSAGES.quantityLimit);
     qty = number.value;
     index += number.length;
