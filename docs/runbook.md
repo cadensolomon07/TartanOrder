@@ -45,7 +45,11 @@ Friday, September 11, 2026 at 9 p.m. to Saturday, September 12 at 4 p.m. EDT is 
 
 A's session actually began about Friday 9:50 p.m.; early milestones are compressed. Bootstrap `1676b3d` was published around 10 p.m. to the existing repository and all three work branches.
 
-[Official Devpost](https://hack-cmu-2026.devpost.com/) confirms the September 12, 4 p.m. EDT cutoff, project description, track selection and 50-word track-fit explanation. Judging covers usefulness, technical complexity, originality and demo quality. Gemini has a sponsor prize, contingent on actually using it. The [organizer site](https://www.acmatcmu.com/hackcmu2026/) still contains placeholder tracks and signup forms. **The actual submission form and final track names remain unverified. Get these from the on-site organizer before submission.**
+[Official Devpost](https://hack-cmu-2026.devpost.com/) confirms the September 12, **4 p.m. EDT** cutoff and asks for a project description, track selection and approximately 50 words explaining track fit. Start from [the verified Devpost project-entry page](https://devpost.com/submit-to/31074-hack-cmu/manage/submissions); its logged-out view requires hackathon registration, so the actual participant fields have not been inspected. The public schedule also mentions a Google submission form without linking it.
+
+[Official rules](https://hack-cmu-2026.devpost.com/rules) judge practical value, implementation difficulty, originality and demonstration quality; original work must begin during the event. The [Gemini prize listing](https://hack-cmu-2026.devpost.com/#prizes) lists one winner receiving Google swag for a project using its API. No additional public Gemini submission requirements were found; this is eligibility information, not a prize claim.
+
+**Still needed from the participant account or on-site organizer:** the final track names and confirmation of the actual submission destination/Google Form. The [organizer site](https://www.acmatcmu.com/hackcmu2026/) still shows five placeholder tracks; its linked registration/signup forms are not verified project-submission forms. Public Devpost updates/discussions did not resolve this. No submission, registration or outsider message has been sent.
 
 ## Local production fallback
 
