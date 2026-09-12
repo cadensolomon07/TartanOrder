@@ -1,0 +1,280 @@
+{
+  "kind": "real-browser-campus-gemini",
+  "appUrl": "http://127.0.0.1:3000",
+  "recordedAt": "2026-09-12T16:00:40.130Z",
+  "voice": "Typed browser input; no new microphone trial.",
+  "retries": "None",
+  "cases": [
+    {
+      "locationId": "188",
+      "itemId": "cmu_188_smash_d_burger",
+      "text": "I'd like one Smash'd Burger, please.",
+      "expectedCents": 920,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 2,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_188_smash_d_burger",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$9.20",
+      "passed": true
+    },
+    {
+      "locationId": "114",
+      "itemId": "cmu_114_samosa-2",
+      "text": "I'd like one Samosa (2), please.",
+      "expectedCents": 550,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_114_samosa-2",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$5.50",
+      "passed": true
+    },
+    {
+      "locationId": "92",
+      "itemId": "cmu_92_the-leonardo",
+      "text": "I'd like one The Leonardo, please.",
+      "expectedCents": 840,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_92_the-leonardo",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$8.40",
+      "passed": true
+    },
+    {
+      "locationId": "109",
+      "itemId": "cmu_109_chicken-burger",
+      "text": "I'd like one Chicken Burger, please.",
+      "expectedCents": 799,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_109_chicken-burger",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$7.99",
+      "passed": true
+    },
+    {
+      "locationId": "110",
+      "itemId": "cmu_110_white_rice",
+      "text": "I'd like one White Rice, please.",
+      "expectedCents": 300,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_110_white_rice",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$3.00",
+      "passed": true
+    },
+    {
+      "locationId": "82",
+      "itemId": "cmu_82_lamb_turkey_shawarma_pita",
+      "text": "I'd like one Lamb and Turkey Shawarma Sandwich (Pita), please.",
+      "expectedCents": 1195,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_82_lamb_turkey_shawarma_pita",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$11.95",
+      "passed": true
+    },
+    {
+      "locationId": "174",
+      "itemId": "cmu_174_steamed-pork-bao-bun",
+      "text": "I'd like one Steamed Pork Bao Bun, please.",
+      "expectedCents": 419,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_174_steamed-pork-bao-bun",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$4.19",
+      "passed": true
+    },
+    {
+      "locationId": "155",
+      "itemId": "cmu_155_mini-orange-chicken-bowl",
+      "text": "I'd like one Mini Orange Chicken Bowl, please.",
+      "expectedCents": 839,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-shortlist-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_155_mini-orange-chicken-bowl",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$8.39",
+      "passed": true
+    },
+    {
+      "name": "Stackd combined order and across-turn edit",
+      "steps": [
+        {
+          "v": 2,
+          "requestId": "r1",
+          "baseRevision": 2,
+          "menuVersion": "cmu-shortlist-2026-09-12",
+          "parser": "gemini",
+          "fallbackReason": null,
+          "result": {
+            "kind": "proposal",
+            "ops": [
+              {
+                "type": "ADD",
+                "itemId": "cmu_188_smash_d_burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "type": "ADD",
+                "itemId": "cmu_188_fresh_cut_fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ]
+          }
+        },
+        {
+          "v": 2,
+          "requestId": "r2",
+          "baseRevision": 5,
+          "menuVersion": "cmu-shortlist-2026-09-12",
+          "parser": "gemini",
+          "fallbackReason": null,
+          "result": {
+            "kind": "proposal",
+            "ops": [
+              {
+                "type": "SET_QTY",
+                "ref": {
+                  "by": "line",
+                  "lineId": "r1:1"
+                },
+                "qty": 2
+              }
+            ]
+          }
+        }
+      ],
+      "receipt": "Order placed\nSimulated · no real purchase\n\nTicket c2gv02:receipt:7\n\n1× Smash'd Burger · Stack'd Underground\n$9.20 · published menu price\nEstimated preparation wait: 14 min. Simulated wait times\n1× Fresh Cut Fries · Stack'd Underground\n$3.45 · published menu price\nEstimated preparation wait: 14 min. Simulated wait times\nTotal\n$12.65\n\nEstimated preparation wait: 14 min Simulated wait times\n\nUses the maximum vendor wait, assuming parallel preparation. Excludes walking and pickup travel.\n\nNew order\n\nPublished or sample menu prices only; no tax or meal-plan discounts applied. Nothing was sent to a dining location.",
+      "passed": true
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}

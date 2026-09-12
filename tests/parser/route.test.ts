@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../../src/app/api/interpret/route";
 import { ApiErrorSchema, LIMITS, ParseResponseSchema, type ApiError, type ParseResult } from "../../src/contracts";
-import { FIXTURE_REQUEST, FIXTURE_RESPONSE } from "../../src/contracts/fixtures";
+import { PUBLIC_FIXTURE_REQUEST as FIXTURE_REQUEST, PUBLIC_FIXTURE_RESPONSE as FIXTURE_RESPONSE } from "../../src/contracts/fixtures";
 import { GeminiError, parseGemini, type GeminiConfig, type GeminiOutcome } from "../../src/parser/gemini.server";
 
 vi.mock("@/parser/gemini.server", () => {
@@ -16,14 +16,7 @@ const TIMING = /^validate;dur=\d+(\.\d+)?, provider;dur=\d+(\.\d+)?, total;dur=\
 const FIXTURE_TEXT = FIXTURE_REQUEST.text;
 const KEY = "test-key-never-logged";
 
-const geminiProposal: ParseResult = {
-  kind: "proposal",
-  ops: [
-    { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
-    { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
-    { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
-  ],
-};
+const geminiProposal: ParseResult = FIXTURE_RESPONSE.result;
 
 function outcome(result: ParseResult): GeminiOutcome {
   return {
@@ -347,7 +340,7 @@ describe("POST /api/interpret: gemini mode", () => {
   });
 
   it("reports shadow disagreement when the model and rules differ", async () => {
-    vi.mocked(parseGemini).mockResolvedValue(outcome({ kind: "proposal", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }] }));
+    vi.mocked(parseGemini).mockResolvedValue(outcome({ kind: "proposal", ops: [{ type: "ADD", itemId: "cmu_188_fresh_cut_fries", qty: 1, modifiers: [] }] }));
     await postJson(FIXTURE_REQUEST);
     expect(loggedLine()).toMatchObject({ shadowAgree: false, shadowKind: "proposal" });
   });
@@ -467,10 +460,24 @@ describe("POST /api/interpret: gemini mode", () => {
 
   it("passes bounded cart and conversation context intact to Gemini", async () => {
     vi.mocked(parseGemini).mockResolvedValue(outcome(geminiProposal));
-    const context = { lines: [{ lineId: "earlier:0", itemId: "burger", qty: 1, modifiers: ["no_lettuce"] }], lastLineId: "earlier:0", pending: null, recent: [{ role: "user", text: "One burger without lettuce." }] };
-    const res = await postJson({ ...FIXTURE_REQUEST, text: "Put the lettuce back, please", context });
+    const context = { lines: [{ lineId: "earlier:0", itemId: "cmu_188_smash_d_burger", qty: 1, modifiers: [] }], lastLineId: "earlier:0", pending: null, recent: [{ role: "user", text: "One Smashd Burger." }] };
+    const res = await postJson({ ...FIXTURE_REQUEST, text: "Make the burger two, please", context });
     expect(res.status).toBe(200);
     expect(vi.mocked(parseGemini).mock.calls[0][0].context).toEqual(context);
-    expect(JSON.stringify(loggedLine())).not.toContain("Put the lettuce");
+    expect(JSON.stringify(loggedLine())).not.toContain("Make the burger");
+  });
+});
+
+
+describe("public restaurant shortlist admission", () => {
+  it.each(["demo", "115", "94", "190", "84", "180", "91"])("rejects retired location %s before a provider call", async (locationId) => {
+    const response = await postJson({ ...FIXTURE_REQUEST, locationId });
+    await expectApiError(response, 400, "INVALID_REQUEST", false);
+    expect(parseGemini).not.toHaveBeenCalled();
+  });
+  it("rejects an otherwise valid retired-item model proposal", async () => {
+    vi.stubEnv("PARSER_MODE", "gemini"); vi.stubEnv("GEMINI_API_KEY", KEY);
+    vi.mocked(parseGemini).mockResolvedValue(outcome({kind:"proposal",ops:[{type:"ADD",itemId:"cmu_190_vanilla_milkshake",qty:1,modifiers:[]}]}));
+    await expectApiError(await postJson(FIXTURE_REQUEST), 502, "INVALID_MODEL_OUTPUT", false);
   });
 });

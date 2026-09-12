@@ -2,6 +2,17 @@ import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, Wai
 import seedWaits from "../../config/wait-times.seed.json";
 import equivalents from "../../config/equivalents.json";
 
+/** Active campus fixture for HTTP tests; never presented as live parsing. */
+export const PUBLIC_FIXTURE_REQUEST = ParseRequestSchema.parse({
+  v: API_VERSION, menuVersion: MENU_VERSION, requestId: "u1", baseRevision: 1,
+  text: "two fresh cut fries", source: "fixture", asrConfidence: null, locationId: "188",
+});
+export const PUBLIC_FIXTURE_RESPONSE = ParseResponseSchema.parse({
+  v: API_VERSION, menuVersion: MENU_VERSION, requestId: "u1", baseRevision: 1,
+  parser: "fixture", fallbackReason: null,
+  result: { kind: "proposal", ops: [{ type: "ADD", itemId: "cmu_188_fresh_cut_fries", qty: 2, modifiers: [] }] },
+});
+
 export const WAIT_FIXTURE_CONFIG = WaitEngineConfigSchema.parse({
   snapshot: seedWaits, available: true, unavailableReason: null,
   evaluatedAt: "2026-09-12T14:00:00.000Z", ...equivalents,

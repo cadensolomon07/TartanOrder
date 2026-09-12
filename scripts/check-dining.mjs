@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { DINING_LOCATIONS, DINING_SNAPSHOT } from "../src/contracts/campus.ts";
+import {
+  ACTIVE_CAMPUS_ITEMS, ACTIVE_DINING_LOCATIONS, CAMPUS_ITEMS,
+  DINING_LOCATIONS, DINING_SNAPSHOT, UNPRICED_MENU_ITEMS,
+} from "../src/contracts/campus.ts";
 
 // A read-only source check. campus.ts remains the only released catalog snapshot.
 const TIMEOUT_MS = 15_000;
@@ -34,12 +37,12 @@ async function readBytes(url, maximumBytes) {
 async function check() {
   if (process.argv.length > 2) {
     if (process.argv.slice(2).join(" ") !== "--help") throw new Error("Use node scripts/check-dining.mjs [--help]");
-    console.log("Read-only CMU directory/PDF check; prints JSON. Exit 0: compared sources unchanged; 1: changes need review; 2: check incomplete. No automatic catalog updates.");
+    console.log("Read-only check of the complete stored directory baseline and active catalog menu sources, including supplied PDFs; prints JSON. Exit 0: compared sources unchanged; 1: changes need review; 2: check incomplete. No automatic catalog updates.");
     return;
   }
   const bytes = await readBytes(DINING_SNAPSHOT.directoryUrl, 2 * 1024 * 1024);
   const upstream = Directory.parse(JSON.parse(bytes.toString("utf8"))).map((row) => ({
-    id: row.conceptId, name: row.name, menuUrl: row.menu, detailUrl: row.url,
+    id: row.conceptId, name: row.name, directoryMenuUrl: row.menu, detailUrl: row.url,
   }));
   const previous = new Map(DINING_LOCATIONS.map((row) => [row.id, row]));
   const current = new Map(upstream.map((row) => [row.id, row]));
@@ -48,16 +51,25 @@ async function check() {
   const changed = upstream.flatMap((row) => {
     const before = previous.get(row.id);
     if (!before) return [];
-    const fields = ["menuUrl", "detailUrl"].filter((key) => before[key] !== row[key]);
+    const fields = ["directoryMenuUrl", "detailUrl"].filter((key) => before[key] !== row[key]);
     return fields.length ? [{ id: row.id, fields: Object.fromEntries(fields.map((key) => [key, { before: before[key], after: row[key] }])) }] : [];
   });
-  const menus = upstream.filter((row) => row.menuUrl);
+  // The selected public menu can be a supplied CMU-hosted snapshot even when
+  // the live directory has no menu link. Check those files without changing
+  // the independent directory baseline or treating inactive entries as removed.
+  const menus = ACTIVE_DINING_LOCATIONS.filter((row) => row.menuUrl);
   const sources = [];
   let next = 0;
   async function worker() {
     while (next < menus.length) {
       const row = menus[next++];
-      const source = { id: row.id, url: row.menuUrl, baselineSha256: previous.get(row.id)?.sourceSha256 ?? null };
+      const source = {
+        id: row.id, name: row.name, url: row.menuUrl,
+        sourceKind: row.menuUrl === row.directoryMenuUrl ? "directory-linked" : "supplied-cmu-hosted",
+        directoryMenuUrl: row.directoryMenuUrl,
+        sourceNote: "sourceNote" in row ? row.sourceNote : null,
+        baselineSha256: row.sourceSha256 ?? null,
+      };
       if (!new URL(row.menuUrl).pathname.toLowerCase().endsWith(".pdf")) {
         sources.push({ ...source, status: "not_checked", reason: "Non-PDF menu source; requires manual review" });
         continue;
@@ -82,12 +94,22 @@ async function check() {
     directoryUrl: DINING_SNAPSHOT.directoryUrl,
     summary: {
       baselineLocations: previous.size, upstreamLocations: current.size,
-      upstreamMenuLinks: menus.length, uncheckedWebMenus: sources.filter((source) => source.status === "not_checked").length,
+      upstreamMenuLinks: upstream.filter((row) => row.directoryMenuUrl).length,
+      activeLocations: ACTIVE_DINING_LOCATIONS.length,
+      activePricedLocations: new Set(ACTIVE_CAMPUS_ITEMS.map((item) => item.locationId)).size,
+      activePricedConfigurations: ACTIVE_CAMPUS_ITEMS.length,
+      unavailablePreviewItems: UNPRICED_MENU_ITEMS.length,
+      knownPriceUnavailablePreviews: UNPRICED_MENU_ITEMS.filter((item) => item.priceCents !== undefined).length,
+      storedCampusConfigurations: CAMPUS_ITEMS.length,
+      archivedPricedConfigurations: CAMPUS_ITEMS.length - ACTIVE_CAMPUS_ITEMS.length,
+      activeMenuSources: menus.length,
+      suppliedMenuSources: sources.filter((source) => source.sourceKind === "supplied-cmu-hosted").length,
+      uncheckedWebMenus: sources.filter((source) => source.status === "not_checked").length,
       unchangedPdfs: sources.filter((source) => source.status === "unchanged").length,
       findingsNeedingReview: needsReview, failedChecks: failures,
     },
     directory: { added, missing, changed }, sources,
-    interpretation: "PDF hashes detect changed bytes, not changed prices. Unchanged sources do not establish current prices, hours, stock or availability. Curated display names are not compared. The catalog was not modified.",
+    interpretation: "Directory comparison uses all stored locations and directoryMenuUrl, independently of the requested public shortlist. PDF checks cover only active menuUrl sources, including supplied CMU-hosted snapshots that the directory does not link. Archived menu PDFs are outside this check. Hashes detect changed bytes, not changed prices; neither matched hashes nor a supplied source establish current register prices, hours, stock, popularity or availability. Display names are not compared. The catalog was not modified.",
   }, null, 2));
   process.exitCode = failures ? 2 : needsReview ? 1 : 0;
 }

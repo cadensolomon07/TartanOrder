@@ -3,7 +3,7 @@ import {
   ApiErrorSchema,
   LIMITS,
   MENU_VERSION,
-  ParseRequestSchema,
+  PublicParseRequestSchema,
   ParseResponseSchema,
   RequestIdSchema,
   type ApiError,
@@ -16,6 +16,8 @@ import { raceAbort } from "@/parser/abort";
 import { GeminiError, parseGemini, type GeminiUsage } from "@/parser/gemini.server";
 import { resolveParserMode, type ParserMode } from "@/parser/mode.server";
 import { parseRules } from "@/parser/rules";
+import { ACTIVE_LOCATION_IDS } from "@/contracts/campus";
+import { MENU } from "@/contracts/menu";
 
 /**
  * POST /api/interpret — validates a ParseRequest with the shared schemas, runs the
@@ -161,7 +163,7 @@ function validate(text: string): Admission {
   if (!json.ok) return failed(refuse(400, "INVALID_REQUEST", null, "The request body is not valid JSON."));
   const requestId = extractRequestId(json.value);
   if (hasForeignMenuVersion(json.value)) return failed(refuse(409, "MENU_VERSION_MISMATCH", requestId));
-  const parsed = ParseRequestSchema.safeParse(json.value);
+  const parsed = PublicParseRequestSchema.safeParse(json.value);
   if (!parsed.success) return failed(refuse(400, "INVALID_REQUEST", requestId));
   if (parsed.data.text.trim().length === 0) {
     return failed(refuse(400, "INVALID_REQUEST", requestId, "The transcript is blank."));
@@ -273,6 +275,11 @@ function deliver(
     result,
   });
   if (!envelope.success) {
+    return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
+  }
+  const accepted = envelope.data.result;
+  const ops = accepted.kind === "proposal" ? accepted.ops : accepted.kind === "clarify" ? accepted.choices.flatMap(choice => choice.ops) : [];
+  if(ops.some(op => op.type === "ADD" && !ACTIVE_LOCATION_IDS.some(id => id === MENU[op.itemId].locationId))) {
     return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
   }
   const shadow = shadowAgreement(req, envelope.data.result);

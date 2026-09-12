@@ -48,13 +48,14 @@ export function transferModifiers(requested: readonly ModifierId[], supported: r
 }
 
 /** Only curated comparable foods at explicitly nearby counters can be candidates. */
-export function swapCandidates(lines: readonly Line[], config: WaitEngineConfig, eligibleLineIds: readonly string[]): Candidate[] {
+export function swapCandidates(lines: readonly Line[], config: WaitEngineConfig, eligibleLineIds: readonly string[], allowedLocationIds?: readonly LocationId[]): Candidate[] {
   if (!usable(config)) return [];
   const current = deriveWaitView(lines, config).estimateMinutes;
   const candidates: Candidate[] = [];
   for (const line of lines) {
     if (!eligibleLineIds.includes(line.lineId)) continue;
     const original = MENU[line.itemId];
+    if (allowedLocationIds && !allowedLocationIds.includes(original.locationId as LocationId)) continue;
     const originalWait = vendorWait(config, original.locationId);
     if (originalWait === null) continue;
     const originalPrice = price(line.itemId, line.modifiers);
@@ -63,6 +64,7 @@ export function swapCandidates(lines: readonly Line[], config: WaitEngineConfig,
       for (const alternativeId of group.itemIds) {
         const alternative = MENU[alternativeId];
         if (!alternative || alternativeId === line.itemId || !group.differences[alternativeId]?.trim() || !nearby(config, original.locationId, alternative.locationId)) continue;
+        if (allowedLocationIds && !allowedLocationIds.includes(alternative.locationId as LocationId)) continue;
         const alternativeWait = vendorWait(config, alternative.locationId);
         if (alternativeWait === null || originalWait - alternativeWait < config.swapThresholdMinutes) continue;
         // Never discard an explicit exclusion, including dressing requested separately.

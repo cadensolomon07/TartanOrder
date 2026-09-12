@@ -9,6 +9,7 @@ type Dependencies = {
   sessionId?: ()=>string;
   locationId?: LocationId;
   waitConfig?: WaitEngineConfig;
+  allowedLocationIds?: readonly LocationId[];
 };
 const messages:Record<string,string> = {
   INVALID_SCHEMA:"That edit did not match the order format. Your cart was not changed.",
@@ -32,10 +33,11 @@ const messages:Record<string,string> = {
 export function createOrderController(deps:Dependencies = {}) {
   const makeSession = deps.sessionId ?? (()=>crypto.randomUUID());
   const parse = deps.interpret ?? interpret;
-  let engine = createEngine(makeSession(), deps.waitConfig);
+  let engine = createEngine(makeSession(), deps.waitConfig, deps.allowedLocationIds);
   let capture = false;
   let localOnly = false;
   let locationId = LocationIdSchema.parse(deps.locationId ?? "demo");
+  if (deps.allowedLocationIds && !deps.allowedLocationIds.includes(locationId))throw new Error("The selected location is outside this kiosk's catalog.");
   let assistant: OrderController["assistant"] = null;
   let conversation: ConversationTurn[] = [];
   let assistantCounter = 0;
@@ -144,13 +146,17 @@ export function createOrderController(deps:Dependencies = {}) {
     publish();
   }
   function reset() {
-    cancel();capture=false;engine=createEngine(makeSession(), deps.waitConfig);parser="none";notice=null;assistant=null;conversation=[];publish();
+    cancel();capture=false;engine=createEngine(makeSession(), deps.waitConfig, deps.allowedLocationIds);parser="none";notice=null;assistant=null;conversation=[];publish();
   }
   function setLocation(value: LocationId) {
     if(value === locationId)return;
     if(getView(engine).phase === "committed"){notice=messages.SESSION_COMMITTED;publish();return;}
     const checked=LocationIdSchema.safeParse(value);
     if(!checked.success){notice=messages.INVALID_SCHEMA;publish();return;}
+    if(deps.allowedLocationIds && !deps.allowedLocationIds.includes(checked.data)) {
+      cancel();capture=false;assistant=null;dispatch({type:"INPUT_STARTED",discardContinuation:true});
+      notice="That restaurant is not in this kiosk's selected campus menu.";publish();return;
+    }
     cancel();capture=false;locationId=checked.data;parser="none";assistant=null;conversation=[];
     dispatch({type:"INPUT_STARTED",discardContinuation:true});
     notice=`Ordering from ${locationName(locationId)}. Items already in your cart are kept.`;

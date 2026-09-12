@@ -6,11 +6,13 @@ import {
   ExportLogSchema,
   IdSchema,
   WaitEngineConfigSchema,
+  AllowedLocationIdsSchema,
   type AuditEntry,
   type AuditEvent,
   type Choice,
   type CoreCode,
   type Line,
+  type LocationId,
   type Op,
   type OrderView,
   type Ref,
@@ -35,6 +37,7 @@ export type EngineState = {
   readonly lastOutcome: Outcome;
   readonly lastCode: string | null;
   readonly waitConfig?: WaitEngineConfig;
+  readonly allowedLocationIds?: readonly LocationId[];
   readonly suppressedLineIds: readonly string[];
 };
 
@@ -65,9 +68,10 @@ function derivedId(state: EngineState, kind: string, number: number): string {
   return `${sessionKey(state.view.sessionId)}:${kind}:${number}`;
 }
 
-export function createEngine(sessionId: string, config?: WaitEngineConfig): EngineState {
+export function createEngine(sessionId: string, config?: WaitEngineConfig, allowedLocationIds?: readonly LocationId[]): EngineState {
   IdSchema.parse(sessionId);
   const waitConfig = config === undefined ? undefined : WaitEngineConfigSchema.parse(clone(config));
+  const locations = allowedLocationIds === undefined ? undefined : AllowedLocationIdsSchema.parse([...allowedLocationIds]);
   return {
     view: {
       sessionId,
@@ -89,6 +93,7 @@ export function createEngine(sessionId: string, config?: WaitEngineConfig): Engi
     lastOutcome: "applied",
     lastCode: null,
     ...(waitConfig ? { waitConfig } : {}),
+    ...(locations === undefined ? {} : { allowedLocationIds: locations }),
     suppressedLineIds: [],
   };
 }
@@ -152,12 +157,15 @@ function referenceMatches(cart: CartSnapshot, ref: Ref): Line[] {
 }
 
 /** Evaluates sequentially on a temporary cart, never on live state. */
-function scanBatch(original: CartSnapshot, ops: Op[], requestId: string): Success | Failure | Ambiguity {
+function scanBatch(original: CartSnapshot, ops: Op[], requestId: string, allowedLocationIds?: readonly LocationId[]): Success | Failure | Ambiguity {
   const cart = clone(original);
   for (let index = 0; index < ops.length; index += 1) {
     const op = ops[index];
     if (op.type === "UNDO") return { kind: "error", code: "INVALID_SCHEMA" };
     if (op.type === "ADD") {
+      if (allowedLocationIds && !allowedLocationIds.includes(MENU[op.itemId].locationId as LocationId)) {
+        return { kind: "error", code: "OFF_MENU" };
+      }
       if (!op.modifiers.every((modifier) => MENU[op.itemId].allowedModifiers.includes(modifier))) {
         return { kind: "error", code: "INVALID_MODIFIER" };
       }
@@ -194,8 +202,8 @@ function scanBatch(original: CartSnapshot, ops: Op[], requestId: string): Succes
   return { kind: "success", cart };
 }
 
-function evaluateBatch(original: CartSnapshot, ops: Op[], requestId: string): BatchResult {
-  const result = scanBatch(original, ops, requestId);
+function evaluateBatch(original: CartSnapshot, ops: Op[], requestId: string, allowedLocationIds?: readonly LocationId[]): BatchResult {
+  const result = scanBatch(original, ops, requestId, allowedLocationIds);
   if (result.kind !== "ambiguous") return result;
   if (result.matches.length > LIMITS.choices) return { kind: "error", code: "AMBIGUOUS_REFERENCE" };
 
@@ -209,7 +217,7 @@ function evaluateBatch(original: CartSnapshot, ops: Op[], requestId: string): Ba
 
     // Explore the entire batch for every candidate. A second ambiguous reference
     // or an invalid later operation cannot be hidden behind the first choice.
-    const candidate = scanBatch(original, explicit, requestId);
+    const candidate = scanBatch(original, explicit, requestId, allowedLocationIds);
     if (candidate.kind === "ambiguous") return { kind: "error", code: "AMBIGUOUS_REFERENCE" };
     if (candidate.kind === "error") return candidate;
     const modifiers = target.modifiers.map((modifier) => MODIFIERS[modifier].label).join(", ");
@@ -263,7 +271,7 @@ function applyBatch(state: EngineState, event: AuditEvent, ops: Op[], requestId:
     return finish(installCart(state, previous, state.history.slice(0, -1)), event, "applied");
   }
   const before = snapshot(state);
-  const result = evaluateBatch(before, ops, requestId);
+  const result = evaluateBatch(before, ops, requestId, state.allowedLocationIds);
   if (result.kind === "error") return finish(state, event, "rejected", result.code);
   if (result.kind === "clarify") {
     return finish(enterPending(state, requestId, result.question, result.choices), event, "clarify", "AMBIGUOUS_REFERENCE");
@@ -271,7 +279,7 @@ function applyBatch(state: EngineState, event: AuditEvent, ops: Op[], requestId:
   let installed = installCart(state, result.cart, [...state.history, before]);
   if (state.waitConfig) {
     const addedIds = result.cart.lines.filter(line => !before.lines.some(previous => previous.lineId === line.lineId) && !state.suppressedLineIds.includes(line.lineId)).map(line => line.lineId);
-    const candidate = swapCandidates(result.cart.lines, state.waitConfig, addedIds)[0];
+    const candidate = swapCandidates(result.cart.lines, state.waitConfig, addedIds, state.allowedLocationIds)[0];
     if (candidate) installed = {
       ...installed,
       view: { ...installed.view, swapOffer: { ...candidate, offerId: derivedId(installed, "swap", state.view.audit.length + 1), revision: installed.view.revision } },
@@ -319,7 +327,7 @@ function reduceUi(state: EngineState, event: AuditEvent & { type: "UI" }, action
         offer.waitSnapshotId !== state.waitConfig.snapshot.id || state.suppressedLineIds.includes(offer.originalLineId)) {
       return finish(next, event, "rejected", "STALE_OFFER");
     }
-    const candidate = swapCandidates(state.view.lines, state.waitConfig, [offer.originalLineId]).find(candidate => candidate.alternative.itemId === offer.alternative.itemId);
+    const candidate = swapCandidates(state.view.lines, state.waitConfig, [offer.originalLineId], state.allowedLocationIds).find(candidate => candidate.alternative.itemId === offer.alternative.itemId);
     if (!candidate || JSON.stringify({ ...candidate, offerId: offer.offerId, revision: offer.revision }) !== JSON.stringify(offer)) {
       return finish(next, event, "rejected", "STALE_OFFER");
     }
@@ -410,6 +418,10 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
   }
   const next = invalidate(admitted);
   if (response.result.kind === "clarify") {
+    if (state.allowedLocationIds && response.result.choices.some(choice => choice.ops.some(op =>
+      op.type === "ADD" && !state.allowedLocationIds!.includes(MENU[op.itemId].locationId as LocationId)))) {
+      return finish(next, event, "rejected", "OFF_MENU");
+    }
     return finish(enterPending(next, response.requestId, response.result.question, response.result.choices), event, "clarify", "AMBIGUOUS_REFERENCE");
   }
   return applyBatch(next, event, response.result.ops, response.requestId);
@@ -422,13 +434,14 @@ export function exportLog(state: EngineState): string {
     sessionId: state.view.sessionId,
     audit: state.view.audit,
     ...(state.waitConfig ? { waitConfig: state.waitConfig } : {}),
+    ...(state.allowedLocationIds === undefined ? {} : { allowedLocationIds: state.allowedLocationIds }),
   }, null, 2);
 }
 
 /** Offline reconstruction only: no controller, recognition, API, or live order. */
 export function replayLog(json: string): OrderView {
   const log = ExportLogSchema.parse(JSON.parse(json));
-  let state = createEngine(log.sessionId, log.waitConfig);
+  let state = createEngine(log.sessionId, log.waitConfig, log.allowedLocationIds);
   for (const entry of log.audit) {
     if (entry.seq !== state.view.audit.length + 1) throw new Error("INVALID_SCHEMA: audit sequence is not contiguous.");
     state = reduceEngine(state, entry.event);

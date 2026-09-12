@@ -10,17 +10,6 @@
         "cmu_188_nashville_sandwich_southern_style_fried_chicken": "Southern-style fried chicken, coleslaw, pickles and comeback sauce on a potato bun.",
         "cmu_109_fried-chicken-sandwich": "Fried chicken sandwich; published menu does not specify toppings, bread or portion. Recipe may differ."
       }
-    },
-    {
-      "id": "la-prima-latte-12oz",
-      "itemIds": [
-        "cmu_115_la-prima-rohr-latte-12-oz",
-        "cmu_94_la-prima-wean-latte-12-oz"
-      ],
-      "differences": {
-        "cmu_115_la-prima-rohr-latte-12-oz": "12 oz latte at La Prima in Gates; standard listed preparation.",
-        "cmu_94_la-prima-wean-latte-12-oz": "12 oz latte at La Prima in Wean; same listed drink and size, different pickup counter."
-      }
     }
   ],
   "nearbyPairs": [
@@ -31,14 +20,6 @@
       ],
       "sourceUrl": "https://api.cmueats.com/v2/locations",
       "note": "CMU dining coordinates place Morewood Gardens and Forbes Beeler counters about 386 m apart in a straight line. Curated nearby pair; not a walking-time estimate."
-    },
-    {
-      "vendors": [
-        "115",
-        "94"
-      ],
-      "sourceUrl": "https://api.cmueats.com/v2/locations",
-      "note": "CMU dining coordinates place Gates and Wean counters about 116 m apart in a straight line. Curated nearby pair; not a walking-time estimate."
     }
   ]
 }

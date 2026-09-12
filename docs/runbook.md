@@ -1,19 +1,19 @@
 # Demo and release runbook
 
-## Campus menu candidate — September 12
+## Current consolidated campus menu — September 12
 
-The campus expansion uses API 2 / `cmu-published-2026-09-12`. Choose a location with the **Order from** list; the initial location is **Stack’d Underground**. Twelve locations have 410 published fixed-price configurations. The other directory entries show why ordering is unavailable and link to CMU. Prices come from dated published PDFs, not a live register. Details and omissions: [dining-data.md](dining-data.md).
+The consolidated menu uses API 2 / `cmu-shortlist-2026-09-12`. Choose a location with the **Order from** list; the initial location is **Stack’d Underground**. Only the eleven requested venues are selectable. Eight have 237 published fixed-price configurations; Au Bon Pain, Capital Grains and Schatz display unavailable previews until complete prices are verified. Hunan's main entrées also remain previews because the included-side choices are unresolved. Prices come from dated published PDFs, not a live register. Details and omissions: [dining-data.md](dining-data.md).
 
 Demo path: press **Talk**, say “One Smash’d Burger and fresh cut fries,” then **Stop — I’m done**. With a successful Gemini response the total should be **$12.65**. Review lists the location, items and prices; **Confirm simulated order** creates a receipt without sending anything. Use exact names and sizes when several variants are offered. No newly recorded campus microphone success is claimed until a person performs this test.
 
 Recovery: select **Engineering → Local only**, then type `a smashd burger` and submit; type `fresh cut fries` and submit separately. Expect $12.65, then review and confirm. Campus local rules accept one exact menu item/quantity per input plus remove, quantity edits and undo; menu buttons also work offline. The prebuilt local server at http://127.0.0.1:3000 remains the offline fallback. Discard unfinished text or cancel capture before review. **New order** clears a committed session; changing location keeps existing cart items and cancels unfinished input/review.
 
-For the original recorded demo, choose **Demo Counter — sample prices** before using its burger/fries/lemonade script. Earlier videos and evidence use that sample catalog; do not present them as proof of current campus prices. Export logs are catalog-version-bound: earlier `demo-v2` logs are not automatically imported/repriced. `npm run dining:check` checks directory links/PDF bytes without changing the released catalog.
+The original Demo Counter and other restaurants have been removed from public selection and new orders. Earlier videos and evidence use that archived catalog; do not present them as the current demo or proof of campus prices. Export logs are catalog-version-bound: earlier `demo-v2` and `cmu-published-2026-09-12` logs are rejected rather than repriced. `npm run dining:check` checks directory links/PDF bytes without changing the released catalog.
 
 The notes below retain historical release evidence and setup instructions. The campus section supersedes their old default-menu instructions.
 
 
-## Current V2 release status
+## Historical V2 release evidence — superseded by the campus menu
 
 The local candidate uses **API 2 / `demo-v2`**, an eleven-item demonstration menu and online Gemini by default. Real local generation is verified with **`gemini-3.6-flash`**. Gemini 2.5 Flash generation was unavailable for the configured key; do not label this release as using 2.5. The key remains server-only in ignored local configuration and the existing Vercel environment.
 
@@ -169,3 +169,12 @@ Refresh the public kiosk after release, keep Stack’d Underground selected, and
 For a multi-item demonstration, add Fresh Cut Fries at Stack’d first, then the Nashville sandwich. The switch raises the total from $12.65 to $13.44, while the whole-cart preparation estimate stays 14 min because the fries remain at Stack’d. This excludes walking and pickup travel. Unknown vendor waits make the complete estimate unavailable.
 
 If the network or provider fails, use the already-built local production server and Local only/menu buttons. Do not rebuild while that server is serving the demo. Keep the previous verified production deployment available for Vercel rollback. Export the engineering log to retain the fixed wait configuration and exact swap actions; replay remains a detached simulation. Nothing is dispatched to a real restaurant.
+
+
+## Consolidated campus catalog (September 12, noon update)
+
+Refresh the kiosk after deployment to load menu `cmu-shortlist-2026-09-12`. Only Hunan, The Exchange, Revolution Noodle, Tahini, Stack’d Underground, Capital Grains, ABP, Taste of India, Wild Blue Sushi, The Grill at Scotty’s and Schatz appear. The default remains Stack’d for the existing sandwich wait demo. Demo Counter and other retired counters are no longer selectable or orderable. Old-version exports reject instead of silently being repriced; keep the old release if examining those historical logs.
+
+For new data, select Tahini and order “one falafel pita” ($9.95); select Revolution Noodle and order “one steamed pork bao bun” ($4.19). Exact published names work in Local only, one item per input. The menu buttons always use the same validated cart path. ABP/Capital Grains/Schatz have no complete verified fixed-price items; their previews cannot be added. Hunan entrée previews show the published base price but need included-side eligibility confirmed. No proxy, approximate, starting-at or invented price becomes an orderable total.
+
+The source documents are snapshots, including older CMU-hosted PDFs. Do not describe them as live register prices or the requested order as a measured popularity ranking. Use the current campus demo below; the old recorded Demo Counter video is historical and does not show this catalog.

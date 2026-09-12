@@ -1,5 +1,8 @@
 // Published facts transcribed from CMU-hosted menus linked by ScottyLabs.
 // See docs/dining-data.md. Update prices only after source review and bump MENU_VERSION.
+// Public shortlist in the user's requested order. Other snapshot entries below
+// are retained only for internal regression fixtures and price provenance.
+export const ACTIVE_LOCATION_IDS = ["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"] as const;
 export const DINING_SNAPSHOT = {
   "checkedAt": "2026-09-12",
   "directoryUrl": "https://api.cmueats.com/v2/locations",
@@ -11,9 +14,11 @@ export const DINING_LOCATIONS = [
     "id": "113",
     "name": "Au Bon Pain At Skibo Café",
     "location": "Cohon Center, Second floor",
-    "menuUrl": null,
+    "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/113",
-    "sourceSha256": null
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc",
+    "directoryMenuUrl": null,
+    "sourceNote": "Older CMU-hosted menu; current counter prices are unverified."
   },
   {
     "id": "210",
@@ -21,7 +26,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, 1st Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/210",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "179",
@@ -29,7 +35,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, 2nd Floor, Rohr Commons Eatery",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/179",
-    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf"
   },
   {
     "id": "184",
@@ -37,7 +44,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, 2nd Floor Marketplace",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/184",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "193",
@@ -45,7 +53,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Marketplace, 2nd floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/193",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "95",
@@ -53,7 +62,8 @@ export const DINING_LOCATIONS = [
     "location": "Resnik House, DeFer",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/95",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "134",
@@ -61,7 +71,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, 2nd Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/134",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "91",
@@ -69,7 +80,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Ground Floor",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/91/EG Full F25.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/91",
-    "sourceSha256": "13073a41aa062f682003d00ca9ab2415adae6b9e950984a79473b81d56485681"
+    "sourceSha256": "13073a41aa062f682003d00ca9ab2415adae6b9e950984a79473b81d56485681",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/91/EG Full F25.pdf"
   },
   {
     "id": "103",
@@ -77,7 +89,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Ground Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/103",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "202",
@@ -85,7 +98,8 @@ export const DINING_LOCATIONS = [
     "location": "Resnik House, Resnik House",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/202",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "173",
@@ -93,15 +107,18 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, 2nd Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/173",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "110",
     "name": "Hunan Express",
     "location": "Newell-Simon Atrium",
-    "menuUrl": null,
+    "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/110/Hunan%20Visix%20(7).pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/110",
-    "sourceSha256": null
+    "sourceSha256": "4bf1831be09d95e45026bb0f4dbcae32b6fb1779b617b3c0eec988f454431202",
+    "directoryMenuUrl": null,
+    "sourceNote": "Older CMU-hosted menu; current counter prices are unverified."
   },
   {
     "id": "206",
@@ -109,7 +126,8 @@ export const DINING_LOCATIONS = [
     "location": "Legacy Plaza, LEGACY PLAZA",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/206",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "115",
@@ -117,7 +135,8 @@ export const DINING_LOCATIONS = [
     "location": "Gates Hillman Centers, Third floor",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/115/LP Full F25.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/115",
-    "sourceSha256": "a7c4a76a37d3b66c833a975b4a1cec8f725f9bbee6b0e9122bf6fa833598aa00"
+    "sourceSha256": "a7c4a76a37d3b66c833a975b4a1cec8f725f9bbee6b0e9122bf6fa833598aa00",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/115/LP Full F25.pdf"
   },
   {
     "id": "94",
@@ -125,7 +144,8 @@ export const DINING_LOCATIONS = [
     "location": "Wean Hall, 5th Floor",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/94/LP Wean Full F25.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/94",
-    "sourceSha256": "01f0ad0bf8f5ced768b60dfec52602c596c53e0f570486a50a3315188cff875a"
+    "sourceSha256": "01f0ad0bf8f5ced768b60dfec52602c596c53e0f570486a50a3315188cff875a",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/94/LP Wean Full F25.pdf"
   },
   {
     "id": "204",
@@ -133,7 +153,8 @@ export const DINING_LOCATIONS = [
     "location": "Hunt Library, Hunt Library",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/204/De Fer Hunt Menu.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/204",
-    "sourceSha256": "2922d0cb3e3709b9dd8e514e31f80c21addee96bf0b5ceddd90ca6edb2213061"
+    "sourceSha256": "2922d0cb3e3709b9dd8e514e31f80c21addee96bf0b5ceddd90ca6edb2213061",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/204/De Fer Hunt Menu.pdf"
   },
   {
     "id": "211",
@@ -141,7 +162,8 @@ export const DINING_LOCATIONS = [
     "location": "Hamburg Hall, A108",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/211",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "208",
@@ -149,7 +171,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, 1st Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/208",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "136",
@@ -157,7 +180,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, Second floor",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/136/MM Full F25.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/136",
-    "sourceSha256": "efae560f1792c90fd208a5367620a4b80c9a7ecbc2b4b9367df119b0951df29b"
+    "sourceSha256": "efae560f1792c90fd208a5367620a4b80c9a7ecbc2b4b9367df119b0951df29b",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/136/MM Full F25.pdf"
   },
   {
     "id": "127",
@@ -165,7 +189,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Second floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/127",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "138",
@@ -173,7 +198,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Second Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/138",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "207",
@@ -181,7 +207,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Cohon University Center",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/207",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "186",
@@ -189,15 +216,18 @@ export const DINING_LOCATIONS = [
     "location": "Scaife Hall, First Floor",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/186/RH Full S26.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/186",
-    "sourceSha256": "7a14ef8bdb3cfca74eee1d4e08cc3ac4a41d84fc3a904db27efd0bb5e964fc0b"
+    "sourceSha256": "7a14ef8bdb3cfca74eee1d4e08cc3ac4a41d84fc3a904db27efd0bb5e964fc0b",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/186/RH Full S26.pdf"
   },
   {
     "id": "174",
     "name": "Revolution Noodle",
     "location": "Cohon Center, 2nd Floor, Marketplace",
-    "menuUrl": null,
+    "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/174/Revolution Noodle Menu 2025-2026.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/174",
-    "sourceSha256": null
+    "sourceSha256": "3188d9606ba86488f90445bd71ff7a9f7d90a0358042f965858132eedd79a2f1",
+    "directoryMenuUrl": null,
+    "sourceNote": "Published 2025–26 menu; current counter prices may differ."
   },
   {
     "id": "201",
@@ -205,7 +235,8 @@ export const DINING_LOCATIONS = [
     "location": "Forbes Beeler Apartments, Scotty's Market",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/201/SM Full S26.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/201",
-    "sourceSha256": "0a32cc57586f6b78a3221828828d5e9923b2089c4949a941e8743397c3ef73b0"
+    "sourceSha256": "0a32cc57586f6b78a3221828828d5e9923b2089c4949a941e8743397c3ef73b0",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/201/SM Full S26.pdf"
   },
   {
     "id": "108",
@@ -213,7 +244,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Second floor",
     "menuUrl": "https://dineoncampus.com/cmu/whats-on-the-menu/schatz-dining-room/",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": "https://dineoncampus.com/cmu/whats-on-the-menu/schatz-dining-room/"
   },
   {
     "id": "180",
@@ -221,7 +253,8 @@ export const DINING_LOCATIONS = [
     "location": "Forbes Beeler Apartments, Forbes and Beeler",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/180",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "191",
@@ -229,7 +262,8 @@ export const DINING_LOCATIONS = [
     "location": "Highmark Center for Health, Wellness and Athletics",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/191",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "190",
@@ -237,7 +271,8 @@ export const DINING_LOCATIONS = [
     "location": "Morewood Gardens, Lower Level",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/190/Dessert (1).pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/190",
-    "sourceSha256": "f1f695665023b424c15e212d9655204f10bb3e7fd0dc5ea0b8b9e764a0cbfd60"
+    "sourceSha256": "f1f695665023b424c15e212d9655204f10bb3e7fd0dc5ea0b8b9e764a0cbfd60",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/190/Dessert (1).pdf"
   },
   {
     "id": "188",
@@ -245,7 +280,8 @@ export const DINING_LOCATIONS = [
     "location": "Morewood Gardens, Lower level",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/188/Menu Boards wNew Items.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/188",
-    "sourceSha256": "ae3780beaa9296061a752eba88edc4f48676e3c87f6047b7ca967f98eaa74434"
+    "sourceSha256": "ae3780beaa9296061a752eba88edc4f48676e3c87f6047b7ca967f98eaa74434",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/188/Menu Boards wNew Items.pdf"
   },
   {
     "id": "148",
@@ -253,7 +289,8 @@ export const DINING_LOCATIONS = [
     "location": "Mellon Institute, Fourth Floor, Room 401",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/148",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "205",
@@ -261,7 +298,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Cohon University Center",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/205",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "194",
@@ -269,15 +307,18 @@ export const DINING_LOCATIONS = [
     "location": "Resnik House, Tartans Pavilion, Tahini space",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/194",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "82",
     "name": "Tahini",
     "location": "Resnik House, Tartans Pavilion",
-    "menuUrl": null,
+    "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/82/Tahini_22x28-final-web2.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/82",
-    "sourceSha256": null
+    "sourceSha256": "6023976adc6279dd071460ebe0b42284cf49643ebca46573da1cb007a626c5cf",
+    "directoryMenuUrl": null,
+    "sourceNote": "Older CMU-hosted menu; current counter prices are unverified."
   },
   {
     "id": "168",
@@ -285,7 +326,8 @@ export const DINING_LOCATIONS = [
     "location": "Legacy Plaza, Legacy Plaza",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/168",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "114",
@@ -293,7 +335,8 @@ export const DINING_LOCATIONS = [
     "location": "Resnik House, Resnik Servery",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/114/TOI Full S26.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/114",
-    "sourceSha256": "44636bcf4a5e1cf5ec0ad62e1fc4bfac2e31196e628eb53a248bddf83233e2e8"
+    "sourceSha256": "44636bcf4a5e1cf5ec0ad62e1fc4bfac2e31196e628eb53a248bddf83233e2e8",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/114/TOI Full S26.pdf"
   },
   {
     "id": "154",
@@ -301,7 +344,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, 2nd Floor Eatery",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/154",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "185",
@@ -309,7 +353,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, Second Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/185",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "192",
@@ -317,7 +362,8 @@ export const DINING_LOCATIONS = [
     "location": "Tepper Building, Second Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/192",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "178",
@@ -325,7 +371,8 @@ export const DINING_LOCATIONS = [
     "location": "Resnik House",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/178",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "92",
@@ -333,7 +380,8 @@ export const DINING_LOCATIONS = [
     "location": "Posner Hall, 1st Floor",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/92/EX Full S26.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/92",
-    "sourceSha256": "3a256a65bf3aeb0db14b3c9770b67de989f0f4ff3e4badafe39accf2b29c54c0"
+    "sourceSha256": "3a256a65bf3aeb0db14b3c9770b67de989f0f4ff3e4badafe39accf2b29c54c0",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/92/EX Full S26.pdf"
   },
   {
     "id": "109",
@@ -341,15 +389,18 @@ export const DINING_LOCATIONS = [
     "location": "Forbes Beeler Apartments, Servery",
     "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/109/SM Full S26.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/109",
-    "sourceSha256": "0a32cc57586f6b78a3221828828d5e9923b2089c4949a941e8743397c3ef73b0"
+    "sourceSha256": "0a32cc57586f6b78a3221828828d5e9923b2089c4949a941e8743397c3ef73b0",
+    "directoryMenuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/109/SM Full S26.pdf"
   },
   {
     "id": "155",
     "name": "Wild Blue Sushi - Ruge Atrium",
     "location": "Scott Hall, Lower level",
-    "menuUrl": null,
+    "menuUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/155/Wild Blue Sushi Menu 2025-2026.pdf",
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/155",
-    "sourceSha256": null
+    "sourceSha256": "42a831ab27266e5bea765fab53fe195856729d6c73f5706a46e28496b76efad8",
+    "directoryMenuUrl": null,
+    "sourceNote": "Published 2025–26 menu; current counter prices may differ."
   },
   {
     "id": "209",
@@ -357,7 +408,8 @@ export const DINING_LOCATIONS = [
     "location": "Cohon Center, Cohon University Center",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/209",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   },
   {
     "id": "84",
@@ -365,7 +417,8 @@ export const DINING_LOCATIONS = [
     "location": "College of Fine Arts, First Floor",
     "menuUrl": null,
     "detailUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/84",
-    "sourceSha256": null
+    "sourceSha256": null,
+    "directoryMenuUrl": null
   }
 ] as const;
 
@@ -5289,5 +5342,1451 @@ export const CAMPUS_ITEMS = [
       "macaroni salad 8 oz"
     ],
     "sourcePage": 6
+  },
+  {
+    "id": "cmu_110_white_rice",
+    "locationId": "110",
+    "label": "White Rice",
+    "category": "sides",
+    "priceCents": 300,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "white rice"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_spring_roll",
+    "locationId": "110",
+    "label": "Spring Roll",
+    "category": "sides",
+    "priceCents": 300,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "spring roll"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_pork_dumpling",
+    "locationId": "110",
+    "label": "Pork Dumpling",
+    "category": "sides",
+    "priceCents": 300,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "pork dumpling"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_red_bean_rice_cake",
+    "locationId": "110",
+    "label": "Red Bean Rice Cake",
+    "category": "sides",
+    "priceCents": 400,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "red bean rice cake"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_green_salad",
+    "locationId": "110",
+    "label": "Green Salad",
+    "category": "sides",
+    "priceCents": 450,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "green salad"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_noodles",
+    "locationId": "110",
+    "label": "Noodles",
+    "category": "sides",
+    "priceCents": 450,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "noodles"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_fried_rice",
+    "locationId": "110",
+    "label": "Fried Rice",
+    "category": "sides",
+    "priceCents": 450,
+    "description": "Standalone published side; portion size is not specified.",
+    "aliases": [
+      "fried rice"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_110_peach_fruit_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Peach Fruit Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "peach fruit tea",
+      "peach fruit tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_lychee_fruit_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Lychee Fruit Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "lychee fruit tea",
+      "lychee fruit tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_mango_fruit_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Mango Fruit Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "mango fruit tea",
+      "mango fruit tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_honeydew_fruit_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Honeydew Fruit Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "honeydew fruit tea",
+      "honeydew fruit tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_rose_fruit_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Rose Fruit Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "rose fruit tea",
+      "rose fruit tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_strawberry_fruit_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Strawberry Fruit Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "strawberry fruit tea",
+      "strawberry fruit tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_original_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Original Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "original milk tea",
+      "original milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_taro_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Taro Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "taro milk tea",
+      "taro milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_matcha_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Matcha Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "matcha milk tea",
+      "matcha milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_mango_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Mango Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "mango milk tea",
+      "mango milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_honeydew_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Honeydew Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "honeydew milk tea",
+      "honeydew milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_rose_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Rose Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "rose milk tea",
+      "rose milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_strawberry_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Strawberry Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "strawberry milk tea",
+      "strawberry milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_brown_sugar_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Brown Sugar Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "brown sugar milk tea",
+      "brown sugar milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_coffee_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Coffee Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "coffee milk tea",
+      "coffee milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_thai_milk_tea_no_bubbles",
+    "locationId": "110",
+    "label": "Thai Milk Tea (No Added Bubbles)",
+    "category": "drinks",
+    "priceCents": 529,
+    "description": "Published tea flavor, without optional paid bubbles. Cup size is not specified.",
+    "aliases": [
+      "thai milk tea",
+      "thai milk tea no bubbles"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_honeydew_smoothie",
+    "locationId": "110",
+    "label": "Honeydew Smoothie",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published smoothie flavor; cup size is not specified.",
+    "aliases": [
+      "honeydew smoothie"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_mango_smoothie",
+    "locationId": "110",
+    "label": "Mango Smoothie",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published smoothie flavor; cup size is not specified.",
+    "aliases": [
+      "mango smoothie"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_strawberry_smoothie",
+    "locationId": "110",
+    "label": "Strawberry Smoothie",
+    "category": "drinks",
+    "priceCents": 499,
+    "description": "Published smoothie flavor; cup size is not specified.",
+    "aliases": [
+      "strawberry smoothie"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_110_bottled_water",
+    "locationId": "110",
+    "label": "Bottled Water",
+    "category": "drinks",
+    "priceCents": 189,
+    "description": "Published bottled water; bottle size and brand are not specified.",
+    "aliases": [
+      "bottled water",
+      "water"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_82_lamb_turkey_shawarma_pita",
+    "locationId": "82",
+    "label": "Lamb and Turkey Shawarma Sandwich (Pita)",
+    "category": "mains",
+    "priceCents": 1195,
+    "description": "Lamb and turkey shawarma with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "lamb and turkey shawarma pita",
+      "lamb and turkey shawarma sandwich pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_lamb_turkey_shawarma_gluten_free_wrap",
+    "locationId": "82",
+    "label": "Lamb and Turkey Shawarma Sandwich (Gluten-Free Wrap)",
+    "category": "mains",
+    "priceCents": 1195,
+    "description": "Lamb and turkey shawarma with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "lamb and turkey shawarma gluten-free wrap",
+      "lamb and turkey shawarma sandwich gluten-free wrap"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_vegan_eggplant_shawarma_pita",
+    "locationId": "82",
+    "label": "Vegan Eggplant Shawarma Sandwich (Pita)",
+    "category": "mains",
+    "priceCents": 995,
+    "description": "Shawarma-seasoned eggplant with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "vegan eggplant shawarma pita",
+      "vegan eggplant shawarma sandwich pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_vegan_eggplant_shawarma_gluten_free_wrap",
+    "locationId": "82",
+    "label": "Vegan Eggplant Shawarma Sandwich (Gluten-Free Wrap)",
+    "category": "mains",
+    "priceCents": 995,
+    "description": "Shawarma-seasoned eggplant with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "vegan eggplant shawarma gluten-free wrap",
+      "vegan eggplant shawarma sandwich gluten-free wrap"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_falafel_pita",
+    "locationId": "82",
+    "label": "Falafel Sandwich (Pita)",
+    "category": "mains",
+    "priceCents": 995,
+    "description": "Falafel with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "falafel pita",
+      "falafel sandwich pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_falafel_gluten_free_wrap",
+    "locationId": "82",
+    "label": "Falafel Sandwich (Gluten-Free Wrap)",
+    "category": "mains",
+    "priceCents": 995,
+    "description": "Falafel with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "falafel gluten-free wrap",
+      "falafel sandwich gluten-free wrap"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_kosher_beef_hotdog_bun",
+    "locationId": "82",
+    "label": "Classic All-Beef Kosher Hotdog in Bun",
+    "category": "mains",
+    "priceCents": 550,
+    "description": "Published all-beef kosher hotdog served in a bun.",
+    "aliases": [
+      "kosher beef hotdog",
+      "hotdog in bun",
+      "beef hotdog"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_shawarma_rice_bowl",
+    "locationId": "82",
+    "label": "Shawarma Rice Bowl",
+    "category": "mains",
+    "priceCents": 1195,
+    "description": "Falafel with hummus, chopped salad, cabbage, pickles and tahini.",
+    "aliases": [
+      "shawarma rice bowl",
+      "shawarma bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_falafel_rice_bowl",
+    "locationId": "82",
+    "label": "Falafel Rice Bowl",
+    "category": "mains",
+    "priceCents": 995,
+    "description": "Rice, falafel, chickpeas, tomatoes, cucumbers, parsley, tahini and curried mango amba.",
+    "aliases": [
+      "falafel rice bowl",
+      "falafel bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_spicy_beef_hummus_pita",
+    "locationId": "82",
+    "label": "Spicy Beef Hummus Bowl (Pita)",
+    "category": "mains",
+    "priceCents": 1095,
+    "description": "Spicy beef, caramelized onion marmalade and tahini over hummus, with pita.",
+    "aliases": [
+      "spicy beef hummus bowl pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_spicy_beef_hummus_gluten_free_wrap",
+    "locationId": "82",
+    "label": "Spicy Beef Hummus Bowl (Gluten-Free Wrap)",
+    "category": "mains",
+    "priceCents": 1095,
+    "description": "Spicy beef, caramelized onion marmalade and tahini over hummus, with gluten-free wrap.",
+    "aliases": [
+      "spicy beef hummus bowl gluten-free wrap"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_sabich_eggplant_hummus_pita",
+    "locationId": "82",
+    "label": "Sabich Eggplant Hummus Bowl (Pita)",
+    "category": "mains",
+    "priceCents": 925,
+    "description": "Fried eggplant, tahini and parsley over hummus, with pita.",
+    "aliases": [
+      "sabich eggplant hummus bowl pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_sabich_eggplant_hummus_gluten_free_wrap",
+    "locationId": "82",
+    "label": "Sabich Eggplant Hummus Bowl (Gluten-Free Wrap)",
+    "category": "mains",
+    "priceCents": 925,
+    "description": "Fried eggplant, tahini and parsley over hummus, with gluten-free wrap.",
+    "aliases": [
+      "sabich eggplant hummus bowl gluten-free wrap"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_israeli_salad_hummus_pita",
+    "locationId": "82",
+    "label": "Israeli Chopped Salad Hummus Bowl (Pita)",
+    "category": "mains",
+    "priceCents": 925,
+    "description": "Israeli chopped salad over hummus, with pita.",
+    "aliases": [
+      "israeli chopped salad hummus bowl pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_israeli_salad_hummus_gluten_free_wrap",
+    "locationId": "82",
+    "label": "Israeli Chopped Salad Hummus Bowl (Gluten-Free Wrap)",
+    "category": "mains",
+    "priceCents": 925,
+    "description": "Israeli chopped salad over hummus, with gluten-free wrap.",
+    "aliases": [
+      "israeli chopped salad hummus bowl gluten-free wrap"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_dirty_fries_to_share",
+    "locationId": "82",
+    "label": "Dirty Fries to Share",
+    "category": "mains",
+    "priceCents": 1695,
+    "description": "Shawarma, fries, Israeli salad, amba, schug, tahini and parsley. Published sharing portion.",
+    "aliases": [
+      "dirty fries to share",
+      "dirty fries"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_israeli_chopped_salad_side",
+    "locationId": "82",
+    "label": "Israeli Chopped Salad (Side)",
+    "category": "sides",
+    "priceCents": 450,
+    "description": "Published standalone salad side; portion not specified.",
+    "aliases": [
+      "israeli chopped salad (side)",
+      "israeli chopped salad"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_zahtar_pita_fries",
+    "locationId": "82",
+    "label": "Zahtar Pita Fries",
+    "category": "sides",
+    "priceCents": 400,
+    "description": "Published standalone pita-fries side; portion not specified.",
+    "aliases": [
+      "zahtar pita fries",
+      "zahtar pita fries"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_french_fries",
+    "locationId": "82",
+    "label": "French Fries",
+    "category": "sides",
+    "priceCents": 400,
+    "description": "Published standalone fries side; portion not specified.",
+    "aliases": [
+      "french fries",
+      "french fries"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_grape_leaves_3",
+    "locationId": "82",
+    "label": "Grape Leaves (3)",
+    "category": "sides",
+    "priceCents": 325,
+    "description": "Published three-piece grape-leaf side.",
+    "aliases": [
+      "grape leaves (3)",
+      "grape leaves"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_pita_side",
+    "locationId": "82",
+    "label": "Pita (Side)",
+    "category": "sides",
+    "priceCents": 200,
+    "description": "Published standalone pita side.",
+    "aliases": [
+      "pita (side)",
+      "pita"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_seasonal_fruit",
+    "locationId": "82",
+    "label": "Seasonal Fruit",
+    "category": "sides",
+    "priceCents": 150,
+    "description": "Published seasonal fruit side; current variety and portion are not specified.",
+    "aliases": [
+      "seasonal fruit",
+      "seasonal fruit"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_baklava",
+    "locationId": "82",
+    "label": "Baklava",
+    "category": "sides",
+    "priceCents": 450,
+    "description": "Published baklava; portion not specified.",
+    "aliases": [
+      "baklava",
+      "baklava"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_chips",
+    "locationId": "82",
+    "label": "Chips",
+    "category": "sides",
+    "priceCents": 150,
+    "description": "Published chips; brand, flavor and package size are not specified.",
+    "aliases": [
+      "chips",
+      "chips"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_82_water",
+    "locationId": "82",
+    "label": "Water",
+    "category": "drinks",
+    "priceCents": 195,
+    "description": "Published water; container size and brand are not specified.",
+    "aliases": [
+      "water"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_174_steamed-pork-bao-bun",
+    "locationId": "174",
+    "label": "Steamed Pork Bao Bun",
+    "category": "sides",
+    "priceCents": 419,
+    "description": "Steamed bao bun with pork filling; one bun.",
+    "aliases": [
+      "steamed pork bao bun"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fried-pork-bao-bun",
+    "locationId": "174",
+    "label": "Fried Pork Bao Bun",
+    "category": "sides",
+    "priceCents": 499,
+    "description": "Fried bao bun with pork filling; one bun.",
+    "aliases": [
+      "fried pork bao bun"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_steamed-red-bean-bao-bun",
+    "locationId": "174",
+    "label": "Steamed Red Bean Bao Bun",
+    "category": "sides",
+    "priceCents": 419,
+    "description": "Steamed bao bun with red bean filling; one bun.",
+    "aliases": [
+      "steamed red bean bao bun"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fried-red-bean-bao-bun",
+    "locationId": "174",
+    "label": "Fried Red Bean Bao Bun",
+    "category": "sides",
+    "priceCents": 499,
+    "description": "Fried bao bun with red bean filling; one bun.",
+    "aliases": [
+      "fried red bean bao bun"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-original",
+    "locationId": "174",
+    "label": "Milk Tea — Original",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — original"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-taro",
+    "locationId": "174",
+    "label": "Milk Tea — Taro",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — taro"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-brown-sugar",
+    "locationId": "174",
+    "label": "Milk Tea — Brown Sugar",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — brown sugar"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-matcha",
+    "locationId": "174",
+    "label": "Milk Tea — Matcha",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — matcha"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-coffee",
+    "locationId": "174",
+    "label": "Milk Tea — Coffee",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — coffee"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-thai-tea",
+    "locationId": "174",
+    "label": "Milk Tea — Thai Tea",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — thai tea"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-mango",
+    "locationId": "174",
+    "label": "Milk Tea — Mango",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — mango"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-honeydew",
+    "locationId": "174",
+    "label": "Milk Tea — Honeydew",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — honeydew"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-rose",
+    "locationId": "174",
+    "label": "Milk Tea — Rose",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — rose"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_milk-tea-strawberry",
+    "locationId": "174",
+    "label": "Milk Tea — Strawberry",
+    "category": "drinks",
+    "priceCents": 669,
+    "description": "Base milk tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "milk tea — strawberry"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fruit-tea-peach",
+    "locationId": "174",
+    "label": "Fruit Tea — Peach",
+    "category": "drinks",
+    "priceCents": 639,
+    "description": "Base fruit tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "fruit tea — peach"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fruit-tea-lychee",
+    "locationId": "174",
+    "label": "Fruit Tea — Lychee",
+    "category": "drinks",
+    "priceCents": 639,
+    "description": "Base fruit tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "fruit tea — lychee"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fruit-tea-mango",
+    "locationId": "174",
+    "label": "Fruit Tea — Mango",
+    "category": "drinks",
+    "priceCents": 639,
+    "description": "Base fruit tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "fruit tea — mango"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fruit-tea-honeydew",
+    "locationId": "174",
+    "label": "Fruit Tea — Honeydew",
+    "category": "drinks",
+    "priceCents": 639,
+    "description": "Base fruit tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "fruit tea — honeydew"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fruit-tea-rose",
+    "locationId": "174",
+    "label": "Fruit Tea — Rose",
+    "category": "drinks",
+    "priceCents": 639,
+    "description": "Base fruit tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "fruit tea — rose"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_fruit-tea-strawberry",
+    "locationId": "174",
+    "label": "Fruit Tea — Strawberry",
+    "category": "drinks",
+    "priceCents": 639,
+    "description": "Base fruit tea, without paid bubbles; size not printed.",
+    "aliases": [
+      "fruit tea — strawberry"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_174_water",
+    "locationId": "174",
+    "label": "Water",
+    "category": "drinks",
+    "priceCents": 229,
+    "description": "Listed water; standalone serving size not printed.",
+    "aliases": [
+      "water"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_155_mini-orange-chicken-bowl",
+    "locationId": "155",
+    "label": "Mini Orange Chicken Bowl",
+    "category": "mains",
+    "priceCents": 839,
+    "description": "Named item in the Ultimate Mini Hot Bowls section.",
+    "aliases": [
+      "mini orange chicken bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_155_mini-teriyaki-chicken-bowl",
+    "locationId": "155",
+    "label": "Mini Teriyaki Chicken Bowl",
+    "category": "mains",
+    "priceCents": 839,
+    "description": "Named item in the Ultimate Mini Hot Bowls section.",
+    "aliases": [
+      "mini teriyaki chicken bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_155_mini-spicy-teriyaki-chicken-bowl",
+    "locationId": "155",
+    "label": "Mini Spicy Teriyaki Chicken Bowl",
+    "category": "mains",
+    "priceCents": 839,
+    "description": "Named item in the Ultimate Mini Hot Bowls section.",
+    "aliases": [
+      "mini spicy teriyaki chicken bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_155_mini-asian-bbq-beef-bowl",
+    "locationId": "155",
+    "label": "Mini Asian BBQ Beef Bowl",
+    "category": "mains",
+    "priceCents": 839,
+    "description": "Named item in the Ultimate Mini Hot Bowls section.",
+    "aliases": [
+      "mini asian bbq beef bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_155_mini-tofu-bowl",
+    "locationId": "155",
+    "label": "Mini Tofu Bowl",
+    "category": "mains",
+    "priceCents": 839,
+    "description": "Named item in the Ultimate Mini Hot Bowls section.",
+    "aliases": [
+      "mini tofu bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_155_mini-sesame-chicken-bowl",
+    "locationId": "155",
+    "label": "Mini Sesame Chicken Bowl",
+    "category": "mains",
+    "priceCents": 839,
+    "description": "Named item in the Ultimate Mini Hot Bowls section.",
+    "aliases": [
+      "mini sesame chicken bowl"
+    ],
+    "sourcePage": 1
+  },
+  {
+    "id": "cmu_155_strawberry-matcha-latte",
+    "locationId": "155",
+    "label": "Strawberry Matcha Latte",
+    "category": "drinks",
+    "priceCents": 839,
+    "description": "Strawberry, matcha and whole milk; size not printed.",
+    "aliases": [
+      "strawberry matcha latte"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_155_signature-boba-milk-tea",
+    "locationId": "155",
+    "label": "Signature Boba Milk Tea",
+    "category": "drinks",
+    "priceCents": 719,
+    "description": "Black sugar, Assam tea, half-and-half and honey boba; size not printed.",
+    "aliases": [
+      "signature boba milk tea"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_155_muddy-boba-latte",
+    "locationId": "155",
+    "label": "Muddy Boba Latte",
+    "category": "drinks",
+    "priceCents": 769,
+    "description": "Tiger sugar, whole milk and honey boba; size not printed.",
+    "aliases": [
+      "muddy boba latte"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_155_blue-ocean-yogurt",
+    "locationId": "155",
+    "label": "Blue Ocean Yogurt",
+    "category": "drinks",
+    "priceCents": 769,
+    "description": "Butterfly pea tea, yogurt and peach popping boba; size not printed.",
+    "aliases": [
+      "blue ocean yogurt"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_155_citrus-butterfly-tea",
+    "locationId": "155",
+    "label": "Citrus Butterfly Tea",
+    "category": "drinks",
+    "priceCents": 769,
+    "description": "Lemonade, butterfly pea tea and crystal boba; size not printed.",
+    "aliases": [
+      "citrus butterfly tea"
+    ],
+    "sourcePage": 2
+  },
+  {
+    "id": "cmu_155_bubbly-strawberry-refresher",
+    "locationId": "155",
+    "label": "Bubbly Strawberry Refresher",
+    "category": "drinks",
+    "priceCents": 769,
+    "description": "Sparkling water, strawberry syrup and crystal boba; size not printed.",
+    "aliases": [
+      "bubbly strawberry refresher"
+    ],
+    "sourcePage": 2
   }
 ] as const;
+
+export const ACTIVE_DINING_LOCATIONS = ACTIVE_LOCATION_IDS.map(id => DINING_LOCATIONS.find(location => location.id === id)!);
+export const UNPRICED_MENU_ITEMS: readonly { locationId: string; label: string; description: string; priceCents?: number; sourceUrl?: string; sourcePage?: number | null; sourceSha256?: string | null }[] = [
+  {
+    "locationId": "113",
+    "label": "The Good Egg",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Power Protein Wrap",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Egg Whites & Cheddar",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Egg Whites, Cheddar & Avocado",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Newport Turkey",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Toasted Chicken & Avocado",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Extra Bacon BLT",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chipotle Black Bean Burger with Avocado",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Country Grilled Cheese",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Smoky BBQ Chicken Melt",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chipotle Turkey & Avocado",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Caprese",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Caprese with Chicken",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Ham & Two Cheese",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Turkey Club",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chicken Cobb Avocado Salad",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Southwest Chicken Salad",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chicken Caesar Asiago Salad",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Caesar Salad without Chicken",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Mediterranean Salad",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "ABP’s Original Chicken Salad Sandwich",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Classic Tuna Salad Sandwich",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Napa Chicken with Avocado Wrap",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chicken Caesar Wrap",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Mediterranean Wrap",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Plain Croissant",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chocolate Croissant",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Almond Croissant",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Blueberry Muffin",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "113",
+    "label": "Chocolate Chip Cookie",
+    "description": "Price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/113/abp-online-menu.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "5f8d101f928618550119e287333f6e0928028a9efe748a439435d2f91e8b07bc"
+  },
+  {
+    "locationId": "179",
+    "label": "Seed Funding",
+    "description": "Only a starting-price heading is published; fixed total unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+  },
+  {
+    "locationId": "179",
+    "label": "Return On Ingredients",
+    "description": "Only a starting-price heading is published; fixed total unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+  },
+  {
+    "locationId": "179",
+    "label": "Greek Options",
+    "description": "Only a starting-price heading is published; fixed total unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+  },
+  {
+    "locationId": "179",
+    "label": "Capital Greens",
+    "description": "Only a starting-price heading is published; fixed total unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+  },
+  {
+    "locationId": "179",
+    "label": "Market Mix",
+    "description": "Only a starting-price heading is published; fixed total unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
+    "sourcePage": 1,
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+  },
+  {
+    "locationId": "179",
+    "label": "Build Your Own Bowl",
+    "description": "Requires base, toppings, protein and dressing choices; fixed total unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/dashboard_images/Production/menus/179/Capital Grains Menu F25.pdf",
+    "sourcePage": 2,
+    "sourceSha256": "8831f0672b1202be58aaa5eb131eeae30bb73d23131820376cc8b42f0dd300d6"
+  },
+  {
+    "locationId": "108",
+    "label": "All-you-care-to-eat dining",
+    "description": "Dining format or rotating station; admission price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
+    "sourcePage": null,
+    "sourceSha256": null
+  },
+  {
+    "locationId": "108",
+    "label": "Rotating hot entrees",
+    "description": "Dining format or rotating station; admission price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
+    "sourcePage": null,
+    "sourceSha256": null
+  },
+  {
+    "locationId": "108",
+    "label": "Vegan and vegetarian options",
+    "description": "Dining format or rotating station; admission price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
+    "sourcePage": null,
+    "sourceSha256": null
+  },
+  {
+    "locationId": "108",
+    "label": "Soup and salad",
+    "description": "Dining format or rotating station; admission price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
+    "sourcePage": null,
+    "sourceSha256": null
+  },
+  {
+    "locationId": "108",
+    "label": "Made-to-order sandwiches",
+    "description": "Dining format or rotating station; admission price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
+    "sourcePage": null,
+    "sourceSha256": null
+  },
+  {
+    "locationId": "108",
+    "label": "Beverages and desserts",
+    "description": "Dining format or rotating station; admission price unavailable.",
+    "sourceUrl": "https://apps.studentaffairs.cmu.edu/dining/conceptinfo/Concept/108",
+    "sourcePage": null,
+    "sourceSha256": null
+  },
+  {
+    "locationId": "110",
+    "label": "Braised Tofu in Brown Sauce",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 895
+  },
+  {
+    "locationId": "110",
+    "label": "Eggplant with Garlic Sauce",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 895
+  },
+  {
+    "locationId": "110",
+    "label": "Stir-Fried Veggies",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 995
+  },
+  {
+    "locationId": "110",
+    "label": "General Tso's Chicken",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 1095
+  },
+  {
+    "locationId": "110",
+    "label": "Chicken Teriyaki",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 1095
+  },
+  {
+    "locationId": "110",
+    "label": "Stir-Fried Spicy Chicken",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 1095
+  },
+  {
+    "locationId": "110",
+    "label": "Braised Fish & Mapo Tofu",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 1195
+  },
+  {
+    "locationId": "110",
+    "label": "Pork Ribs with Black Bean Sauce",
+    "description": "Includes a side; available side choices need confirmation.",
+    "priceCents": 1295
+  }
+];
+
+export const ACTIVE_CAMPUS_ITEMS = CAMPUS_ITEMS.filter(item => ACTIVE_LOCATION_IDS.some(id => id === item.locationId));

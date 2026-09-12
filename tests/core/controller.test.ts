@@ -29,7 +29,7 @@ function harness() {
 }
 
 function proposal(request: ParseRequest, ops: Op[] = [burger]): ParseResponse {
-  return { v: 2, requestId: request.requestId, baseRevision: request.baseRevision, menuVersion: "cmu-published-2026-09-12", parser: "rules", fallbackReason: null, result: { kind: "proposal", ops } };
+  return { v: 2, requestId: request.requestId, baseRevision: request.baseRevision, menuVersion: "cmu-shortlist-2026-09-12", parser: "rules", fallbackReason: null, result: { kind: "proposal", ops } };
 }
 
 function seedReview(controller: ReturnType<typeof harness>) {
@@ -104,7 +104,7 @@ describe("controller capture and review gates", () => {
     const submission = controller.getSnapshot().submit("  fries  ", "voice", 0.62);
     expect(controller.calls).toHaveLength(1);
     const call = controller.calls[0];
-    expect(call.request).toMatchObject({ v: 2, menuVersion: "cmu-published-2026-09-12", text: "fries", source: "voice", asrConfidence: 0.62, baseRevision: inputRevision + 1 });
+    expect(call.request).toMatchObject({ v: 2, menuVersion: "cmu-shortlist-2026-09-12", text: "fries", source: "voice", asrConfidence: 0.62, baseRevision: inputRevision + 1 });
     expect(call.options.localOnly).toBe(false);
     expect(call.options.signal?.aborted).toBe(false);
     expect(controller.getSnapshot().busy).toBe(true);

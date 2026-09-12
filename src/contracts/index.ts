@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
+import { ACTIVE_LOCATION_IDS, CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
 
 export const API_VERSION = 2 as const;
-export const MENU_VERSION = "cmu-published-2026-09-12" as const;
+export const MENU_VERSION = "cmu-shortlist-2026-09-12" as const;
 
 export const LIMITS = {
   lines: 5,
@@ -43,6 +43,8 @@ export const DEMO_ITEM_IDS = [
 export const ItemIdSchema = z.enum([...DEMO_ITEM_IDS, ...CAMPUS_ITEMS.map(item => item.id)]);
 export const LocationIdSchema = z.enum(["demo", ...DINING_LOCATIONS.map(location => location.id)]);
 export type LocationId = z.infer<typeof LocationIdSchema>;
+export const ActiveLocationIdSchema = z.enum(ACTIVE_LOCATION_IDS);
+export const AllowedLocationIdsSchema = z.array(LocationIdSchema).min(1).max(46).refine(ids => new Set(ids).size === ids.length, "Location IDs must be unique.");
 export const ModifierIdSchema = z.enum([
   "no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice",
 ]);
@@ -248,6 +250,19 @@ export const ParseRequestSchema = z.strictObject({
 });
 export type ParseRequest = z.infer<typeof ParseRequestSchema>;
 
+// Public HTTP accepts only the selected campus shortlist. Internal parser/core
+// fixtures retain the wider archive schema; no request field can enable it.
+const activeItemIds = new Set<string>(CAMPUS_ITEMS.filter(item => ACTIVE_LOCATION_IDS.some(id => id === item.locationId)).map(item => item.id));
+export const PublicParseRequestSchema = ParseRequestSchema.extend({
+  locationId: ActiveLocationIdSchema.default("188"),
+}).superRefine((request, ctx) => {
+  const ids = [
+    ...(request.context?.lines.map(line => line.itemId) ?? []),
+    ...(request.context?.pending?.choices.flatMap(choice => choice.ops.flatMap(op => op.type === "ADD" ? [op.itemId] : "ref" in op && op.ref.by === "item" ? [op.ref.itemId] : [])) ?? []),
+  ];
+  if(ids.some(id => !activeItemIds.has(id)))ctx.addIssue({ code: "custom", message: "Cart context contains an item outside the active campus catalog." });
+});
+
 export const ParseResponseSchema = z.strictObject({
   v: z.literal(API_VERSION),
   requestId: RequestIdSchema,
@@ -321,6 +336,7 @@ export type OrderView = z.infer<typeof OrderViewSchema>;
 export const ExportLogSchema = z.strictObject({
   v: z.literal(API_VERSION), menuVersion: z.literal(MENU_VERSION), sessionId: IdSchema, audit: z.array(AuditEntrySchema),
   waitConfig: WaitEngineConfigSchema.optional(),
+  allowedLocationIds: AllowedLocationIdsSchema.optional(),
 });
 export type ExportLog = z.infer<typeof ExportLogSchema>;
 

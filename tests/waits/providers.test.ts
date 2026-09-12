@@ -20,7 +20,7 @@ describe("wait providers (mocked HTTP; no queue observations)", () => {
     const original = structuredClone(first);
     first.waits["188"] = 999;
     expect(await provider.getSnapshot()).toEqual(original);
-    expect(original).toMatchObject({ id: "seeded-waits-demo-v1", source: "seeded", waits: { "188": 14, "109": 4, "115": 14, "94": 4 } });
+    expect(original).toMatchObject({ id: "seeded-waits-shortlist-v1", source: "seeded", waits: { "188": 14, "109": 4, "115": null, "94": null } });
     expect(Object.keys(original.waits).sort()).toEqual([...LocationIdSchema.options].sort());
     expect(WaitTimeSnapshotSchema.safeParse(original).success).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -80,7 +80,7 @@ describe("server wait configuration", () => {
     const config = await loadWaitConfiguration({ mode: "seeded", now });
     expect(WaitEngineConfigSchema.safeParse(config).success).toBe(true);
     expect(config).toMatchObject({ available: true, unavailableReason: null, evaluatedAt: NOW.toISOString(), swapThresholdMinutes: 5, priceToleranceCents: 100 });
-    expect(config.groups).toHaveLength(2);
+    expect(config.groups).toHaveLength(1);
     for (const group of config.groups) {
       const [left, right] = group.itemIds.map((id) => MENU[id]);
       expect(left.locationId).not.toBe(right.locationId);

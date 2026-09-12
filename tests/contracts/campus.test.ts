@@ -8,13 +8,13 @@ import { DEMO_MENU, MENU, fullItemLabel, itemsForLocation } from "@/contracts/me
 
 // Page counts of the CMU-hosted PDFs reviewed for this released snapshot.
 const sourcePages: Record<string, number> = {
-  "109": 8, "114": 1, "115": 3, "136": 5, "186": 2, "188": 2,
+  "110": 2, "82": 1, "174": 2, "155": 2, "109": 8, "114": 1, "115": 3, "136": 5, "186": 2, "188": 2,
   "190": 1, "201": 8, "204": 2, "91": 4, "92": 9, "94": 2,
 };
 
 describe("published campus catalog contract", () => {
-  it("includes all 410 reviewed fixed-price variants from 12 counters in the 45-location directory", () => {
-    expect(CAMPUS_ITEMS).toHaveLength(410);
+  it("includes all reviewed fixed-price variants, including the internal archive, in the 45-location directory", () => {
+    expect(CAMPUS_ITEMS).toHaveLength(495);
     expect(DINING_LOCATIONS).toHaveLength(45);
     expect(new Set(DINING_LOCATIONS.map(location => location.id)).size).toBe(45);
     expect([...new Set(CAMPUS_ITEMS.map(item => item.locationId))].sort()).toEqual(Object.keys(sourcePages).sort());

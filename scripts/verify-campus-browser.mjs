@@ -1,5 +1,5 @@
 import { chromium } from '@playwright/test';
-import { CAMPUS_ITEMS } from '../src/contracts/campus.ts';
+import { ACTIVE_CAMPUS_ITEMS as CAMPUS_ITEMS } from '../src/contracts/campus.ts';
 import { writeFile, mkdir } from 'node:fs/promises';
 const base=process.env.CAMPUS_APP_URL || 'http://127.0.0.1:3000';
 const stamp=new Date().toISOString().replace(/[:.]/g,'-');
