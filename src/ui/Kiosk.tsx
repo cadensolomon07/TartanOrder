@@ -9,7 +9,7 @@ import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useS
 import { cancelSpeech, speak, useSpeaking, useTtsAvailable } from "@/voice/tts";
 import styles from "./Kiosk.module.css";
 import { Cart } from "./Cart";
-import { MenuButtons } from "./MenuButtons";
+import { CategoryRail, MenuButtons, type MenuFilter } from "./MenuButtons";
 import { DiningLocation } from "./DiningLocation";
 import { RequirementsPanel, RequirementsSummary } from "./RequirementsPanel";
 import { InputBar } from "./InputBar";
@@ -22,7 +22,8 @@ import { reviewToSpeech } from "./reviewSpeech";
 import { formatCents } from "./labels";
 import { WaitEstimate } from "./WaitEstimate";
 import { SwapOfferPanel, swapOfferToSpeech } from "./SwapOfferPanel";
-import { DEMO_DISCLOSURE, CAMPUS_DISCLOSURE, itemsForLocation } from "@/contracts/menu";
+import { DEMO_DISCLOSURE, CAMPUS_DISCLOSURE, itemsForLocation, locationName } from "@/contracts/menu";
+import { ACTIVE_DINING_LOCATIONS } from "@/contracts/campus";
 
 export type KioskProps = {
   controller: OrderController;
@@ -80,6 +81,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
   // The controller is the only source of parser mode. A legacy saved browser
   // preference cannot silently bypass the online parser on a fresh page.
   const [readReplies, setReadReplies] = useState(true);
+  const [filter, setFilter] = useState<MenuFilter>("all");
   const tts = useTtsAvailable();
   const speaking = useSpeaking();
   const changed = useChangedLines(state.lines);
@@ -169,7 +171,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const changeLocation = (id: LocationId) => {
     if (id === locationId) return;
     stopAnyCapture();
-    setDraft(""); setDraftStarted(false); setLastTranscript(""); setMicNotice(null);
+    setDraft(""); setDraftStarted(false); setLastTranscript(""); setMicNotice(null); setFilter("all");
     controller.setLocation(id);
   };
 
@@ -310,27 +312,49 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const canConfirm = phase === "reviewing" && !busy && !speech.active && !draftStarted && requirementsReady;
   const editable = phase === "editing" || phase === "clarifying";
   const conversationStatus = speech.active ? "Listening" : parsing ? "Processing" : speaking ? "Responding" : "Ready";
+  const venue = locationId === "demo"
+    ? { name: "Demo Counter", location: "Seeded menu · sample prices" }
+    : ACTIVE_DINING_LOCATIONS.find((l) => l.id === locationId) ?? { name: locationName(locationId), location: "" };
+  const waitLabel = state.wait?.status === "known" && state.wait.estimateMinutes !== null
+    ? `~${state.wait.estimateMinutes} min wait`
+    : state.lines.length === 0 ? "Wait shown after you add items" : "Wait unavailable";
+  const stepIndex = phase === "committed" ? 3 : phase === "reviewing" ? 2 : 1;
+  const itemCount = state.lines.reduce((n, l) => n + l.qty, 0);
+  const firstItem = locationId === "demo" ? null : itemsForLocation(locationId)[0] ?? null;
+  const placeholder = locationId === "demo"
+    ? undefined
+    : firstItem ? `Say or type it — “one ${firstItem.label}”` : "Choose a location with published prices to add food";
+  const hint = locationId === "demo"
+    ? undefined
+    : firstItem ? "Include the item’s name and size." : "You can still edit items already in your cart.";
+  // The assistant speaks in the order rail: its reply while ordering, the exact review
+  // snapshot while reviewing, and the pickup line once the order is placed.
+  const speechText = phase === "committed"
+    ? `Your order is in. ${state.wait?.status === "known" && state.wait.estimateMinutes !== null ? `Pick up at ${venue.name} in about ${state.wait.estimateMinutes} minutes.` : `Pick up at ${venue.name}.`}`
+    : phase === "reviewing" && state.review
+      ? reviewToSpeech(state.review)
+      : assistant?.text || (state.lines.length ? "Anything else? Say another item, or review your order." : "What sounds good? Say or type your order, or tap an item.");
+  const STEPS: readonly [string, number][] = [["Menu", 1], ["Review", 2], ["Pick up", 3]];
 
   return (
     <div className={styles.kiosk} data-testid="kiosk" data-phase={phase}>
       <header className={styles.header}>
-        <div className={styles.brand}>TartanOrder</div>
-        <div className={styles.subBrand} data-testid="disclosure">{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</div>
-        <div className={styles.badges} aria-label="Current modes">
-          <span className={styles.badge} data-testid="badge-parser">
-            parser: {parser}
-          </span>
-          <span className={styles.badge} data-testid="badge-input">
-            input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
-          </span>
-          {localOnly && <span className={styles.badge}>local only</span>}
-          {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
-          {busy && (
-            <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
-              {speech.active ? "listening" : draftStarted || requirementsDraftActive ? "typing" : "working"}
-            </span>
-          )}
+        <div className={styles.brandBlock}>
+          <span className={styles.logoMark} aria-hidden="true">T</span>
+          <span className={styles.brand}>TartanOrder</span>
         </div>
+        <div className={styles.venue}>
+          <div className={styles.venueName}>{venue.name}</div>
+          <div className={styles.venueMeta}>{[venue.location, waitLabel].filter(Boolean).join(" · ")}</div>
+        </div>
+        <ol className={styles.steps} aria-label="Order progress">
+          {STEPS.map(([label, n]) => (
+            <li key={n} className={`${styles.step} ${n === stepIndex ? styles.stepOn : ""}`} aria-current={n === stepIndex ? "step" : undefined}>
+              <span className={styles.stepNum}>{n}</span>
+              {label}
+            </li>
+          ))}
+        </ol>
       </header>
 
       {notice && (
@@ -339,49 +363,67 @@ export function Kiosk({ controller, replay }: KioskProps) {
         </div>
       )}
 
+      {phase !== "committed" && (
+        <section className={styles.askBar} aria-label="Order assistant">
+          <div className={styles.askHead}>
+            <span className={styles.conversationStatus} data-testid="conversation-status" role="status">{conversationStatus}</span>
+            {tts && <label className={styles.readReplies}><input type="checkbox" checked={readReplies} onChange={(event) => setReadReplies(event.target.checked)} /> Read replies aloud</label>}
+          </div>
+          <InputBar
+            placeholder={placeholder}
+            hint={hint}
+            draft={draft}
+            draftOpen={draftStarted}
+            onDraftChange={onDraftChange}
+            onSubmit={submitDraft}
+            onDiscard={discardDraft}
+            onCancelParsing={cancelParsing}
+            parsing={parsing}
+            voiceSupported={speech.supported}
+            voiceActive={speech.active}
+            listening={speech.listening}
+            interim={speech.interim}
+            onTalk={talk}
+            onStopTalking={speech.stop}
+            onCancelTalking={cancelTalk}
+            lastTranscript={lastTranscript}
+            micNotice={micNotice}
+          />
+        </section>
+      )}
+
       {phase === "committed" && state.receipt ? (
-        <main className={styles.main}>
+        <main className={`${styles.main} ${styles.mainDone}`}>
           <Ticket receipt={state.receipt} onNewOrder={newOrder} wait={state.wait} />
+          <div className={styles.right}>
+            <p className={styles.speech} data-testid="assistant-response" aria-live="polite">{speechText}</p>
+            <section className={styles.cartPanel}>
+              <h2 className={styles.panelTitle}>Order total</h2>
+              <div className={styles.totals}>
+                <span>Items</span><span>{state.receipt.lines.reduce((n, l) => n + l.qty, 0)}</span>
+                <span>Tax</span><span>not applied</span>
+                <span className={styles.totalRow}>Total</span><span className={styles.totalRow}>{formatCents(state.receipt.totalCents)}</span>
+              </div>
+              <p className={styles.muted}>Listed menu prices only. Nothing was sent to a dining location.</p>
+            </section>
+          </div>
         </main>
       ) : (
         <main className={styles.main}>
-          <div className={styles.left}>
+          <aside className={styles.rail} aria-label="Browse the menu">
+            <CategoryRail locationId={locationId} value={filter} onChange={setFilter} />
             <DiningLocation locationId={locationId} onChange={changeLocation} />
-            <section className={styles.conversation} aria-label="Order assistant">
-              <div className={styles.conversationHeader}>
-                <span className={styles.conversationStatus} data-testid="conversation-status" role="status">{conversationStatus}</span>
-                {tts && <label className={styles.readReplies}><input type="checkbox" checked={readReplies} onChange={(event) => setReadReplies(event.target.checked)} /> Read replies aloud</label>}
-              </div>
-              <p className={styles.assistantReply} data-testid="assistant-response" aria-live="polite">
-                {assistant?.text || "What sounds good? Tell me your order, or choose from the menu."}
-              </p>
-              {offer && state.wait && <SwapOfferPanel offer={offer} source={state.wait.source} disabled={busy || speech.active} onAction={act} />}
-            <InputBar
-              example={locationId === "demo" ? undefined : itemsForLocation(locationId)[0] ? `Try: “one ${itemsForLocation(locationId)[0].label}”. Include the item’s name and size.` : "Choose a location with published prices to add food, or edit items already in your cart."}
-              draft={draft}
-              draftOpen={draftStarted}
-              onDraftChange={onDraftChange}
-              onSubmit={submitDraft}
-              onDiscard={discardDraft}
-              onCancelParsing={cancelParsing}
-              parsing={parsing}
-              voiceSupported={speech.supported}
-              voiceActive={speech.active}
-              listening={speech.listening}
-              interim={speech.interim}
-              onTalk={talk}
-              onStopTalking={speech.stop}
-              onCancelTalking={cancelTalk}
-              lastTranscript={lastTranscript}
-              micNotice={micNotice}
-            />
-            </section>
+          </aside>
+
+          <div className={styles.center}>
             <RequirementsPanel key={`${state.sessionId}:${requirementsDraftEpoch}`} requirements={state.requirements} lines={state.lines} acceptedTotalCents={state.totalCents} locationId={locationId} disabled={busy && !requirementsDraftActive} onAction={act} onStartDraft={startRequirementsDraft} onEndDraft={endRequirementsDraft} />
-            <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} profile={state.requirements?.profile} onMealItem={state.requirements?.meal ? itemId => act({ type: "REQUIREMENTS", locationId, changes: [{ type: "SELECT_ITEM", itemId, modifiers: [], locked: false }] }) : undefined} />
+            <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} filter={filter} profile={state.requirements?.profile} onMealItem={state.requirements?.meal ? itemId => act({ type: "REQUIREMENTS", locationId, changes: [{ type: "SELECT_ITEM", itemId, modifiers: [], locked: false }] }) : undefined} />
           </div>
 
           <div className={styles.right}>
+            <p className={styles.speech} data-testid="assistant-response" aria-live="polite">{speechText}</p>
             <RequirementsSummary requirements={state.requirements} />
+            {offer && state.wait && <SwapOfferPanel offer={offer} source={state.wait.source} disabled={busy || speech.active} onAction={act} />}
             {phase === "clarifying" && state.pending && (
               <ClarifyPanel
                 question={state.pending.question}
@@ -414,9 +456,12 @@ export function Kiosk({ controller, replay }: KioskProps) {
                 />
                 <WaitEstimate wait={state.wait} />
                 <div className={styles.cartFooter}>
-                  <span className={styles.total}>
-                    Total <strong data-testid="total">{formatCents(state.totalCents)}</strong>
-                  </span>
+                  <div className={styles.totals}>
+                    <span>Items</span><span>{itemCount}</span>
+                    <span>Tax</span><span>not applied</span>
+                    <span className={styles.totalRow}>Total</span>
+                    <span className={styles.totalRow} data-testid="total">{formatCents(state.totalCents)}</span>
+                  </div>
                   <div className={styles.cartActions}>
                     <button
                       type="button"
@@ -443,7 +488,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
                       disabled={!canReview}
                       onClick={review}
                     >
-                      Review order
+                      Review order{itemCount > 0 ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}
                     </button>
                   </div>
                 </div>
@@ -457,6 +502,26 @@ export function Kiosk({ controller, replay }: KioskProps) {
         <button type="button" className={styles.linkBtn} data-testid="reset" onClick={newOrder}>
           New order
         </button>
+        <div className={styles.footerRight}>
+          <span className={styles.subBrand} data-testid="disclosure">{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</span>
+          <div className={styles.badges} aria-label="Current modes">
+            <span className={styles.badge} data-testid="badge-parser">
+              parser: {parser}
+            </span>
+            <span className={styles.badge} data-testid="badge-input">
+              input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
+            </span>
+            {localOnly && <span className={styles.badge}>local only</span>}
+            {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
+            {busy && (
+              <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
+                {speech.active ? "listening" : draftStarted || requirementsDraftActive ? "typing" : "working"}
+              </span>
+            )}
+          </div>
+        </div>
+      </footer>
+      <div className={styles.engArea}>
         <EngineeringPanel
           controller={controller}
           inputMode={inputMode}
@@ -470,7 +535,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
           onDownloadOnDevice={downloadOnDevice}
           replay={replay}
         />
-      </footer>
+      </div>
     </div>
   );
 }

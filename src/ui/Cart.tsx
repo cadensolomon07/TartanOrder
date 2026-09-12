@@ -4,6 +4,8 @@ import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, modifiersFor } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
+import { MENU } from "@/contracts/menu";
+import { glyphFor } from "./MenuButtons";
 
 export type CartProps = {
   lines: Line[];
@@ -28,8 +30,9 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
   if (lines.length === 0) {
     return (
       <div className={styles.emptyCart} data-testid="cart-empty">
-        <p>Nothing yet.</p>
-        <p className={styles.muted}>Tap an item, type an order, or press Talk and say one.</p>
+        <div className={styles.emptyIcon} aria-hidden="true">🍽</div>
+        <p>Your order is empty.</p>
+        <p className={styles.muted}>Tap an item, type an order, or press the mic and say one.</p>
       </div>
     );
   }
@@ -47,41 +50,48 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
             data-line-id={line.lineId}
           >
             <div className={styles.rowMain}>
-              <span className={styles.qtyBadge} aria-label={`quantity ${line.qty}`}>
-                {line.qty}×
+              <span className={styles.thumb} aria-hidden="true">{glyphFor(MENU[line.itemId].label, MENU[line.itemId].category)}</span>
+              <span className={styles.rowInfo}>
+                <span className={styles.rowTitle}>
+                  {lineLabel(lines, line)}
+                  {isLast && <span className={styles.lastTag}> · last mentioned</span>}
+                </span>
+                <LinePrice line={line} />
+                <WaitEstimate wait={wait} lineId={line.lineId} />
+                {line.modifiers.length > 0 && (
+                  <span className={styles.rowMods}>
+                    {line.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}
+                  </span>
+                )}
               </span>
-              <span className={styles.rowTitle}>
-                {lineLabel(lines, line)}
-                {isLast && <span className={styles.lastTag}> · last mentioned</span>}
-              </span>
+              {editable ? (
+                <span className={styles.stepper}>
+                  <button
+                    type="button"
+                    className={styles.smallBtn}
+                    aria-label={`Decrease ${lineLabel(lines, line)}`}
+                    disabled={line.qty <= 1}
+                    onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty - 1 }])}
+                  >
+                    −
+                  </button>
+                  <span className={styles.qtyBadge} aria-label={`quantity ${line.qty}`}>{line.qty}</span>
+                  <button
+                    type="button"
+                    className={styles.smallBtn}
+                    aria-label={`Increase ${lineLabel(lines, line)}`}
+                    disabled={line.qty >= 5}
+                    onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty + 1 }])}
+                  >
+                    +
+                  </button>
+                </span>
+              ) : (
+                <span className={styles.qtyBadge} aria-label={`quantity ${line.qty}`}>{line.qty}×</span>
+              )}
             </div>
-            <LinePrice line={line} />
-            <WaitEstimate wait={wait} lineId={line.lineId} />
-            {line.modifiers.length > 0 && (
-              <div className={styles.rowMods}>
-                {line.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}
-              </div>
-            )}
             {editable && (
               <div className={styles.rowControls}>
-                <button
-                  type="button"
-                  className={styles.smallBtn}
-                  aria-label={`Decrease ${lineLabel(lines, line)}`}
-                  disabled={line.qty <= 1}
-                  onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty - 1 }])}
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  className={styles.smallBtn}
-                  aria-label={`Increase ${lineLabel(lines, line)}`}
-                  disabled={line.qty >= 5}
-                  onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty + 1 }])}
-                >
-                  +
-                </button>
                 {modifiersFor(line.itemId as ItemId).map((m) => {
                   const on = line.modifiers.includes(m);
                   return (
@@ -98,7 +108,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                 })}
                 <button
                   type="button"
-                  className={`${styles.smallBtn} ${styles.removeBtn}`}
+                  className={styles.removeBtn}
                   aria-label={`Remove ${lineLabel(lines, line)}`}
                   onClick={() => onOps([{ type: "REMOVE", ref }])}
                 >
