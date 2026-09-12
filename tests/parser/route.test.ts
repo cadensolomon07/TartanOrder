@@ -322,7 +322,7 @@ describe("POST /api/interpret: gemini mode", () => {
     const [req, config] = vi.mocked(parseGemini).mock.calls[0];
     expect(req).toEqual(FIXTURE_REQUEST);
     expect(config.apiKey).toBe(KEY);
-    expect(config.model).toBe("gemini-2.5-flash");
+    expect(config.model).toBe("gemini-3.8-flash");
     expect(config.timeoutMs).toBeGreaterThan(0);
     expect(config.timeoutMs).toBeLessThanOrEqual(4500);
     expect(config.signal).toBeInstanceOf(AbortSignal);
@@ -450,6 +450,18 @@ describe("POST /api/interpret: gemini mode", () => {
     expect(await res.text()).toBe("");
     expect(config.signal?.aborted).toBe(true);
     expect(info).not.toHaveBeenCalled();
+  });
+
+  it("lets the rules stutter guard reject a repeated item name before any model call", async () => {
+    vi.mocked(parseGemini).mockResolvedValue(outcome(geminiProposal));
+    const res = await postJson({ ...FIXTURE_REQUEST, text: "a burger a burger fries" });
+    expect(res.status).toBe(200);
+    const parsed = ParseResponseSchema.safeParse(await res.json());
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error("unreachable");
+    expect(parsed.data.parser).toBe("rules");
+    expect(parsed.data.result).toMatchObject({ kind: "reject", code: "UNSUPPORTED" });
+    expect(parseGemini).not.toHaveBeenCalled();
   });
 
   it("lets the rules quantity guard reject 18,000 lemonades before any model call", async () => {

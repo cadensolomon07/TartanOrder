@@ -58,13 +58,19 @@ export class GeminiError extends Error {
 const PERMANENT_STATUSES: ReadonlySet<number> = new Set([400, 401, 403, 404]);
 
 const ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const MAX_OUTPUT_TOKENS = 512;
+// Hidden "thinking" tokens count against maxOutputTokens. Gemini 3.x Flash models keep
+// ~400-500 thinking tokens even with thinkingBudget: 0 (verified live 2026-09-12 on
+// gemini-3.8-flash), so a 512 cap truncated multi-choice clarifications mid-JSON
+// (finishReason MAX_TOKENS -> 502). A ParseResult itself is well under 1,000 tokens.
+const MAX_OUTPUT_TOKENS = 4096;
 const QTY_PROPERTY = "qty";
 // Keywords outside Gemini's documented JSON Schema subset, plus `additionalProperties`,
 // which the decoder does not need: the untouched strict validator enforces all of them
-// after the call. `maximum` is stripped from `qty` only (see D6/D7): an over-limit
+// after the call. `minItems`/`maxItems` are rejected outright (400 INVALID_ARGUMENT on
+// every current model, verified live 2026-09-12); the shared schema still enforces
+// 1..8 ops and <=3 modifiers/choices after the call. `maximum` is stripped from `qty` only (see D6/D7): an over-limit
 // quantity must surface and be rejected, never be clamped by the constrained decoder.
-const DROPPED_KEYWORDS = new Set(["$schema", "$id", "title", "additionalProperties", "minLength", "maxLength"]);
+const DROPPED_KEYWORDS = new Set(["$schema", "$id", "title", "additionalProperties", "minLength", "maxLength", "minItems", "maxItems"]);
 
 // ---------------------------------------------------------------------------
 // Provider-facing schema

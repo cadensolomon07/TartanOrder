@@ -586,6 +586,21 @@ describe("phonetic near-miss (D11)", () => {
   });
 });
 
+describe("guardTranscript stutter guard (repeated item names never reach a parser or a model)", () => {
+  it("rejects an item name repeated with only articles or hesitations between", () => {
+    for (const text of ["burger burger burger um a burger", "a burger a burger fries", "lemon drink lemon drink", "Fries fries please", "a burger the burger"]) {
+      const rejection = guardTranscript(text);
+      expect(rejection?.code, text).toBe("UNSUPPORTED");
+      expect(rejection?.message, text).toContain("repeated");
+    }
+  });
+  it("lets real lists, counts, and function-word stutters through", () => {
+    for (const text of ["a burger and a burger", "burger, burger", "two burgers", "remove the the fries", "make that make that two", "a burger a lemonade", "a burger with no onions and a burger", "french fries and fries"]) {
+      expect(guardTranscript(text), text).toBeNull();
+    }
+  });
+});
+
 describe("guardTranscript on raw transcript text (the route's gemini-mode pre-guard path)", () => {
   it("normalizes exactly like the grammar, so stutters and fillers never trip the quantity guard", () => {
     expect(guardTranscript("a a burger")).toBeNull();

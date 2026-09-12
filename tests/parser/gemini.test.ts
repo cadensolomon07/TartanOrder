@@ -15,7 +15,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const API_KEY = "test-key-SECRET-0123456789";
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.8-flash";
 const TRANSCRIPT = "a burger, fries and lemonade";
 
 const request: ParseRequest = {
@@ -148,10 +148,12 @@ describe("buildProviderSchema", () => {
     expect(flattened).not.toContain("line");
   });
 
-  it("keeps array bounds and required lists", () => {
-    expect(serialized).toContain('"minItems":1');
-    expect(serialized).toContain('"maxItems":8');
-    expect(serialized).toContain('"maxItems":3');
+  it("drops array bounds (Gemini rejects minItems/maxItems) but keeps required lists", () => {
+    // Verified live 2026-09-12: every current Gemini model answers 400 INVALID_ARGUMENT when
+    // the response schema carries minItems/maxItems. The strict shared validator still
+    // enforces 1..8 ops and <=3 modifiers after the call.
+    expect(serialized).not.toContain('"minItems"');
+    expect(serialized).not.toContain('"maxItems"');
     expect(serialized).toContain('"required"');
   });
 
@@ -235,7 +237,7 @@ describe("provider request", () => {
     expect(body.generationConfig.responseJsonSchema).toEqual(buildProviderSchema());
     expect(body.generationConfig.temperature).toBe(0);
     expect(body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
-    expect(body.generationConfig.maxOutputTokens).toBe(512);
+    expect(body.generationConfig.maxOutputTokens).toBe(4096);
   });
 });
 

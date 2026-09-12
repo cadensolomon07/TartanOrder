@@ -99,7 +99,9 @@ type LogInput = {
   shadow: Shadow | null;
 };
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// gemini-2.5-flash answers 404 "no longer available to new users" (2026-09-12); 3.8 is the
+// current Flash that accepts the adapter's structured-output settings.
+const DEFAULT_MODEL = "gemini-3.8-flash";
 const PROVIDER_TIMEOUT_MS = 4500;
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 503, 504]);
 const MESSAGES: Readonly<Record<HttpCode, string>> = {

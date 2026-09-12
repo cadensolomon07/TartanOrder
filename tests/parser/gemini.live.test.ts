@@ -12,7 +12,7 @@ import { GeminiError, parseGemini, type GeminiConfig, type GeminiOutcome } from 
 
 const apiKey = process.env.GEMINI_API_KEY ?? "";
 const isEnabled = process.env.GEMINI_LIVE === "1" && apiKey.length > 0;
-const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const model = process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
 const TIMEOUT_MS = 15_000;
 const RATE_LIMIT_BACKOFF_MS = 20_000;
 const RUNS_DIR = join(process.cwd(), "evals", "runs");

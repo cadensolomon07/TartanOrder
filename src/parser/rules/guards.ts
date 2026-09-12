@@ -1,6 +1,7 @@
 import { LIMITS } from "@/contracts";
 import { MESSAGES, reject, type Rejection } from "./messages";
-import { normalizeText } from "./normalize";
+import { ITEM_ALIASES, STUTTER_WORDS } from "./lexicon";
+import { normalizeText, startsWith } from "./normalize";
 import { readNumber } from "./numbers";
 
 const THOUSANDS_TOKEN = /^-?\d{1,3}(?:,\d{3})+$/;
@@ -55,10 +56,45 @@ function guardInjection(text: string): Rejection | null {
   return INJECTION_PATTERN.test(text) ? reject("UNSUPPORTED", MESSAGES.injection) : null;
 }
 
+/** Tokens that may sit inside a stutter without making it a list: articles and hesitations, never "and". */
+const STUTTER_GAP: ReadonlySet<string> = new Set(STUTTER_WORDS.filter((word) => word !== "and"));
+
+/** The surface form of the item alias starting at `index`, longest alias first, or null. */
+function aliasAt(tokens: readonly string[], index: number): { form: string; length: number } | null {
+  const alias = ITEM_ALIASES.find((candidate) => startsWith(tokens, index, candidate.tokens));
+  return alias ? { form: alias.tokens.join(" "), length: alias.tokens.length } : null;
+}
+
 /**
- * Quantity and injection guards on the whole transcript, before any clause splitting,
- * so "18,000" is read as one number. Pure; self-normalizing so callers may pass raw text.
+ * An item name repeated back-to-back with only articles or hesitations between the repeats
+ * ("burger burger burger um a burger", "a burger a burger fries") is recogniser stutter: the
+ * intended count is unknowable, so the transcript is refused before any parser — grammar or
+ * model — can turn each repeat into a line. "a burger and a burger", "burger, burger" and
+ * "two burgers" are real lists or counts and pass through untouched.
+ */
+function guardStutter(text: string): Rejection | null {
+  const tokens = normalizeText(text).replace(/,/g, " , ").split(/\s+/).filter((token) => token.length > 0);
+  let previous: string | null = null;
+  let index = 0;
+  while (index < tokens.length) {
+    const alias = aliasAt(tokens, index);
+    if (alias) {
+      if (alias.form === previous) return reject("UNSUPPORTED", MESSAGES.stutter);
+      previous = alias.form;
+      index += alias.length;
+      continue;
+    }
+    if (!STUTTER_GAP.has(tokens[index])) previous = null;
+    index += 1;
+  }
+  return null;
+}
+
+/**
+ * Quantity, injection and stutter guards on the whole transcript, before any clause
+ * splitting, so "18,000" is read as one number. Pure; self-normalizing so callers may pass
+ * raw text. The route runs this before a Gemini call, so none of these ever reach a model.
  */
 export function guardTranscript(text: string): Rejection | null {
-  return guardQuantities(text) ?? guardInjection(text);
+  return guardQuantities(text) ?? guardInjection(text) ?? guardStutter(text);
 }

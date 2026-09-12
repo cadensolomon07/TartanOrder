@@ -1,5 +1,6 @@
 import { POST } from "@/app/api/interpret/route";
-import { ApiErrorSchema, ParseResponseSchema, type ParseRequest, type ParseResponse } from "@/contracts";
+import { ApiErrorSchema, LIMITS, type ParseRequest, type ParseResponse } from "@/contracts";
+import { interpretWith } from "@/parser/client";
 import { parseRules } from "@/parser/rules";
 import type { EvalTransport } from "../types";
 
@@ -8,14 +9,6 @@ export type RouteReply = { status: number; body: unknown };
 
 const ROUTE_PATH = "/api/interpret";
 const IN_PROCESS_ORIGIN = "http://localhost";
-
-/** Raised when the deployed route answered but the body is not a contract-valid envelope. */
-export class HttpEnvelopeError extends Error {
-  constructor(readonly status: number, readonly code: string | null) {
-    super(`HTTP ${status}${code ? ` ${code}` : ""}: body is not a valid ParseResponse`);
-    this.name = "HttpEnvelopeError";
-  }
-}
 
 function requestInit(req: ParseRequest): RequestInit {
   return { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(req) };
@@ -47,15 +40,20 @@ export function errorCode(body: unknown): string | null {
 }
 
 /**
- * In-process calls the pure rules grammar directly. Over HTTP the server decides
- * (rules or Gemini) and its envelope names the parser; the harness only validates it.
+ * In-process calls the pure rules grammar directly. Over HTTP the harness goes through the
+ * kiosk's own client adapter (`interpretWith`) against the deployment, so the server decides
+ * (rules or Gemini), its envelope names the parser, and transient failures (429/503/504,
+ * client deadline) become the same labelled rules fallback the kiosk would show — the row
+ * is then labelled `rules` with a `fallbackReason`. Non-transient errors still throw and are
+ * recorded as harness errors.
  */
 export function parserCallFor(transport: EvalTransport): ParserCall {
   if (transport.kind === "in-process") return async (req) => parseRules(req);
-  return async (req) => {
-    const reply = await callRoute(transport, req);
-    const parsed = ParseResponseSchema.safeParse(reply.body);
-    if (!parsed.success) throw new HttpEnvelopeError(reply.status, errorCode(reply.body));
-    return parsed.data;
-  };
+  const baseUrl = transport.baseUrl;
+  return (req) =>
+    interpretWith(req, { localOnly: false }, {
+      fetchImpl: (input, init) => fetch(`${baseUrl}${String(input)}`, init),
+      timeoutMs: LIMITS.clientTimeoutMs,
+      isOnline: () => true,
+    });
 }

@@ -20,6 +20,7 @@ export const MESSAGES = {
   quantityDecimal: `Please use a whole number from 1 to ${LIMITS.quantity}.`,
   quantityMalformed: `I heard more than one number in a row. Please say a single quantity from 1 to ${LIMITS.quantity}.`,
   injection: "I can only take menu orders.",
+  stutter: "I heard the same item repeated. Please say the order once, with a number if you want more than one.",
   undoAlone: "Say 'undo' on its own to reverse the last change.",
   tooManyOps: `Please make up to ${LIMITS.operations} changes at a time.`,
   review: "To review or confirm your order, tap the Review button.",
