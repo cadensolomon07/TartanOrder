@@ -2,6 +2,16 @@
 
 The September 12 end-to-end goal supersedes the earlier ownership restrictions, V1 freeze and rules-only deployment plan. A now integrates and fixes the complete app. The former integration heartbeat is paused. The V1 notes below are historical evidence, not current implementation instructions or blockers.
 
+## Food requirements sidebar — September 12, 2026
+
+Moved the existing, single requirements panel below menu categories in the left sidebar. The menu now starts at the top of the center column. Fields and decision controls stack within a 280px desktop sidebar (260px at medium widths); phones retain a single-column layout and the cart's Edit requirements anchor. No controller, menu, parser, contract, or transaction changes.
+
+This layout-only release is based on the verified public version `1929df3`. Newer Supabase work on main is preserved separately: the production Vercel project did not yet have its catalog/persistence configuration when this release was prepared. Do not accidentally replace the working public menu with an unconfigured backend when promoting a later main build.
+
+Evidence for this change: fresh npm ci, typecheck, lint, production build, 9 focused UI tests, and all 6 requirements browser tests passed. The browser tests use explicit fixtures/manual controls, including an offline receipt. Direct browser inspection at 1440px, 1024px, and 390px verified one panel, desktop sidebar placement, working dietary/allergy/dislike controls, the Edit requirements anchor, no horizontal overflow, and no page errors. No live microphone or model evaluation was needed or claimed for this layout-only change.
+
+Production deployment: `db6fda2`, Vercel `dpl_5prs27NaAjN77e73NywHCWGAr79a`, https://tartan-order.vercel.app. The layout change is available for main in PR #5; its release notes sit here so they do not conflict with later teammate append-only handoffs.
+
 ## Current implementation
 
 - One Next.js app and the existing GitHub/Vercel project remain. The page composes `useOrderController()` and `Kiosk({controller})`; no second app, database, purchase or POS dispatch was added.
@@ -350,11 +360,3 @@ No menu, shared protocol, controller, pure engine, parser or voice implementatio
 Desktop/390px presentation was inspected, including pending $14 proposal with accepted $12 cart, vegan exclusions and receipt. A fresh prebuilt production browser reported zero console errors, page errors, horizontal overflow or interpret requests during the manual visual/receipt check. Early dev screenshots caused a caret-hiding hydration warning; hydrated production captures with the caret left unchanged did not reproduce it. The tested local production fallback is ready at http://127.0.0.1:3000. Public deployment and actual Gemini verification are recorded separately in the release handoff; automated/mocked speech is not a new human microphone trial.
 
 The deployed UI commit `46ded0f80f62061c120bf5fb97c00a62f95fbcf0` passed GitHub CI and fresh public ordinary-campus/mobile-dietary checks. The real public Gemini run completed the meal/conflict/explicit-budget/review/receipt and vegan checkpoints with six successful responses, then stopped because its feedback selector expected the old message location. The existing message is now inside the current decision panel. Only that verification selector was corrected; no application change was needed. A bounded two-request continuation passed the remaining declared-allergen/blocked-addition and unknown-allergen/staff-summary cases. Across both runs, eight actual Gemini responses covered the seven intended request scenarios, with no fallback, retries or page errors. This is synthetic typed browser evidence, not human microphone evidence. The original failed report and successful continuation are both retained outside Git; the release record identifies them. The selector-only follow-up does not change the deployed application behavior.
-
-## Food requirements sidebar — September 12, 2026
-
-Moved the existing, single requirements panel below menu categories in the left sidebar. The menu now starts at the top of the center column. Fields and decision controls stack within a 280px desktop sidebar (260px at medium widths); phones retain a single-column layout and the cart's Edit requirements anchor. No controller, menu, parser, contract, or transaction changes.
-
-This layout-only release is based on the verified public version `1929df3`. Newer Supabase work on main is preserved separately: the production Vercel project did not yet have its catalog/persistence configuration when this release was prepared. Do not accidentally replace the working public menu with an unconfigured backend when promoting a later main build.
-
-Evidence for this change: fresh npm ci, typecheck, lint, production build, 9 focused UI tests, and all 6 requirements browser tests passed. The browser tests use explicit fixtures/manual controls, including an offline receipt. Direct browser inspection at 1440px, 1024px, and 390px verified one panel, desktop sidebar placement, working dietary/allergy/dislike controls, the Edit requirements anchor, no horizontal overflow, and no page errors. No live microphone or model evaluation was needed or claimed for this layout-only change.
