@@ -1,0 +1,225 @@
+// @vitest-environment jsdom
+// Kiosk flows against the FAKE controller. Voice is mocked; this is not a
+// microphone test. It verifies that the UI sends the right calls to A.
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
+import { useState } from "react";
+import { Kiosk } from "@/ui/Kiosk";
+import { makeFake, type FakeController } from "./fakeController";
+import { editingThree, clarifyingBurgers, reviewingThree, committedThree } from "./fixtures";
+import type { OrderView } from "@/contracts";
+
+class FakeRecognition {
+  static last: FakeRecognition | null = null;
+  lang = ""; interimResults = false; continuous = false; maxAlternatives = 1;
+  onstart: (() => void) | null = null;
+  onresult: ((e: unknown) => void) | null = null;
+  onerror: ((e: unknown) => void) | null = null;
+  onend: (() => void) | null = null;
+  constructor() { FakeRecognition.last = this; }
+  start() { this.onstart?.(); }
+  stop() { this.onend?.(); }
+  abort() { this.onend?.(); }
+  final(t: string, c = 0.8) { this.onresult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: t, confidence: c } }] }); }
+}
+
+// Harness: re-renders Kiosk whenever the fake mutates.
+function mount(initial: Partial<OrderView> = {}) {
+  let ctrl!: FakeController;
+  function Host() {
+    const [, bump] = useState(0);
+    if (!ctrl) ctrl = makeFake(initial, () => bump((n) => n + 1));
+    return <Kiosk controller={ctrl} />;
+  }
+  const utils = render(<Host />);
+  return { ...utils, ctrl: () => ctrl };
+}
+
+// A's Vitest config has no `globals`, so testing-library's automatic cleanup
+// is not registered; unmount explicitly between tests.
+afterEach(cleanup);
+
+beforeEach(() => {
+  (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition = FakeRecognition;
+  (window as unknown as { speechSynthesis: unknown }).speechSynthesis = { cancel: vi.fn(), speak: vi.fn() };
+  (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = class { constructor(public text: string) {} lang = ""; rate = 1; };
+});
+
+describe("Kiosk (fake controller, mocked voice)", () => {
+  it("shows the required header text and badges", () => {
+    mount();
+    expect(screen.getByTestId("disclosure").textContent).toBe("TartanOrder Demo Counter · Seeded menu · No real purchase.");
+    expect(screen.getByTestId("badge-parser").textContent).toContain("fixture");
+  });
+
+  it("typed three-item order submits once with source=text", async () => {
+    const { ctrl } = mount();
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "a burger, fries and lemonade" } });
+    fireEvent.click(screen.getByTestId("submit"));
+    const subs = ctrl().calls.filter((c) => c.fn === "submit");
+    expect(subs).toEqual([{ fn: "submit", text: "a burger, fries and lemonade", source: "text", asrConfidence: null }]);
+  });
+
+  it("renders three lines and total, manual + sends SET_QTY with a line ref", () => {
+    const { ctrl } = mount(editingThree);
+    expect(screen.getByTestId("total").textContent).toBe("$13.50");
+    fireEvent.click(screen.getByLabelText("Increase Fries"));
+    expect(ctrl().calls.at(-1)).toEqual({
+      fn: "act",
+      action: { type: "MANUAL", ops: [{ type: "SET_QTY", ref: { by: "line", lineId: "u1:1" }, qty: 2 }] },
+    });
+  });
+
+  it("modifier chip sends MOD enabled=true, and Remove sends REMOVE", () => {
+    const { ctrl } = mount(editingThree);
+    fireEvent.click(screen.getByRole("button", { name: "Double" }));
+    expect(ctrl().calls.at(-1)).toEqual({
+      fn: "act",
+      action: { type: "MANUAL", ops: [{ type: "MOD", ref: { by: "line", lineId: "u1:0" }, modifier: "double", enabled: true }] },
+    });
+    fireEvent.click(screen.getByLabelText("Remove Lemonade"));
+    expect(ctrl().calls.at(-1)).toEqual({
+      fn: "act",
+      action: { type: "MANUAL", ops: [{ type: "REMOVE", ref: { by: "line", lineId: "u1:2" } }] },
+    });
+  });
+
+  it("never sends quantity outside 1..5 from the +/- buttons", () => {
+    const { ctrl } = mount({ ...editingThree, lines: [{ lineId: "u1:0", itemId: "burger", qty: 5, modifiers: [] }] });
+    expect((screen.getByLabelText("Increase Burger") as HTMLButtonElement).disabled).toBe(true);
+    mount({ ...editingThree, lines: [{ lineId: "u1:0", itemId: "burger", qty: 1, modifiers: [] }] });
+    expect((screen.getAllByLabelText("Decrease Burger").at(-1) as HTMLButtonElement).disabled).toBe(true);
+    expect(ctrl().calls.filter((c) => c.fn === "act")).toHaveLength(0);
+  });
+
+  it("ambiguity: distinct line labels, choose sends CHOOSE, undo sends UNDO", () => {
+    const { ctrl } = mount(clarifyingBurgers);
+    expect(screen.getByText("Burger (line 1)")).toBeTruthy();
+    expect(screen.getByText("Burger (line 2)")).toBeTruthy();
+    expect(screen.getByText("Which burger should I remove?")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("choice-c2"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "act", action: { type: "CHOOSE", pendingId: "p1", choiceId: "c2" } });
+    fireEvent.click(screen.getByTestId("undo"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "act", action: { type: "UNDO" } });
+    expect((screen.getByTestId("review") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("review shows every line and total; confirm sends exact reviewId+revision", () => {
+    const { ctrl } = mount(reviewingThree);
+    expect(screen.getByTestId("review-total").textContent).toBe("$13.50");
+    fireEvent.click(screen.getByTestId("confirm"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "act", action: { type: "CONFIRM", reviewId: "s1:2", revision: 2 } });
+  });
+
+  it("editing the text field during review calls startInput once and invalidates the review", () => {
+    const { ctrl } = mount(reviewingThree);
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "a" } });
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "ad" } });
+    expect(ctrl().calls.filter((c) => c.fn === "startInput")).toHaveLength(1);
+    expect(screen.queryByTestId("confirm")).toBeNull(); // fake cleared the review
+    fireEvent.click(screen.getByTestId("discard"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "endInput" });
+  });
+
+  it("erasing a draft that was started during review releases capture (no stranded busy state)", () => {
+    const { ctrl } = mount(reviewingThree);
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "a" } });
+    expect(ctrl().busy).toBe(true);
+    expect(screen.getByTestId("discard")).toBeTruthy();
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "" } });
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "endInput" });
+    expect(ctrl().busy).toBe(false);
+    expect((screen.getByTestId("review") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("Talk is idempotent while a capture is opening: one startInput for repeated presses", () => {
+    const { ctrl } = mount(editingThree);
+    fireEvent.click(screen.getByTestId("talk"));
+    // The same element is now the Stop control; nothing else re-enters talk().
+    expect(screen.queryByTestId("talk")).toBeNull();
+    expect(screen.getByTestId("stop-talk")).toBeTruthy();
+    expect(ctrl().calls.filter((c) => c.fn === "startInput")).toHaveLength(1);
+  });
+
+  it("pressing Talk during review invalidates it (startInput) and a final result submits once", () => {
+    const { ctrl } = mount(reviewingThree);
+    fireEvent.click(screen.getByTestId("talk"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "startInput" });
+    expect(screen.queryByTestId("confirm")).toBeNull();
+    act(() => { FakeRecognition.last!.final("make the burger a double", 0.77); FakeRecognition.last!.final("make the burger a double", 0.77); FakeRecognition.last!.onend?.(); });
+    const subs = ctrl().calls.filter((c) => c.fn === "submit");
+    expect(subs).toEqual([{ fn: "submit", text: "make the burger a double", source: "voice", asrConfidence: 0.77 }]);
+  });
+
+  it("cancelled or empty capture releases the lock with endInput", () => {
+    const { ctrl } = mount(editingThree);
+    fireEvent.click(screen.getByTestId("talk"));
+    fireEvent.click(screen.getByTestId("cancel-talk"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "endInput" });
+    expect(screen.getByTestId("mic-notice").textContent).toContain("cancelled");
+  });
+
+  it("denied microphone shows recovery text and typing still works", () => {
+    const { ctrl } = mount();
+    fireEvent.click(screen.getByTestId("talk"));
+    act(() => { FakeRecognition.last!.onerror?.({ error: "not-allowed" }); FakeRecognition.last!.onend?.(); });
+    expect(screen.getByTestId("mic-notice").textContent).toContain("blocked");
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "fries" } });
+    fireEvent.click(screen.getByTestId("submit"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "submit", text: "fries", source: "text", asrConfidence: null });
+  });
+
+  it("a manual click while listening aborts the capture first (no late result)", () => {
+    const { ctrl } = mount(editingThree);
+    fireEvent.click(screen.getByTestId("talk"));
+    const rec = FakeRecognition.last!;
+    fireEvent.click(screen.getByLabelText("Increase Fries"));
+    act(() => { rec.final("late words"); });
+    const kinds = ctrl().calls.map((c) => c.fn);
+    expect(kinds).toEqual(["startInput", "endInput", "act"]);
+  });
+
+  it("busy blocks Review and Confirm but not Submit/Discard; parsing can be cancelled", () => {
+    const { ctrl } = mount(editingThree);
+    act(() => ctrl().setBusy(true));
+    expect((screen.getByTestId("review") as HTMLButtonElement).disabled).toBe(true);
+    // A running parse is cancelled with startInput() then endInput() (A's rule).
+    fireEvent.click(screen.getByTestId("cancel-parsing"));
+    expect(ctrl().calls.slice(-2).map((c) => c.fn)).toEqual(["startInput", "endInput"]);
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "x" } });
+    expect((screen.getByTestId("submit") as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId("discard") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("provider fallback is visible in the parser badge", () => {
+    const { ctrl } = mount(editingThree);
+    act(() => { ctrl().parser = "rules"; ctrl().notice = "Cloud parser unavailable; using local rules."; ctrl().set({}); });
+    expect(screen.getByTestId("badge-parser").textContent).toContain("rules");
+    expect(screen.getByTestId("notice").textContent).toContain("local rules");
+  });
+
+  it("committed shows ticket with simulated tag; New order resets", () => {
+    const { ctrl } = mount(committedThree);
+    expect(screen.getByTestId("ticket")).toBeTruthy();
+    expect(screen.getByText("Simulated · no real purchase")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("new-order"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "reset" });
+    expect(screen.getByTestId("cart-empty")).toBeTruthy();
+  });
+
+  it("model text is rendered as plain text, not HTML", () => {
+    mount({ ...clarifyingBurgers, pending: { ...clarifyingBurgers.pending!, question: "<b>bold?</b>" } });
+    expect(screen.getByText("<b>bold?</b>")).toBeTruthy();
+    expect(document.querySelector("b")).toBeNull();
+  });
+
+  it("engineering panel shows asr confidence only there and local-only toggles the controller", () => {
+    const { ctrl } = mount(editingThree);
+    fireEvent.click(screen.getByTestId("eng-toggle"));
+    expect(screen.getByTestId("eng-asr").textContent).toContain("—");
+    // Local only is on by default (A's controller default); unchecking turns it off.
+    expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByTestId("local-only"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: false });
+  });
+});
