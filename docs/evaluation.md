@@ -33,6 +33,7 @@ All examples below are verified by `tests/parser/rules.test.ts` (table-driven fr
 | `a burger, no wait, fries` → `[ADD fries]` · `two lemonades, actually make that three` → `[ADD lemonade ×3]` · `a burger and fries, scratch the fries` → `[ADD burger]` | Genuine correction syntax (`no wait`, `actually`, `I mean`, `scratch that`, `never mind`, `… instead`) rewrites the pending batch; no compensating ops |
 | `a burger and fries, make that two` → `[ADD burger, ADD fries, SET_QTY {by:last} 2]` · `a burger and a burger and make the burger a double` → `[ADD, ADD, MOD {by:item burger}]` (engine asks which line) · `a burger and fries and make the burger a double and make it two` → `[ADD, ADD, MOD {by:item}, SET_QTY {by:last}]` (engine: "it" = the burger just modified) | Explicit `remove` / `make …` commands are **sequential ops with references**; the parser never resolves cart references (A's intake finding) |
 | `a lemonaid` · `lemon aid` · `flies` | `clarify` "Did you mean …?" with one choice carrying the whole batch — never auto-applied |
+| `remove the the fries` · `make that make that two` · `a burger and and fries` · `um um a burger please please` | ASR stutters collapse: repeated function words and a repeated command prefix are read once. Repeated item nouns or numbers are **never** collapsed (`a burger a burger fries`, `two two burgers` still reject) |
 
 ## 3. Fail-closed behaviour (rules mode)
 
@@ -140,11 +141,13 @@ adversarial by category (n): injection 8 — 8/8 rejected, 6/8 with the labelled
 | adv-016 | `make that make that two` | cart (stutter collapsed) | reject `UNSUPPORTED` | same gap |
 | adv-024 | `a burger and a side of your secret menu` | reject `OFF_MENU` | reject `UNSUPPORTED` | leftover tokens outrank the unknown-noun rule — label arguable |
 
-Labels were **not** changed to match the parser. Candidate next improvement (dev/adversarial-driven, held-out untouched): collapse immediate word/phrase repetition before matching.
+Labels were **not** changed to match the parser.
+
+**Follow-up run after the stutter fix (commit `4617c02`, run files `evals/runs/2026-09-12T03-59-17Z-{in-process,http}-dev+adversarial-4617c02.{json,md}`, same 60 cases, both transports):** dev unchanged at 12/12 · 24/24 · 5/5; adversarial exact cart **3/3** (adv-015 `remove the the fries` and adv-016 `make that make that two` now reach the labelled carts), appropriate response 17/21, **0 leaked proposals**, 0 harness errors; the four remaining failures are adv-002, adv-007, adv-009, adv-024 — the reject-code mismatches above, unchanged. No other row's outcome moved (verified record-by-record against the `64dd7e9` run). HTTP latency p50 2.09 / p95 4.66 / max 16.95 ms (n=57). Held-out still not run.
 
 ## 9. Unfinished
 
-1. Held-out run at H8 (≈ Sat 05:00 EDT); deployed-HTTP latency once A has integrated the parser; ASR stutter collapsing (adv-015/016) as the next small grammar improvement.
+1. Held-out run at H8 (≈ Sat 05:00 EDT); deployed-HTTP latency once A has integrated the parser. (ASR stutter collapsing landed in `4617c02`.)
 2. Observed authenticated Gemini call (needs a key) and the deployed `PARSER_MODE=gemini` check.
 3. Raw voice transcripts from B; ASR-vs-parser error split.
 4. ~~Optional contract asks to A~~ — **declined by A at intake and withdrawn**: V1 stays as is; deferrals, read-back phrases and injection attempts all reject with `UNSUPPORTED`.
