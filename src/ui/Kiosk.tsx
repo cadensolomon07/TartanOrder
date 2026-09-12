@@ -1,4 +1,7 @@
 "use client";
+import { T } from "./Language";
+import { LanguageContext } from "./Language";
+import { LANGUAGES, translate, type Language } from "@/contracts/languages";
 // B's single export. Everything the user sees. Every cart change goes through
 // controller.act; every sentence goes through controller.submit; the UI never
 // mutates state or calls an API itself.
@@ -68,6 +71,7 @@ export function micFailureMessage(reason: SpeechFailure, ctx: Pick<FailureContex
 export function Kiosk({ controller, replay }: KioskProps) {
   const { state, busy, parser, notice, localOnly, assistant, locationId } = controller;
   const phase = state.phase;
+  const language = controller.language ?? "en-US";
 
   const [draft, setDraft] = useState("");
   // true once startInput has been sent for the current typed draft
@@ -86,7 +90,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
   // preference cannot silently bypass the online parser on a fresh page.
   const [readReplies, setReadReplies] = useState(true);
   const [filter, setFilter] = useState<MenuFilter>("all");
-  const tts = useTtsAvailable();
+  const tts = useTtsAvailable(language);
   const speaking = useSpeaking();
   const changed = useChangedLines(state.lines);
   const spokenOffers = useRef(new Set<string>());
@@ -110,6 +114,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   // ---- voice -----------------------------------------------------------
   const speech = useSpeech({
+    lang: language,
     onFinal: (text, conf) => {
       setLastTranscript(text);
       setLastConf(conf);
@@ -286,6 +291,11 @@ export function Kiosk({ controller, replay }: KioskProps) {
     controller.reset();
   }, [controller, stopAnyCapture]);
 
+  const changeLanguage = (value: Language) => {
+    stopAnyCapture(); setDraft(""); setDraftStarted(false); setLastTranscript(""); setLastConf(null); setMicNotice(null);
+    controller.setLanguage(value);
+  };
+
   const setLocalOnly = useCallback(
     (v: boolean) => {
       cancelSpeech();
@@ -297,14 +307,14 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   // Read menu details and clearly labelled requests from the review snapshot.
   const readAloud = useCallback(() => {
-    if (state.review) speak(reviewToSpeech(state.review));
-  }, [state.review]);
+    if (state.review) speak(reviewToSpeech(state.review, language), language);
+  }, [state.review, language]);
 
   // Read only the accepted controller reply or the exact immutable review.
   // A new input, mode switch, reset, or unmount cancels the old utterance.
   const replyId = phase === "committed" ? undefined : phase === "reviewing" ? state.review?.id : offerSpeechId ?? assistant?.id;
   const replyText = phase === "committed" ? undefined : phase === "reviewing" && state.review
-    ? reviewToSpeech(state.review)
+    ? reviewToSpeech(state.review, language)
     : [assistant?.text, offerSpeech].filter(Boolean).join(" ");
   const abortCapture = speech.abort;
   const endCapture = controller.endInput;
@@ -327,14 +337,14 @@ export function Kiosk({ controller, replay }: KioskProps) {
       queueMicrotask(() => {
         if (!cancelled && !spokenOffers.current.has(offerSpeechId)) {
           spokenOffers.current.add(offerSpeechId);
-          speak(replyText);
+          speak(translate(replyText, language), language);
         }
       });
       return () => { cancelled = true; cancelSpeech(); };
     }
-    speak(replyText);
+    speak(translate(replyText, language), language);
     return cancelSpeech;
-  }, [replyId, replyText, readReplies, busy, speech.active, abortCapture, endCapture, offerSpeechId]);
+  }, [replyId, replyText, readReplies, busy, speech.active, abortCapture, endCapture, offerSpeechId, language]);
 
   // ---- derived ---------------------------------------------------------
   // busy covers capture + draft + parsing; only the last one is "working on" text.
@@ -360,46 +370,51 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const speechText = phase === "committed"
     ? "Your simulated receipt is ready. Nothing was purchased or sent to a dining location."
     : phase === "reviewing" && state.review
-      ? reviewToSpeech(state.review)
+      ? reviewToSpeech(state.review, language)
       : assistant?.text || (state.lines.length ? "Anything else? Say another item, or review your order." : "What sounds good? Say or type your order, or tap an item.");
   const STEPS: readonly [string, number][] = [["Menu", 1], ["Review", 2], ["Receipt", 3]];
 
   return (
-    <div className={styles.kiosk} data-testid="kiosk" data-phase={phase}>
+    <LanguageContext.Provider value={language}><div className={styles.kiosk} lang={language} data-testid="kiosk" data-phase={phase}>
       <header className={styles.header}>
         <div className={styles.brandBlock}>
-          <span className={styles.logoMark} aria-hidden="true">T</span>
-          <span className={styles.brand}>TartanOrder</span>
+          <span className={styles.logoMark} aria-hidden="true"><T>T</T></span>
+          <span className={styles.brand}><T>TartanOrder</T></span>
         </div>
         <div className={styles.venue}>
-          <div className={styles.venueName}>{venue.name}</div>
-          <div className={styles.venueMeta}>{venue.location}</div>
+          <div className={styles.venueName}><T>{venue.name}</T></div>
+          <div className={styles.venueMeta}><T>{venue.location}</T></div>
         </div>
+        <label className={styles.languageSelect}><T>Language</T>
+          <select data-testid="language-select" value={language} onChange={event => changeLanguage(event.target.value as Language)}>
+            {LANGUAGES.map(option => <option key={option.id} value={option.id} lang={option.id}>{option.name}</option>)}
+          </select>
+        </label>
         <ol className={styles.steps} aria-label="Order progress">
-          {STEPS.map(([label, n]) => (
+          <T>{STEPS.map(([label, n]) => (
             <li key={n} className={`${styles.step} ${n === stepIndex ? styles.stepOn : ""}`} aria-current={n === stepIndex ? "step" : undefined}>
-              <span className={styles.stepNum}>{n}</span>
-              {label}
+              <span className={styles.stepNum}><T>{n}</T></span>
+              <T>{label}</T>
             </li>
-          ))}
+          ))}</T>
         </ol>
       </header>
 
-      {notice && (
+      <T>{notice && (
         <div className={styles.notice} role="status" data-testid="notice">
-          {notice}
+          <T>{notice}</T>
         </div>
-      )}
+      )}</T>
 
       {phase !== "committed" && (
         <section className={styles.askBar} aria-label="Order assistant">
           <div className={styles.askHead}>
-            <span className={styles.conversationStatus} data-testid="conversation-status" role="status">{conversationStatus}</span>
-            {tts && <label className={styles.readReplies}><input type="checkbox" checked={readReplies} onChange={(event) => setReadReplies(event.target.checked)} /> Read replies aloud</label>}
+            <span className={styles.conversationStatus} data-testid="conversation-status" role="status"><T>{conversationStatus}</T></span>
+            <T>{tts && <label className={styles.readReplies}><input type="checkbox" checked={readReplies} onChange={(event) => setReadReplies(event.target.checked)} /><T> Read replies aloud</T></label>}</T>
           </div>
           <InputBar
-            placeholder={placeholder}
-            hint={hint}
+            placeholder={language === "en-US" ? placeholder : translate("Say or type your order",language)}
+            hint={language === "en-US" ? hint : translate("Press the mic and speak, or type a request and press Submit.",language)}
             draft={draft}
             draftOpen={draftStarted}
             onDraftChange={onDraftChange}
@@ -417,6 +432,8 @@ export function Kiosk({ controller, replay }: KioskProps) {
             lastTranscript={lastTranscript}
             micNotice={micNotice}
           />
+          {language!=="en-US" && !tts && <p className={styles.muted} data-testid="language-voice-unavailable"><T>No matching readback voice is installed. Read the review on screen.</T></p>}
+          {language!=="en-US" && localOnly && <p className={styles.muted} data-testid="language-local-only"><T>Local rules understand simple English orders. Use the menu buttons offline.</T></p>}
         </section>
       )}
 
@@ -424,15 +441,15 @@ export function Kiosk({ controller, replay }: KioskProps) {
         <main className={`${styles.main} ${styles.mainDone}`}>
           <Ticket receipt={state.receipt} onNewOrder={newOrder} wait={state.wait} />
           <div className={styles.right}>
-            <p className={styles.speech} data-testid="assistant-response" aria-live="polite">{speechText}</p>
+            <p className={styles.speech} data-testid="assistant-response" aria-live="polite"><T>{speechText}</T></p>
             <section className={styles.cartPanel}>
-              <h2 className={styles.panelTitle}>Order total</h2>
+              <h2 className={styles.panelTitle}><T>Order total</T></h2>
               <div className={styles.totals}>
-                <span>Items</span><span>{state.receipt.lines.reduce((n, l) => n + l.qty, 0)}</span>
-                <span>Tax and fees</span><span>not calculated</span>
-                <span className={styles.totalRow}>Menu subtotal</span><span className={styles.totalRow}>{formatCents(state.receipt.totalCents)}</span>
+                <span><T>Items</T></span><span><T>{state.receipt.lines.reduce((n, l) => n + l.qty, 0)}</T></span>
+                <span><T>Tax and fees</T></span><span><T>not calculated</T></span>
+                <span className={styles.totalRow}><T>Menu subtotal</T></span><span className={styles.totalRow}><T>{formatCents(state.receipt.totalCents)}</T></span>
               </div>
-              <p className={styles.muted}>Listed menu prices only. Nothing was sent to a dining location.</p>
+              <p className={styles.muted}><T>Listed menu prices only. Nothing was sent to a dining location.</T></p>
             </section>
           </div>
         </main>
@@ -449,10 +466,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
           </div>
 
           <div className={styles.right}>
-            <p className={styles.speech} data-testid="assistant-response" aria-live="polite">{speechText}</p>
+            <p className={styles.speech} data-testid="assistant-response" aria-live="polite"><T>{speechText}</T></p>
             <RequirementsSummary requirements={state.requirements} />
-            {offer && state.wait && <SwapOfferPanel offer={offer} source={state.wait.source} disabled={busy || speech.active} onAction={act} />}
-            {phase === "clarifying" && state.pending && (
+            <T>{offer && state.wait && <SwapOfferPanel offer={offer} source={state.wait.source} disabled={busy || speech.active} onAction={act} />}</T>
+            <T>{phase === "clarifying" && state.pending && (
               <ClarifyPanel
                 question={state.pending.question}
                 choices={state.pending.choices}
@@ -460,7 +477,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
                   act({ type: "CHOOSE", pendingId: state.pending!.id, choiceId })
                 }
               />
-            )}
+            )}</T>
 
             {phase === "reviewing" && state.review ? (
               <ReviewPanel
@@ -473,7 +490,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
               />
             ) : (
               <section className={styles.cartPanel}>
-                <h2 className={styles.panelTitle}>Your order</h2>
+                <h2 className={styles.panelTitle}><T>Your order</T></h2>
                 <Cart
                   lines={state.lines}
                   lastLineId={state.lastLineId}
@@ -487,10 +504,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
                 <WaitEstimate wait={state.wait} />
                 <div className={styles.cartFooter}>
                   <div className={styles.totals}>
-                    <span>Items</span><span>{itemCount}</span>
-                    <span>Tax and fees</span><span>not calculated</span>
-                    <span className={styles.totalRow}>Menu subtotal</span>
-                    <span className={styles.totalRow} data-testid="total">{formatCents(state.totalCents)}</span>
+                    <span><T>Items</T></span><span><T>{itemCount}</T></span>
+                    <span><T>Tax and fees</T></span><span><T>not calculated</T></span>
+                    <span className={styles.totalRow}><T>Menu subtotal</T></span>
+                    <span className={styles.totalRow} data-testid="total"><T>{formatCents(state.totalCents)}</T></span>
                   </div>
                   <div className={styles.cartActions}>
                     <button
@@ -499,26 +516,26 @@ export function Kiosk({ controller, replay }: KioskProps) {
                       data-testid="undo"
                       disabled={state.lines.length === 0 && state.audit.length === 0}
                       onClick={() => act({ type: "UNDO" })}
-                    >
+                    ><T>
                       Undo
-                    </button>
+                    </T></button>
                     <button
                       type="button"
                       className={styles.secondaryBtn}
                       data-testid="clear"
                       disabled={state.lines.length === 0}
                       onClick={() => act({ type: "CLEAR" })}
-                    >
+                    ><T>
                       Clear
-                    </button>
+                    </T></button>
                     <button
                       type="button"
                       className={styles.primaryBtn}
                       data-testid="review"
                       disabled={!canReview}
                       onClick={review}
-                    >
-                      Review order{itemCount > 0 ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}
+                    ><T>
+                      Review order{itemCount > 0 ? ` · ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}</T>
                     </button>
                   </div>
                 </div>
@@ -529,20 +546,20 @@ export function Kiosk({ controller, replay }: KioskProps) {
       )}
 
       <footer className={styles.footer}>
-        <button type="button" className={styles.linkBtn} data-testid="reset" onClick={newOrder}>
+        <button type="button" className={styles.linkBtn} data-testid="reset" onClick={newOrder}><T>
           New order
-        </button>
+        </T></button>
         <div className={styles.footerRight}>
-          <span className={styles.subBrand} data-testid="disclosure">{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</span>
+          <span className={styles.subBrand} data-testid="disclosure"><T>{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</T></span>
           <div className={styles.badges} aria-label="Current modes">
-            <span className={styles.badge} data-testid="badge-parser">
-              parser: {parser}
+            <span className={styles.badge} data-testid="badge-parser"><T>
+              parser: {parser}</T>
             </span>
-            <span className={styles.badge} data-testid="badge-input">
-              input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
+            <span className={styles.badge} data-testid="badge-input"><T>
+              input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}</T>
             </span>
-            {localOnly && <span className={styles.badge}>local only</span>}
-            {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
+            <T>{localOnly && <span className={styles.badge}><T>local only</T></span>}</T>
+            <T>{parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}><T>fixture</T></span>}</T>
             {busy && (
               <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
                 {speech.active ? "listening" : draftStarted || requirementsDraftActive || noteLineId ? "typing" : "working"}
@@ -552,6 +569,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
         </div>
       </footer>
       <div className={styles.engArea}>
+        {language !== "en-US" && <p className={styles.muted}><T>Menu names and detailed source information stay as published.</T> <T>Speech support depends on your browser and installed voices. You can always type.</T></p>}
         <EngineeringPanel
           controller={controller}
           inputMode={inputMode}
@@ -566,7 +584,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
           replay={replay}
         />
       </div>
-    </div>
+    </div></LanguageContext.Provider>
   );
 }
 

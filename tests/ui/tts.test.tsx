@@ -47,3 +47,13 @@ describe("optional TTS (mocked)", () => {
     expect(window.speechSynthesis.cancel).toHaveBeenCalled();
   });
 });
+
+it("selects a matching installed Spanish voice and never substitutes English for missing Mandarin (mocked)", () => {
+  const spanish = { lang: "es-MX", name: "Spanish" } as SpeechSynthesisVoice;
+  Object.defineProperty(window.speechSynthesis, "getVoices", { value: () => [{ lang: "en-US" }, spanish] });
+  expect(speak("Tu pedido", "es-ES")).toBe(true);
+  expect(utterances[0].lang).toBe("es-ES");
+  expect(utterances[0].voice).toBe(spanish);
+  expect(speak("您的订单", "zh-CN")).toBe(false);
+  expect(utterances).toHaveLength(1);
+});

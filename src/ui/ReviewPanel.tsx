@@ -1,4 +1,5 @@
 "use client";
+import { T } from "./Language";
 import { useEffect, useRef } from "react";
 import type { Review, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
@@ -24,17 +25,17 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
   }, []);
   return (
     <section className={styles.review} data-testid="review">
-      <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}>
+      <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}><T>
         Check your order
-      </h2>
+      </T></h2>
       <ul className={styles.reviewList}>
         {review.lines.map((l) => (
           <li key={l.lineId} className={styles.reviewRow}>
             <span>
-              {l.qty}× {ITEM_LABEL[l.itemId]}
-              {l.modifiers.length > 0 && (
-                <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
-              )}
+              <T>{l.qty}</T>× <T>{ITEM_LABEL[l.itemId]}</T>
+              <T>{l.modifiers.length > 0 && (
+                <span className={styles.muted}> — <T>{l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</T></span>
+              )}</T>
               <LinePrice line={l} />
               <ItemNote note={l.note} />
               <WaitEstimate wait={wait} lineId={l.lineId} />
@@ -44,28 +45,28 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
       </ul>
       {review.lines.some(line => line.note) && <NoteDisclosure />}
       <div className={styles.reviewTotal}>
-        <span>Total</span>
-        <span data-testid="review-total">{formatCents(review.totalCents)}</span>
+        <span><T>Total</T></span>
+        <span data-testid="review-total"><T>{formatCents(review.totalCents)}</T></span>
       </div>
       <WaitEstimate wait={wait} />
       <div className={styles.reviewActions}>
-        {ttsAvailable && (
-          <button type="button" className={styles.secondaryBtn} onClick={onReadAloud}>
+        <T>{ttsAvailable && (
+          <button type="button" className={styles.secondaryBtn} onClick={onReadAloud}><T>
             Read it back
-          </button>
-        )}
+          </T></button>
+        )}</T>
         <button
           type="button"
           className={styles.primaryBtn}
           data-testid="confirm"
           disabled={!canConfirm}
           onClick={() => onConfirm(review.id, review.revision)}
-        >
-          Confirm simulated order · {review.lines.reduce((n, l) => n + l.qty, 0)} {review.lines.reduce((n, l) => n + l.qty, 0) === 1 ? "item" : "items"}
+        ><T>
+          Confirm simulated order · {review.lines.reduce((n, l) => n + l.qty, 0)}</T> <T>{review.lines.reduce((n, l) => n + l.qty, 0) === 1 ? "item" : "items"}</T>
         </button>
       </div>
-      <p className={styles.muted}>Talking or editing again cancels this review.</p>
-      <p className={styles.muted}>Total uses listed menu prices. Counter prices, tax and meal-plan discounts may differ. Nothing will be sent to a dining location.</p>
+      <p className={styles.muted}><T>Talking or editing again cancels this review.</T></p>
+      <p className={styles.muted}><T>Total uses listed menu prices. Counter prices, tax and meal-plan discounts may differ. Nothing will be sent to a dining location.</T></p>
     </section>
   );
 }

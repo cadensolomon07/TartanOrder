@@ -131,6 +131,8 @@
   align-items: stretch;
 }
 .mainDone { grid-template-columns: minmax(0, 1fr) 300px; }
+.languageSelect { display: grid; gap: 3px; font-size: 11px; color: var(--ink-soft); margin-left: auto; }
+.languageSelect select { min-height: 36px; padding: 5px 8px; max-width: 145px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .rail { background: var(--paper); border-right: 1px solid var(--line); padding: 8px 0 16px; min-width: 0; }
 .railList { display: flex; flex-direction: column; }
 .railBtn {

@@ -3,6 +3,7 @@
 import type { Review } from "@/contracts";
 import { ITEM_LABEL, MODIFIER_LABEL } from "./labels";
 import { MENU, locationName } from "@/contracts/menu";
+import { translate, type Language } from "@/contracts/languages";
 
 const WORDS = ["zero", "one", "two", "three", "four", "five"];
 
@@ -10,7 +11,12 @@ function qtyWord(n: number): string {
   return WORDS[n] ?? String(n);
 }
 
-export function reviewToSpeech(review: Review): string {
+export function reviewToSpeech(review: Review, language: Language = "en-US"): string {
+  if(language!=="en-US") {
+    const lines=review.lines.map(line=>`${line.qty} ${translate(ITEM_LABEL[line.itemId],language)}${line.modifiers.length?`, ${line.modifiers.map(mod=>translate(MODIFIER_LABEL[mod],language)).join(', ')}`:''}${line.note?`. ${translate('Special request:',language)} ${line.note}`:''}`).join('. ');
+    const total=(review.totalCents/100).toFixed(2);
+    return language==='es-ES'?`Tu pedido: ${lines}. Total: ${total} dólares estadounidenses. Revisa las peticiones especiales con el local. Pulsa Confirmar pedido simulado para confirmar.`:`您的订单：${lines}。合计 ${total} 美元。特殊要求需由柜台确认。请点击确认模拟订单。`;
+  }
   const parts = review.lines.map((line) => {
     const name = ITEM_LABEL[line.itemId].toLowerCase();
     const item = MENU[line.itemId];

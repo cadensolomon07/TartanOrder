@@ -331,3 +331,28 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     expect(ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: true });
   });
 });
+
+it("passes the chosen language to recognition and cancels the old capture on language change (mocked)", () => {
+  const { ctrl } = mount();
+  fireEvent.change(screen.getByTestId("language-select"), { target: { value: "es-ES" } });
+  expect(screen.getByTestId("talk").getAttribute("aria-label")).toContain("Hablar");
+  fireEvent.click(screen.getByTestId("talk"));
+  const old = FakeRecognition.last!;
+  expect(old.lang).toBe("es-ES");
+  fireEvent.change(screen.getByTestId("language-select"), { target: { value: "zh-CN" } });
+  act(() => old.final("late Spanish result"));
+  expect(ctrl().calls.filter(call => call.fn === "submit")).toHaveLength(0);
+  fireEvent.click(screen.getByTestId("talk"));
+  expect(FakeRecognition.last!.lang).toBe("zh-CN");
+  expect(screen.getByTestId("language-voice-unavailable").textContent).toContain("未安装");
+});
+
+it("does not submit Enter used to compose a Mandarin character", () => {
+  const { ctrl } = mount();
+  fireEvent.change(screen.getByTestId("language-select"), { target: { value: "zh-CN" } });
+  fireEvent.change(screen.getByTestId("text-input"), { target: { value: "水" } });
+  fireEvent.keyDown(screen.getByTestId("text-input"), { key: "Enter", isComposing: true, keyCode: 229 });
+  expect(ctrl().calls.filter(call => call.fn === "submit")).toHaveLength(0);
+  fireEvent.keyDown(screen.getByTestId("text-input"), { key: "Enter", isComposing: false });
+  expect(ctrl().calls.filter(call => call.fn === "submit")).toHaveLength(1);
+});
