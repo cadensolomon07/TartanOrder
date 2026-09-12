@@ -225,23 +225,43 @@ describe("useSpeech (mocked engine)", () => {
     expect(result.current.active).toBe(false);
   });
 
-  it("cloud network error + pack downloadable: reports network, starts the download once, no second attempt", async () => {
+  it("cloud network error + pack downloadable: reports network as 'downloading', starts the download once with processLocally", async () => {
     let avail = "downloadable";
-    FakeRecognition.available = async () => avail;
-    FakeRecognition.install = async () => { FakeRecognition.installCalls++; avail = "available"; return true; };
+    const availOpts: unknown[] = []; const installOpts: unknown[] = [];
+    FakeRecognition.available = async (o: unknown) => { availOpts.push(o); return avail; };
+    FakeRecognition.install = async (o: unknown) => { installOpts.push(o); FakeRecognition.installCalls++; avail = "available"; return true; };
     const onFail = vi.fn();
     const { result } = renderHook(() => useSpeech({ onFinal: vi.fn(), onFail }));
     act(() => result.current.start());
     const r1 = FakeRecognition.instances[0];
     await act(async () => { r1.onerror?.({ error: "network" }); r1.onend?.(); });
     expect(onFail.mock.calls[0][0]).toBe("network");
-    expect(onFail.mock.calls[0][1]).toMatchObject({ onDevice: "downloadable" });
+    // The download is started before the failure is reported, so the report says so.
+    expect(onFail.mock.calls[0][1]).toMatchObject({ onDevice: "downloading" });
     expect(FakeRecognition.instances).toHaveLength(1);
+    expect(availOpts[0]).toEqual({ langs: ["en-US"], processLocally: true });
     await act(async () => {});
     expect(FakeRecognition.installCalls).toBe(1);
+    expect(installOpts[0]).toEqual({ langs: ["en-US"], processLocally: true });
     expect(result.current.onDevice).toBe("available"); // the pack landed; the next Talk goes on-device
     act(() => result.current.start());
     expect(FakeRecognition.instances[1].processLocally).toBe(true);
+  });
+
+  it("the on-device retry staying silent is 'empty', not 'network' (only an engine failure is remapped)", async () => {
+    FakeRecognition.available = async () => "available";
+    FakeRecognition.install = async () => true;
+    const onFail = vi.fn();
+    const { result } = renderHook(() => useSpeech({ onFinal: vi.fn(), onFail }));
+    act(() => result.current.start());
+    const r1 = FakeRecognition.instances[0];
+    await act(async () => { r1.onerror?.({ error: "network" }); r1.onend?.(); });
+    const r2 = FakeRecognition.instances[1];
+    expect(r2.processLocally).toBe(true);
+    act(() => { r2.onerror?.({ error: "no-speech" }); r2.onend?.(); });
+    expect(onFail).toHaveBeenCalledTimes(1);
+    expect(onFail.mock.calls[0][0]).toBe("no-speech");
+    expect(onFail.mock.calls[0][1]).toMatchObject({ engine: "on-device" });
   });
 
   it("on-device without its pack (language-not-supported) falls back to cloud within the same capture", async () => {

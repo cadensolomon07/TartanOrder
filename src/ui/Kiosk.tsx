@@ -51,6 +51,9 @@ export function micFailureMessage(reason: SpeechFailure, ctx: Pick<FailureContex
       return "Speech service unreachable. Press Talk again to download on-device recognition (one-time), or type your order.";
     case "available":
       return "Speech service unreachable and on-device recognition failed too. Type your order.";
+    case "unavailable":
+      // The browser has the on-device API but reports no pack for this language/device.
+      return "Speech service unreachable, and this browser reports no on-device recognition for English here. Type your order.";
     default:
       return "This browser can’t reach its speech service and has no on-device recognition (Google Chrome 139+ does). Type your order, or use Chrome.";
   }

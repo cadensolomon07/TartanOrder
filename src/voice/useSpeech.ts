@@ -217,7 +217,7 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
     }
     const before = await ensureOnDevice();
     if (before === "available" || before === "unsupported" || before === "unavailable") return before;
-    updateOnDevice("downloading");
+    if (before !== "downloading") updateOnDevice("downloading");
     // install() can hang forever in browsers that cannot reach Google's component
     // updater (keyless Chromium builds). Bound it, then re-ask the browser what
     // the real status is instead of guessing: only an explicit `false` from
@@ -312,7 +312,11 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
           void probe.then((s) => {
             if (settledRef.current || gen !== genRef.current) return; // aborted, stopped, or a newer Talk press
             if (!stoppedRef.current && s === "available" && openRef.current(Ctor, "on-device", tried)) return;
-            if (s === "downloadable") void installOnDevice();
+            if (s === "downloadable") {
+              // Say "downloading" in the failure report: the download is started right here.
+              updateOnDevice("downloading");
+              void installOnDevice();
+            }
             fail("network", "cloud");
           });
           return;
@@ -329,9 +333,11 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
             if (openRef.current(Ctor, "cloud", tried)) return;
           }
         }
-        // On-device was the retry after a cloud network failure: the honest
-        // reason for this capture failing is still that the service is unreachable.
-        fail(mode === "on-device" && tried.has("cloud") ? "network" : failure, mode);
+        // On-device was the retry after a cloud network failure and the ENGINE
+        // itself failed (not the user staying silent or denying the mic): the
+        // honest reason for this capture failing is still that the service is unreachable.
+        const engineFailed = failure === "error" || e.error === "language-not-supported";
+        fail(mode === "on-device" && tried.has("cloud") && engineFailed ? "network" : failure, mode);
       };
       r.onend = () => {
         if (!isCurrent()) return;

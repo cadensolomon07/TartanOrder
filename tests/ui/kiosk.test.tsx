@@ -259,6 +259,8 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     expect(micFailureMessage("network", { isBrave: true, onDevice: "unknown" })).toMatch(/Brave/);
     expect(micFailureMessage("network", { isBrave: false, onDevice: "downloadable" })).toMatch(/on-device/i);
     expect(micFailureMessage("network", { isBrave: false, onDevice: "unsupported" })).toMatch(/Chrome 139/);
+    // A Chrome 139+ user whose browser reports no pack for this language must not be told to "use Chrome".
+    expect(micFailureMessage("network", { isBrave: false, onDevice: "unavailable" })).not.toMatch(/use Chrome|Chrome 139/);
     for (const s of ["unknown", "unsupported", "unavailable", "downloadable", "downloading", "available"] as const) {
       expect(micFailureMessage("network", { isBrave: false, onDevice: s })).not.toMatch(/internet|wifi|wi-fi/i);
     }
