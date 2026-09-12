@@ -86,7 +86,7 @@ Follow-up evidence, September 11 around 10:44 p.m.: downloaded **Export audit** 
 
 ## Deployment and remaining handoffs
 
-**Latest verified parser deployment:** C `6273955`, merged with A's health integration at `2885a51`; deployment `dpl_5ThjQU4VCF8uidGiF1VvCSAHYDaV`, public https://tartan-order.vercel.app. Fresh logged-out browser tests passed real HTTP ordering, corrections, ambiguity, undo, review invalidation and explicit simulated receipt, then offline local-only typed confirmation. Health reports rules. The records below describe the earlier starter verification and are retained as historical evidence.
+**Latest verified deployment:** `c0bf5dd` contains corrected C parser `6273955`, A's health integration and C's evaluation harness. Deployment `dpl_2966NZL1RGqLq3tmxJE1PFGBBHQH` serves https://tartan-order.vercel.app; public rules health and a fresh logged-out receipt check passed. The identical application source at the preceding `2885a51` deployment passed real HTTP ordering, corrections, ambiguity, undo, review invalidation and explicit simulated receipt, then offline local-only typed confirmation. The records below describe the earlier starter verification and are retained as historical evidence.
 
 Vercel sign-in verified for `cadensolomon07-8134`. **Public demo: https://tartan-order.vercel.app**. Implementation SHA `3ca392b219b90d24574bca21aa3f77cba51eb8b5`; deployment `dpl_B1nB1ppEWiriuZMQm8QUdgWziWeE` is READY and its API reports Node 22.x. The project now explicitly uses Node 22.x and `npm ci`. No purchase was made. Keep environment variables server-only. Health reports rules until C verifies Gemini integration.
 
