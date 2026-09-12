@@ -3,7 +3,7 @@
 // controller.act; every sentence goes through controller.submit; the UI never
 // mutates state or calls an API itself.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { Op, OrderController, UiAction } from "@/contracts";
 import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useTtsAvailable } from "@/voice/tts";
@@ -41,6 +41,23 @@ const MIC_MESSAGES: Record<SpeechFailure, string> = {
 // recognizer lives on Google's servers, which keyless Chromium builds (Brave,
 // Vivaldi, plain Chromium) cannot use and some networks block. Say so, and say
 // what will happen next.
+// Remembered engineering-panel preference: "on" | "off". Never a secret.
+export const LOCAL_ONLY_PREF_KEY = "tartanorder.localOnly";
+
+function subscribeStorage(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+function readLocalOnlyPref(): "on" | "off" | null {
+  try {
+    const v = window.localStorage.getItem(LOCAL_ONLY_PREF_KEY);
+    return v === "on" || v === "off" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export function micFailureMessage(reason: SpeechFailure, ctx: Pick<FailureContext, "isBrave" | "onDevice">): string {
   if (reason !== "network") return MIC_MESSAGES[reason];
   if (ctx.isBrave) return "Brave can’t reach a speech service. Open this page in Google Chrome, or type your order.";
@@ -71,7 +88,16 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const [lastConf, setLastConf] = useState<number | null>(null);
   const [micNotice, setMicNotice] = useState<string | null>(null);
   // A's controller starts in Local only (rules, no network); mirror that here.
-  const [localOnly, setLocalOnlyState] = useState(true);
+  // The operator's choice is remembered per browser so a demo laptop set up for
+  // the cloud parser stays that way across reloads. Storage is an external
+  // store (may be missing; server render says "nothing stored").
+  const storedPref = useSyncExternalStore(subscribeStorage, readLocalOnlyPref, () => null);
+  const [localOnlyChoice, setLocalOnlyChoice] = useState<boolean | null>(null);
+  const localOnly = localOnlyChoice ?? storedPref !== "off";
+  useEffect(() => {
+    // Only a remembered "off" needs telling the controller; its default is already "on".
+    if (storedPref === "off" && localOnlyChoice === null) controller.setLocalOnly(false);
+  }, [storedPref, localOnlyChoice, controller]);
   const tts = useTtsAvailable();
   const changed = useChangedLines(state.lines);
 
@@ -210,8 +236,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   const setLocalOnly = useCallback(
     (v: boolean) => {
-      setLocalOnlyState(v);
+      setLocalOnlyChoice(v);
       controller.setLocalOnly(v);
+      try {
+        window.localStorage.setItem(LOCAL_ONLY_PREF_KEY, v ? "on" : "off");
+      } catch {
+        // storage unavailable: the choice simply lasts for this page
+      }
     },
     [controller],
   );
