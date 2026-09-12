@@ -44,6 +44,7 @@ function mount(initial: Partial<OrderView> = {}) {
 afterEach(cleanup);
 
 beforeEach(() => {
+  window.localStorage.clear(); // the Local-only preference must never leak between tests
   FakeRecognition.instances = [];
   delete (FakeRecognition as { available?: unknown }).available;
   delete (FakeRecognition as { install?: unknown }).install;
@@ -253,6 +254,24 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     // The user is not trapped: Talk is back and typing works.
     expect(screen.getByTestId("talk")).toBeTruthy();
     expect((screen.getByTestId("review") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("remembers the operator's Local-only choice per browser and re-applies a stored 'off' on load", () => {
+    // Nothing stored: Local only stays on and the controller is not touched at mount.
+    const first = mount();
+    expect((screen.getByTestId("badge-parser").parentElement?.textContent ?? "")).toContain("local only");
+    expect(first.ctrl().calls.filter((c) => c.fn === "setLocalOnly")).toHaveLength(0);
+    fireEvent.click(screen.getByTestId("eng-toggle"));
+    fireEvent.click(screen.getByTestId("local-only")); // turn it off
+    expect(first.ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: false });
+    expect(window.localStorage.getItem("tartanorder.localOnly")).toBe("off");
+    cleanup();
+    // Next load in the same browser: the stored "off" is applied to the controller once.
+    const second = mount();
+    expect(second.ctrl().calls.filter((c) => c.fn === "setLocalOnly")).toEqual([{ fn: "setLocalOnly", value: false }]);
+    fireEvent.click(screen.getByTestId("eng-toggle"));
+    expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(false);
+    expect(screen.queryByText("local only")).toBeNull(); // badge gone: the cloud parser is allowed
   });
 
   it("a speech-service network error is explained (not blamed on the user's Wi-Fi), with next steps", () => {
