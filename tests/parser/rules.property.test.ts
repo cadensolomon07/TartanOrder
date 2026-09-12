@@ -1,0 +1,135 @@
+import { describe, expect, it } from "vitest";
+import fc from "fast-check";
+import { z } from "zod";
+import { ParseResponseSchema, type ParseRequest } from "@/contracts";
+import { MENU } from "@/contracts/menu";
+import { parseRules } from "@/parser/rules";
+import canonical from "./fixtures/canonical.json";
+
+// Reproduce a run with: npm test -- tests/parser/rules.property.test.ts
+const NUM_RUNS = 300;
+const ALIASES = Object.values(MENU).flatMap((item) => [...item.aliases]);
+const INJECTION_PATTERNS = [
+  "ignore", "instructions", "system", "prompt", "free", "discount", "price", "$", "refund", "admin", "override",
+  "developer", "jailbreak", "{", "}", "\"kind\"",
+];
+const FILLERS = ["please", "can i get", "can i have", "could i get", "i'd like", "i would like", "i want", "give me", "gimme", "let me get", "um", "uh"];
+
+const RowSchema = z.object({ name: z.string(), text: z.string(), stretch: z.boolean().optional(), expect: z.object({ kind: z.string() }) });
+const PROPOSAL_ROWS = z.array(RowSchema).parse(canonical).filter((row) => row.expect.kind === "proposal" && row.stretch !== true);
+
+const ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+  "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+function belowThousand(n: number): string {
+  const hundreds = Math.floor(n / 100);
+  const rest = n % 100;
+  const restWords = rest < 20 ? ONES[rest] : [TENS[Math.floor(rest / 10)], ONES[rest % 10]].filter(Boolean).join(" ");
+  return [hundreds ? `${ONES[hundreds]} hundred` : "", restWords].filter(Boolean).join(" ");
+}
+
+/** Renders 1..999,999 as English words without "and". */
+function toWords(n: number): string {
+  const thousands = Math.floor(n / 1000);
+  const rest = n % 1000;
+  return [thousands ? `${belowThousand(thousands)} thousand` : "", rest ? belowThousand(rest) : ""].filter(Boolean).join(" ");
+}
+
+const validRequest = fc.record({
+  v: fc.constant(1 as const),
+  requestId: fc.string({ minLength: 1, maxLength: 100 }).filter((id) => id.trim().length > 0),
+  baseRevision: fc.nat({ max: 1_000_000 }),
+  menuVersion: fc.constant("demo-v1" as const),
+  text: fc.string({ minLength: 1, maxLength: 500 }),
+  source: fc.constantFrom("voice" as const, "text" as const, "fixture" as const),
+  asrConfidence: fc.oneof(fc.constant(null), fc.double({ min: 0, max: 1, noNaN: true })),
+});
+
+function requestWith(text: string): ParseRequest {
+  return { v: 1, requestId: "p", baseRevision: 0, menuVersion: "demo-v1", text, source: "text", asrConfidence: null };
+}
+
+describe("rules parser properties", () => {
+  it("P1: never throws and always returns a schema-valid response for printable ASCII text", () => {
+    fc.assert(fc.property(validRequest, (req) => {
+      const out = parseRules(req);
+      expect(ParseResponseSchema.safeParse(out).success).toBe(true);
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P1b: never throws on arbitrary unicode text within the length limit", () => {
+    const unicodeText = fc.string({ unit: "grapheme", minLength: 1, maxLength: 120 }).filter((text) => text.length <= 500);
+    fc.assert(fc.property(unicodeText, (text) => {
+      const out = parseRules(requestWith(text));
+      expect(ParseResponseSchema.safeParse(out).success).toBe(true);
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P2: any quantity above five, in digits, thousands-separated digits or words, is QUANTITY_LIMIT", () => {
+    const rendering = fc.tuple(fc.integer({ min: 6, max: 10_000_000 }), fc.constantFrom("digits", "commas", "words"), fc.constantFrom(...ALIASES))
+      .map(([n, form, alias]) => {
+        const rendered = form === "commas" ? n.toLocaleString("en-US") : form === "words" && n <= 999_999 ? toWords(n) : String(n);
+        return `${rendered} ${alias}`;
+      });
+    fc.assert(fc.property(rendering, (text) => {
+      const out = parseRules(requestWith(text));
+      expect(out.result.kind).toBe("reject");
+      expect(out.result.kind === "reject" ? out.result.code : "").toBe("QUANTITY_LIMIT");
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P3: the envelope always echoes requestId, baseRevision and menuVersion", () => {
+    fc.assert(fc.property(validRequest, (req) => {
+      const out = parseRules(req);
+      expect(out.requestId).toBe(req.requestId);
+      expect(out.baseRevision).toBe(req.baseRevision);
+      expect(out.menuVersion).toBe(req.menuVersion);
+      expect(out.parser).toBe("rules");
+      expect(out.fallbackReason).toBeNull();
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P4: any proposal containing UNDO has exactly one operation", () => {
+    const clause = fc.constantFrom("undo", "undo that", "go back", "a burger", "fries", "two lemonades", "remove the fries", "make that two", "no onions");
+    const utterance = fc.array(clause, { minLength: 1, maxLength: 4 }).map((clauses) => clauses.join(", "));
+    fc.assert(fc.property(utterance, (text) => {
+      const out = parseRules(requestWith(text));
+      if (out.result.kind !== "proposal") return;
+      if (out.result.ops.some((op) => op.type === "UNDO")) expect(out.result.ops).toHaveLength(1);
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P5: fillers, separator swaps, pluralization and casing never change the operations", () => {
+    const baseline = new Map(PROPOSAL_ROWS.map((row) => [row.name, parseRules(requestWith(row.text)).result]));
+    const transform = fc.record({
+      row: fc.constantFrom(...PROPOSAL_ROWS),
+      leadingFiller: fc.option(fc.constantFrom(...FILLERS, "like"), { nil: null }),
+      trailingFiller: fc.option(fc.constantFrom("please", "um", "uh"), { nil: null }),
+      separator: fc.constantFrom("keep", "and", "comma"),
+      pluralize: fc.boolean(),
+      casing: fc.constantFrom("keep", "upper", "title"),
+    });
+    fc.assert(fc.property(transform, ({ row, leadingFiller, trailingFiller, separator, pluralize, casing }) => {
+      let text = row.text;
+      if (separator === "and") text = text.replace(/, /g, " and ");
+      if (separator === "comma") text = text.replace(/ and /g, ", ");
+      if (pluralize) text = text.replace(/\b(burger|cheeseburger|lemonade|lemon drink)\b(?!s)/g, "$1s");
+      if (leadingFiller) text = `${leadingFiller} ${text}`;
+      if (trailingFiller) text = `${text} ${trailingFiller}`;
+      if (casing === "upper") text = text.toUpperCase();
+      if (casing === "title") text = text.replace(/\b\w/g, (char) => char.toUpperCase());
+      expect(parseRules(requestWith(text)).result).toEqual(baseline.get(row.name));
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P6: any text containing an injection pattern never yields a proposal", () => {
+    const around = fc.string({ maxLength: 60 });
+    const injected = fc.tuple(around, fc.constantFrom(...INJECTION_PATTERNS), around)
+      .map(([before, pattern, after]) => `${before} ${pattern} ${after}`.slice(0, 500));
+    fc.assert(fc.property(injected, (text) => {
+      const out = parseRules(requestWith(text));
+      expect(out.result.kind).not.toBe("proposal");
+    }), { numRuns: NUM_RUNS });
+  });
+});
