@@ -1,6 +1,6 @@
 import { LIMITS } from "@/contracts";
 import { MESSAGES, reject, type Rejection } from "./messages";
-import { foldDashes } from "./normalize";
+import { normalizeText } from "./normalize";
 import { readNumber } from "./numbers";
 
 const THOUSANDS_TOKEN = /^-?\d{1,3}(?:,\d{3})+$/;
@@ -18,9 +18,14 @@ function splitLooseCommas(token: string): string[] {
   return THOUSANDS_TOKEN.test(token) ? [token] : token.split(",");
 }
 
-/** Lower-cased alphanumerics with thousands commas, decimal points and numeric signs kept. */
+/**
+ * Alphanumerics with thousands commas, decimal points and numeric signs kept. The text goes
+ * through the same `normalizeText` as the grammar (idempotent on normalized input), so a
+ * caller passing raw transcript text — the route's gemini-mode pre-guard — sees exactly the
+ * filler removal and stutter collapse the rules path sees.
+ */
 function quantityTokens(text: string): string[] {
-  return foldDashes(text.toLowerCase())
+  return normalizeText(text)
     .replace(/[^a-z0-9,.-]+/g, " ")
     .split(" ")
     .flatMap(splitLooseCommas)

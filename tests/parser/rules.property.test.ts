@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { z } from "zod";
-import { ParseResponseSchema, type ParseRequest } from "@/contracts";
+import { ParseResponseSchema, type ParseRequest, type ParseResult } from "@/contracts";
 import { MENU } from "@/contracts/menu";
 import { parseRules } from "@/parser/rules";
 import canonical from "./fixtures/canonical.json";
@@ -16,7 +16,29 @@ const INJECTION_PATTERNS = [
 const FILLERS = ["please", "can i get", "can i have", "could i get", "i'd like", "i would like", "i want", "give me", "gimme", "let me get", "um", "uh"];
 
 const RowSchema = z.object({ name: z.string(), text: z.string(), stretch: z.boolean().optional(), expect: z.object({ kind: z.string() }) });
+type Row = z.infer<typeof RowSchema>;
 const PROPOSAL_ROWS = z.array(RowSchema).parse(canonical).filter((row) => row.expect.kind === "proposal" && row.stretch !== true);
+
+/** Browser ASR stutters: a function word or an item noun repeated in place. Aliases longest first so "french fries" wins over "fries". */
+const FUNCTION_WORD = /\b(?:the|a|and)\b/g;
+const ITEM_NOUN = new RegExp(`\\b(?:${[...ALIASES].sort((a, b) => b.length - a.length).map((alias) => `${alias}s?`).join("|")})\\b`, "g");
+
+type Duplication = { readonly row: Row; readonly index: number; readonly length: number };
+
+/** Every (row, span) pair where `pattern` matches a canonical proposal utterance. */
+function duplications(pattern: RegExp): Duplication[] {
+  return PROPOSAL_ROWS.flatMap((row) => [...row.text.matchAll(pattern)].map((match) => ({ row, index: match.index, length: match[0].length })));
+}
+
+function duplicateAt(text: string, index: number, length: number): string {
+  return `${text.slice(0, index)}${text.slice(index, index + length)} ${text.slice(index)}`;
+}
+
+/** Total units a proposal would add to the cart; zero for anything that is not a proposal. */
+function addedUnits(result: ParseResult): number {
+  if (result.kind !== "proposal") return 0;
+  return result.ops.reduce((total, op) => (op.type === "ADD" ? total + op.qty : total), 0);
+}
 
 const ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
   "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
@@ -143,6 +165,23 @@ describe("rules parser properties", () => {
     fc.assert(fc.property(injected, (text) => {
       const out = parseRules(requestWith(text));
       expect(out.result.kind).not.toBe("proposal");
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P7: duplicating a function word in place never changes the operations", () => {
+    const stutters = duplications(FUNCTION_WORD);
+    fc.assert(fc.property(fc.constantFrom(...stutters), ({ row, index, length }) => {
+      const stuttered = parseRules(requestWith(duplicateAt(row.text, index, length))).result;
+      expect(stuttered).toEqual(parseRules(requestWith(row.text)).result);
+    }), { numRuns: NUM_RUNS });
+  });
+
+  it("P8: duplicating an item noun in place never yields a proposal with more units than the original", () => {
+    const stutters = duplications(ITEM_NOUN);
+    fc.assert(fc.property(fc.constantFrom(...stutters), ({ row, index, length }) => {
+      const stuttered = parseRules(requestWith(duplicateAt(row.text, index, length))).result;
+      if (stuttered.kind !== "proposal") return;
+      expect(addedUnits(stuttered)).toBeLessThanOrEqual(addedUnits(parseRules(requestWith(row.text)).result));
     }), { numRuns: NUM_RUNS });
   });
 });

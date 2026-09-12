@@ -268,6 +268,53 @@ describe("number grammar (first C intake, numbers.ts)", () => {
   });
 });
 
+describe("ASR stutters (second C intake, normalize.ts)", () => {
+  it("collapses an immediately repeated function word to one", () => {
+    expect(opsOf(run("remove the the fries"))).toEqual([{ type: "REMOVE", ref: { by: "item", itemId: "fries" } }]);
+    expect(opsOf(run("a burger and and fries"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+    ]);
+    expect(opsOf(run("um um a burger please please"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }]);
+    expect(opsOf(run("a a burger"))).toEqual([{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }]);
+    expect(opsOf(run("a couple of of burgers"))).toEqual([{ type: "ADD", itemId: "burger", qty: 2, modifiers: [] }]);
+    expect(opsOf(run("add cheese to to the burger"))).toEqual([
+      { type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "extra_cheese", enabled: true },
+    ]);
+  });
+
+  it("collapses an immediately repeated command prefix at clause start", () => {
+    expect(opsOf(run("make that make that two"))).toEqual([{ type: "SET_QTY", ref: { by: "last" }, qty: 2 }]);
+    expect(opsOf(run("make it make it a double"))).toEqual([{ type: "MOD", ref: { by: "last" }, modifier: "double", enabled: true }]);
+    expect(opsOf(run("remove the remove the fries"))).toEqual([{ type: "REMOVE", ref: { by: "item", itemId: "fries" } }]);
+    expect(opsOf(run("take off take off the fries"))).toEqual([{ type: "REMOVE", ref: { by: "item", itemId: "fries" } }]);
+    expect(opsOf(run("take off the take off the fries"))).toEqual([{ type: "REMOVE", ref: { by: "item", itemId: "fries" } }]);
+    expect(opsOf(run("a burger, make that make that two"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "SET_QTY", ref: { by: "last" }, qty: 2 },
+    ]);
+  });
+
+  it("collapses a stuttered command behind a correction marker, and repeated markers themselves", () => {
+    expect(opsOf(run("a burger, actually make that make that two"))).toEqual([{ type: "ADD", itemId: "burger", qty: 2, modifiers: [] }]);
+    expect(opsOf(run("a burger, no wait no wait, fries"))).toEqual([{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }]);
+    expect(opsOf(run("no wait no wait fries"))).toEqual([{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }]);
+  });
+
+  it("never collapses repeated item nouns or quantities, which could be a count", () => {
+    for (const text of [
+      "a burger a burger fries", "burger burger burger um a burger", "two two burgers", "2 2 burgers", "one one burgers",
+      "add fries add fries", "add a burger add a burger", "make that two make that two",
+    ]) {
+      expect(rejectionOf(run(text)).code).toBe("UNSUPPORTED");
+    }
+    expect(opsOf(run("a burger and a burger"))).toEqual([
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+    ]);
+  });
+});
+
 describe("adds and modifiers", () => {
   it("accepts every menu alias, singular and derived plural", () => {
     for (const item of Object.values(MENU)) {
@@ -536,5 +583,19 @@ describe("phonetic near-miss (D11)", () => {
 
   it("still rejects when the substituted utterance cannot be parsed", () => {
     expect(rejectionOf(run("a lemonaid and a pizza")).code).toBe("OFF_MENU");
+  });
+});
+
+describe("guardTranscript on raw transcript text (the route's gemini-mode pre-guard path)", () => {
+  it("normalizes exactly like the grammar, so stutters and fillers never trip the quantity guard", () => {
+    expect(guardTranscript("a a burger")).toBeNull();
+    expect(guardTranscript("Um, um, a burger please please")).toBeNull();
+    expect(guardTranscript("Remove the the fries")).toBeNull();
+  });
+
+  it("still catches signed, oversize and malformed quantities in raw text", () => {
+    expect(guardTranscript("-2 lemonades")?.code).toBe("QUANTITY_LIMIT");
+    expect(guardTranscript("18,000 Lemonades!")?.code).toBe("QUANTITY_LIMIT");
+    expect(guardTranscript("one two burgers")?.code).toBe("UNSUPPORTED");
   });
 });
