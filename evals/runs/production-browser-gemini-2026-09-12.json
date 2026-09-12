@@ -1,0 +1,187 @@
+{
+  "baseURL": "https://tartan-order.vercel.app",
+  "typed": true,
+  "microphoneTested": false,
+  "mocked": false,
+  "requests": [
+    {
+      "text": "Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.",
+      "httpStatus": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 2,
+        "menuVersion": "demo-v2",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "burger",
+              "qty": 1,
+              "modifiers": [
+                "double",
+                "no_lettuce"
+              ]
+            },
+            {
+              "type": "ADD",
+              "itemId": "fries",
+              "qty": 1,
+              "modifiers": []
+            },
+            {
+              "type": "ADD",
+              "itemId": "lemonade",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "text": "Actually make that two lemonades and put the lettuce back on the burger",
+      "httpStatus": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r2",
+        "baseRevision": 5,
+        "menuVersion": "demo-v2",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "SET_QTY",
+              "ref": {
+                "by": "line",
+                "lineId": "r1:2"
+              },
+              "qty": 2
+            },
+            {
+              "type": "MOD",
+              "ref": {
+                "by": "line",
+                "lineId": "r1:0"
+              },
+              "modifier": "no_lettuce",
+              "enabled": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "text": "Can I get a pizza, a burger, and a lemonade?",
+      "httpStatus": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r3",
+        "baseRevision": 2,
+        "menuVersion": "demo-v2",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "burger",
+              "qty": 1,
+              "modifiers": []
+            },
+            {
+              "type": "ADD",
+              "itemId": "lemonade",
+              "qty": 1,
+              "modifiers": []
+            }
+          ],
+          "notices": [
+            {
+              "kind": "unavailable",
+              "item": "pizza"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "text": "Remove the burger",
+      "httpStatus": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r4",
+        "baseRevision": 6,
+        "menuVersion": "demo-v2",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "REMOVE",
+              "ref": {
+                "by": "item",
+                "itemId": "burger"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "text": "The second burger, please",
+      "httpStatus": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r5",
+        "baseRevision": 9,
+        "menuVersion": "demo-v2",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "resolve",
+          "pendingId": "p9cewb:pending:7",
+          "choiceId": "option-2"
+        }
+      }
+    }
+  ],
+  "applicationSha": "3bb09ba2ae0a8409f84bd22803b3266f18b2a918",
+  "deploymentId": "dpl_8ou8KnrR6r6tbP6rGbhBmRY5eoFV",
+  "passed": true,
+  "freshLoggedOutBrowser": true,
+  "pageErrors": 0,
+  "verifiedChecks": [
+    "exact long request: one double/no-lettuce burger, fries, lemonade at1600cents",
+    "across-turn correction: two lemonades and lettuce restored at1850cents",
+    "Undo restores1600cents",
+    "mixed pizza subset: burger/lemonade1050cents and unavailable notice",
+    "two-burger targeted ambiguity, natural answer removes only second burger",
+    "immutable full review and explicit1050cent simulated receipt"
+  ],
+  "video": {
+    "path": "test-results/demo-recording/tartanorder-gemini.webm",
+    "durationSeconds": 149.92,
+    "width": 1280,
+    "height": 800,
+    "silent": true,
+    "inspectedFramesSeconds": [
+      25,
+      65,
+      110,
+      140
+    ]
+  },
+  "limitations": [
+    "Synthetic typed utterances, not human speech",
+    "Five successful requests are not an accuracy benchmark",
+    "Recorded pacing includes deliberate presentation pauses"
+  ]
+}

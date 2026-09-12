@@ -39,7 +39,9 @@ npm run test:e2e
 LIVE_APP_URL=http://localhost:3000 npm run test:gemini
 ```
 
-Deployment of this V2 candidate is pending at this checkpoint; the public alias still serves the previously verified V1 typed starter. The production verification, release SHA and backup recording will be recorded here after publication. Human microphone trial instructions are in [demo.md](demo.md); recovery and setup are in [runbook.md](runbook.md).
+V2 is live at https://tartan-order.vercel.app: application revision `3bb09ba2ae0a8409f84bd22803b3266f18b2a918`, verified/promoted deployment `dpl_8ou8KnrR6r6tbP6rGbhBmRY5eoFV`. GitHub CI passed all gates, including **476 tests / 18 opt-in skips** and **19 browser checks**. Public health returns V2/demo-v2/Gemini. A real hosted request (“I would love a burger and a glass of lemonade, please.”) returned the two correct ADDs, Gemini and no fallback. The server recorded an actual provider call and nonzero token usage, so this is more than a mode flag.
+
+The first V2 hosted candidate failed because its runtime lacked a usable key; it was not promoted as the release. A securely synchronized the locally verified key/settings to Vercel and verified the rebuilt deployment before promotion. Secrets were not printed or committed. The configured/verified model is Gemini 3.6 Flash. The [fresh public Chromium recording run](../evals/runs/production-browser-gemini-2026-09-12.json) passed with **five real Gemini responses, no fallback, and zero page errors**. It exercised the exact long order, across-turn correction, Undo, supported pizza subset, targeted ambiguity and natural answer, then a full review and explicit $10.50 simulated receipt. The silent, visibly labelled backup is saved locally at `test-results/demo-recording/tartanorder-gemini.webm` (**149.92 seconds**, 1280×800); playback frames at 25/65/110/140 seconds were inspected. It is a recorded typed demonstration, not live speech evidence. The final receipt remains visible for the presenter's architecture explanation. Human microphone trial instructions are in [demo.md](demo.md); recovery and setup are in [runbook.md](runbook.md).
 
 ---
 

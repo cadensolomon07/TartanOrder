@@ -4,9 +4,9 @@
 
 The local candidate uses **API 2 / `demo-v2`**, an eleven-item demonstration menu and online Gemini by default. Real local generation is verified with **`gemini-3.6-flash`**. Gemini 2.5 Flash generation was unavailable for the configured key; do not label this release as using 2.5. The key remains server-only in ignored local configuration and the existing Vercel environment.
 
-**This V2 work is not yet deployed.** The latest recorded public production remains the earlier typed A/C rules starter at https://tartan-order.vercel.app. A will verify the actual deployment identity, configuration and real Gemini journey before changing this status. The final C evaluation delta has been reviewed and incorporated; five historical evidence files were preserved. Old B/C ownership holds and the V1 contract freeze are superseded by the user's authorization for coordinated end-to-end completion.
+**V2 is now live at https://tartan-order.vercel.app.** Verified application SHA: `3bb09ba2ae0a8409f84bd22803b3266f18b2a918`; promoted Vercel deployment: `dpl_8ou8KnrR6r6tbP6rGbhBmRY5eoFV`. Public health reports V2/demo-v2/Gemini. A real hosted burger/lemonade request returned correct operations with Gemini/no fallback; server logs contain actual provider usage. The first V2 candidate failed hosting configuration and was not promoted; the working local key/settings were securely synchronized before the verified rebuild. Final C changes were reconciled and its older evidence preserved separately. Old ownership holds and the V1 freeze are superseded by coordinated end-to-end completion.
 
-The current candidate passed fresh `npm ci` (zero reported vulnerabilities), typecheck, lint, production build, **472 default tests / 18 optional skips**, and **19/19 Playwright tests with no skips**. The HTTP 503 browser recovery test observed an injected failure; it is not a real provider call. Generated engine evidence remains **1,000 sequences up to 50 events, seed `20260912`**. Full checks do not replace the pending human microphone and production trials.
+The current candidate passed fresh `npm ci` (zero reported vulnerabilities), typecheck, lint, production build, **476 default tests / 18 optional skips**, and **19/19 Playwright tests with no skips**. The HTTP 503 browser recovery test observed an injected failure; it is not a real provider call. Generated engine evidence remains **1,000 sequences up to 50 events, seed `20260912`**. GitHub CI also passed the full suite. These checks do not replace the pending human microphone trial. Public fresh-browser Gemini ordering, review and receipt verification passed; the 149.92-second backup video is recorded and visually inspected.
 
 The subsequently reviewed final C delta contains an evaluation helper and four transport regression tests. Its **10 relevant evaluation tests passed / 6 optional HTTP checks skipped**, with typecheck and lint passing. These supplemental results are reported separately from the earlier full-suite count.
 
@@ -89,7 +89,7 @@ In Vercel, open the correct project's Production Deployment tile and choose **In
 
 ## Demonstration
 
-Use the verified local V2 build until the production release is verified. Leave **Local only** unchecked; verify the first completed request shows `gemini` with no fallback notice. For a two-to-three-minute demo:
+Use the verified public V2 release, with the prebuilt local server ready as backup. Leave **Local only** unchecked; verify the first completed request shows `gemini` with no fallback notice. For a two-to-three-minute demo:
 
 1. Say or type: `Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.` Show exactly three lines and $16.00; no regular burger remains.
 2. Continue: `Actually make that two lemonades and put the lettuce back on the burger`. Show $18.50, quantity two on lemonade and restored lettuce. Use **Undo** to demonstrate one accepted-batch reversal, then repeat the correction if time permits.
@@ -99,6 +99,8 @@ Use the verified local V2 build until the production release is verified. Leave 
 6. Explain: “Gemini understands the request; our engine validates the edits, prices the menu and requires confirmation.” Show the actual mode and **Export full log (JSON)**. The replay engine is read-only; no on-page import viewer is wired, so do not promise one.
 
 The eleven seeded items span mains, sides and drinks; burger “double” and “no lettuce” are supported, and pizza is deliberately unavailable. Proposed available edits apply atomically; unavailable items are explanatory notices. An ambiguous replacement asks before changing the cart. A pending question can be answered by typing or a captured utterance; current real-Gemini evidence used typing. Prices are demonstration data, not official CMU prices. There is no payment, POS call or kitchen dispatch.
+
+The [fresh public Chromium recording run](../evals/runs/production-browser-gemini-2026-09-12.json) passed with **five real Gemini responses, no fallback, and zero page errors**. It exercised the exact long order, across-turn correction, Undo, supported pizza subset, targeted ambiguity and natural answer, then a full review and explicit $10.50 simulated receipt. The silent, visibly labelled backup is saved locally at `test-results/demo-recording/tartanorder-gemini.webm` (**149.92 seconds**, 1280×800); playback frames at 25/65/110/140 seconds were inspected. It is a recorded typed demonstration, not live speech evidence. The final receipt remains visible for the presenter's architecture explanation.
 
 ### Human microphone trial — still required
 
@@ -138,4 +140,4 @@ A second deployed browser check also passed the $13.50 → $16.00 → undo journ
 
 B/C received their temporary files with `1676b3d`. Subsequent integrations added the HTTP client, cancellation-aware fallback, grammar, provider validation, kiosk/voice and `npm run eval`. Historical rules development/adversarial evaluations are documented in [evaluation.md](evaluation.md); their counts are not Gemini accuracy. Default evaluation does not use the network; `EVAL_BASE_URL` opts into an HTTP target. Keep held-out evaluation separate and do not tune on it after inspection.
 
-Remaining release gates: deploy the verified V2 candidate to the existing project, verify actual production Gemini responses and the receipt journey in a fresh browser, and collect the human microphone observations above. The current browser-offline backup has passed; rehearse recovery on the demo laptop before presenting. Record exact deployed SHA/URL and results before claiming completion. Cut optional import/replay UI and presentation effects before weakening atomicity or confirmation.
+Remaining release gate: collect the actual human microphone observations above. The current browser-offline backup has passed; rehearse recovery on the demo laptop before presenting. Record exact deployed SHA/URL and results before claiming completion. Cut optional import/replay UI and presentation effects before weakening atomicity or confirmation.
