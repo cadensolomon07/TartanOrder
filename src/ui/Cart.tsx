@@ -28,8 +28,9 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
   if (lines.length === 0) {
     return (
       <div className={styles.emptyCart} data-testid="cart-empty">
-        <p>Nothing yet.</p>
-        <p className={styles.muted}>Tap an item, type an order, or press Talk and say one.</p>
+        <div className={styles.emptyIcon} aria-hidden="true">🍽</div>
+        <p>Your order is empty.</p>
+        <p className={styles.muted}>Tap an item, type an order, or press the mic and say one.</p>
       </div>
     );
   }
@@ -64,24 +65,26 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
             )}
             {editable && (
               <div className={styles.rowControls}>
-                <button
-                  type="button"
-                  className={styles.smallBtn}
-                  aria-label={`Decrease ${lineLabel(lines, line)}`}
-                  disabled={line.qty <= 1}
-                  onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty - 1 }])}
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  className={styles.smallBtn}
-                  aria-label={`Increase ${lineLabel(lines, line)}`}
-                  disabled={line.qty >= 5}
-                  onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty + 1 }])}
-                >
-                  +
-                </button>
+                <span className={styles.stepper}>
+                  <button
+                    type="button"
+                    className={styles.smallBtn}
+                    aria-label={`Decrease ${lineLabel(lines, line)}`}
+                    disabled={line.qty <= 1}
+                    onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty - 1 }])}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.smallBtn}
+                    aria-label={`Increase ${lineLabel(lines, line)}`}
+                    disabled={line.qty >= 5}
+                    onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty + 1 }])}
+                  >
+                    +
+                  </button>
+                </span>
                 {modifiersFor(line.itemId as ItemId).map((m) => {
                   const on = line.modifiers.includes(m);
                   return (
