@@ -43,7 +43,8 @@ describe("published campus catalog contract", () => {
       expect(LineSchema.safeParse({ lineId: "source:0", itemId: item.id, qty: 1, modifiers: [] }).success, item.id).toBe(true);
       const loaded = MENU.item(item.id)!;
       expect(loaded, item.id).toMatchObject(item);
-      expect(loaded.allowedModifiers, item.id).toEqual([]);
+      if (MENU.location(item.locationId)?.activeRank === null) expect(loaded.allowedModifiers, item.id).toEqual([]);
+      else expect(loaded.allowedModifiers.every((modifier) => modifier.startsWith("no_") && MENU.modifier(modifier)?.priceCents === 0), item.id).toBe(true);
       expect(Object.isFrozen(loaded), item.id).toBe(true);
       expect(Object.isFrozen(loaded.allowedModifiers), item.id).toBe(true);
     }

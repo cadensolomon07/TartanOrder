@@ -3,7 +3,7 @@ import { API_VERSION, type ItemId, type LocationId, type Op, type ParseResult, t
 import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 import { createEngine, exportLog, getView, reduceEngine, replayLog, type EngineState } from "@/core/engine";
 
-const venues: readonly LocationId[] = ["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"];
+const venues: readonly LocationId[] = ["110", "92", "174", "82", "188", "114", "155", "109"];
 const burger = "cmu_188_smash_d_burger";
 const india = "cmu_114_bottled-water";
 const archived = "cmu_136_millies-bottled-water";

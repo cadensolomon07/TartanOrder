@@ -342,3 +342,11 @@
   .footer { padding: 10px 16px; }
   .engArea { padding: 0 16px 16px; }
 }
+
+/* Dietary marks: what the stored evidence lists, never a safety guarantee. */
+.marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.marksCompact { margin-top: 4px; }
+.mark { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; line-height: 1.5; border: 1px solid var(--line-strong); color: var(--ink); background: #fff; }
+.markClaim { color: #315c44; border-color: #9cc4ad; background: #eef7f1; }
+.markWarn { color: var(--red-dark); border-color: #e3b7b7; background: #fbf1f1; }
+.markMuted { color: var(--ink-soft); border-style: dashed; }

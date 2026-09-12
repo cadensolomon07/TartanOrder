@@ -37,12 +37,13 @@ test("location selection keeps sourced cart items and requires a fresh review", 
   await expect(page.getByTestId("total")).toHaveText("$14.70");
   await expect(page.getByTestId("cart")).toContainText("Stack'd Underground");
   await expect(page.getByTestId("cart")).toContainText("Taste of India");
-  await page.getByTestId("dining-location").selectOption("113");
-  await expect(page.getByTestId("price-source")).toContainText("No complete priced configurations");
+  // Hunan keeps priced items alongside disabled previews; venues with no priced items were removed from the selector.
+  await page.getByTestId("dining-location").selectOption("110");
+  await expect(page.getByTestId("price-source")).toContainText("priced choices");
   await expect(page.getByTestId("menu-cmu_188_smash_d_burger")).toHaveCount(0);
   const preview = page.getByRole("group", { name: "Menu preview" });
-  await expect(preview.getByRole("button", { name: /The Good Egg/ })).toBeDisabled();
-  await expect(preview.getByRole("button", { name: /The Good Egg/ })).toContainText("Price unavailable");
+  await expect(preview.getByRole("button", { name: /Braised\ Tofu\ in\ Brown\ Sauce/ })).toBeDisabled();
+  await expect(preview.getByRole("button", { name: /Braised\ Tofu\ in\ Brown\ Sauce/ })).toContainText("Ordering unavailable");
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(2);
   await expect(page.getByTestId("total")).toHaveText("$14.70");
   await page.getByTestId("review").click();
@@ -69,14 +70,15 @@ test("a campus HTTP 503 actually falls back to the selected location's rules", a
 });
 
 
-test("the public selector preserves eleven campus locations and a separate fictional meal demo", async ({ page }) => {
+test("the public selector preserves the eight campus locations with priced menus and a separate fictional meal demo", async ({ page }) => {
   await page.goto("/");
   const selector = page.getByTestId("dining-location");
   await expect(selector).toHaveValue("188");
-  await expect(selector.locator("option")).toHaveCount(12);
+  await expect(selector.locator("option")).toHaveCount(9);
   const values = await selector.locator("option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value));
-  expect([...values].sort()).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108", "demo"].sort());
-  for (const retired of ["84", "180", "190", "127"]) expect(values).not.toContain(retired);
+  expect([...values].sort()).toEqual(["110", "92", "174", "82", "188", "114", "155", "109", "demo"].sort());
+  // Retired archive venues and the three venues without priced items are not selectable.
+  for (const retired of ["84", "180", "190", "127", "179", "113", "108"]) expect(values).not.toContain(retired);
   await expect(selector).toContainText("Demo Counter");
   await expect(page.getByTestId("menu-burger")).toHaveCount(0);
 });

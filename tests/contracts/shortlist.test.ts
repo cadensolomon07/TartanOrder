@@ -10,15 +10,15 @@ const guard = catalogGuard(CATALOG);
 const PublicParseRequestSchema = guard.publicParseRequestSchema;
 
 describe("the requested public shortlist", () => {
-  it("contains exactly the requested ten venues plus Schatz, in order, and 237 sourced configurations", () => {
-    expect(ACTIVE_LOCATION_IDS).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"]);
+  it("contains exactly the eight venues with complete prices, in the requested order, and 237 sourced configurations", () => {
+    expect(ACTIVE_LOCATION_IDS).toEqual(["110", "92", "174", "82", "188", "114", "155", "109"]);
     expect(ACTIVE_DINING_LOCATIONS.map(location => location.id)).toEqual(ACTIVE_LOCATION_IDS);
     expect(ACTIVE_CAMPUS_ITEMS).toHaveLength(237);
     expect([...new Set(ACTIVE_CAMPUS_ITEMS.map(item => item.locationId))].sort()).toEqual(["109", "110", "114", "155", "174", "188", "82", "92"]);
     expect(ACTIVE_CAMPUS_ITEMS.every(item => item.priceCents > 0 && Number.isSafeInteger(item.priceCents))).toBe(true);
     expect(UNPRICED_MENU_ITEMS).toHaveLength(50);
     expect(UNPRICED_MENU_ITEMS.every(item => !('id' in item) && !('ops' in item))).toBe(true);
-    expect(MENU_VERSION).toBe("cmu-meal-2026-09-12");
+    expect(MENU_VERSION).toBe("cmu-dietary-2026-09-12");
     // The loaded catalog carries the same shortlist as ranked locations and the previews.
     expect(CATALOG.versionId).toBe(MENU_VERSION);
     expect(MENU.activeLocationIds).toEqual([...ACTIVE_LOCATION_IDS]);

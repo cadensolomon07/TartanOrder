@@ -1,7 +1,7 @@
 // Pure row builders for the catalog seed: Catalog value in, database rows and
 // idempotent SQL out. No network, no environment. Used by scripts/seed-catalog.ts
 // and its tests.
-import type { Catalog } from "@/contracts";
+import type { Catalog, FoodEvidence, ModifierEffect } from "@/contracts";
 
 export type SeedRows = {
   readonly version: { id: string; source_snapshot: Catalog["snapshot"]; is_active: false };
@@ -9,10 +9,11 @@ export type SeedRows = {
     version_id: string; id: string; name: string; location: string; menu_url: string | null; directory_menu_url: string | null;
     detail_url: string | null; source_sha256: string | null; source_note: string | null; active_rank: number | null;
   }[];
-  readonly modifiers: readonly { version_id: string; id: string; label: string; price_cents: number }[];
+  readonly modifiers: readonly { version_id: string; id: string; label: string; price_cents: number; effect: ModifierEffect | null }[];
   readonly items: readonly {
     version_id: string; id: string; ordinal: number; location_id: string; label: string; category: string; description: string;
     price_cents: number; aliases: readonly string[]; allowed_modifiers: readonly string[]; source_page: number | null;
+    food_evidence: FoodEvidence;
   }[];
   readonly previews: readonly {
     version_id: string; location_id: string; ordinal: number; label: string; description: string; price_cents: number | null;
@@ -30,11 +31,11 @@ export function seedRows(catalog: Catalog): SeedRows {
       directory_menu_url: location.directoryMenuUrl, detail_url: location.detailUrl, source_sha256: location.sourceSha256,
       source_note: location.sourceNote, active_rank: location.activeRank,
     })),
-    modifiers: catalog.modifiers.map((modifier) => ({ version_id, id: modifier.id, label: modifier.label, price_cents: modifier.priceCents })),
+    modifiers: catalog.modifiers.map((modifier) => ({ version_id, id: modifier.id, label: modifier.label, price_cents: modifier.priceCents, effect: modifier.effect })),
     items: catalog.items.map((item, index) => ({
       version_id, id: item.id, ordinal: index + 1, location_id: item.locationId, label: item.label, category: item.category,
       description: item.description, price_cents: item.priceCents, aliases: item.aliases, allowed_modifiers: item.allowedModifiers,
-      source_page: item.sourcePage,
+      source_page: item.sourcePage, food_evidence: item.foodEvidence,
     })),
     previews: catalog.previews.map((preview) => {
       const ordinal = (previewOrdinals.get(preview.locationId) ?? 0) + 1;

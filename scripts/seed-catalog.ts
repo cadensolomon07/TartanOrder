@@ -10,7 +10,7 @@ import { bundledCatalog } from "@/catalog/bundled";
 import { CLIENT_OPTIONS, resolveSupabaseConnection } from "@/db/config";
 import { seedRows, seedSql } from "@/db/seed-rows";
 
-const BATCH = 200;
+const BATCH = 40;
 
 async function apply(): Promise<void> {
   const connection = resolveSupabaseConnection("writer", process.env);

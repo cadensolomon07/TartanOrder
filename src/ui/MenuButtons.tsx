@@ -5,7 +5,8 @@ import styles from "./Kiosk.module.css";
 import { useCatalog } from "./CatalogContext";
 import { formatCents } from "./labels";
 import { checkCompatibility } from "@/core/compatibility";
-import { foodEvidenceFor } from "@/contracts/food";
+import { foodEvidenceFor } from "@/catalog/food";
+import { DietaryMarks } from "./DietaryMarks";
 
 export type MenuFilter = "all" | CatalogCategory;
 
@@ -88,6 +89,7 @@ export function MenuButtons({ disabled, onOps, locationId = "demo", filter = "al
             <span className={styles.menuItemHeading}><span>{item.label}</span>{!blocked && <span className={styles.menuBtnPlus} aria-hidden="true">+</span>}</span>
             <span className={styles.menuVendor}>{menu.locationName(locationId)}</span>
             {item.description !== GENERIC_DESCRIPTION && <span className={styles.menuDescription}>{item.description}</span>}
+            <DietaryMarks evidence={item.foodEvidence} compact />
             {hasRequirements && check && <span className={`${styles.menuCompatibility} ${check.status === "match" ? styles.menuMatch : styles.menuConflict}`} data-testid={`compatibility-${item.id}`}><strong>{check.status === "match" ? "Matches recorded requirements" : check.status === "unknown" ? "Needs verification" : "Conflicts with requirements"}</strong>{check.status !== "match" && <> · {check.reasons.join(" ")}</>}</span>}
             {!blocked && (onMealItem || preferenceConflict) && <span className={styles.menuDescription}>{preferenceConflict ? "Request a preference choice" : "Choose for meal"}</span>}
             <span className={styles.menuPrice}>{formatCents(item.priceCents)}</span>
@@ -97,18 +99,20 @@ export function MenuButtons({ disabled, onOps, locationId = "demo", filter = "al
     </div>
   </div>);
   const first = items[0];
+  const inferred = priced.some((item) => item.foodEvidence.provenance.kind === "inferred_campus");
   return (
     <section className={styles.menu} aria-label="Menu">
       <div className={styles.menuHead}>
         <h2 className={styles.panelTitle}>{filter === "all" ? "On the menu" : CATEGORIES.find((c) => c.id === filter)?.label}</h2>
         {total > 0 && <span className={styles.menuCount}>{visible} of {total} items</span>}
       </div>
+      {inferred && <p className={styles.muted} data-testid="inference-note">Ingredient marks are inferred from the published names and descriptions and are not verified; missing ingredients are not confirmed.</p>}
       {locationId !== "demo" && (priced.length > 0 || previewItems.length > 0) && <label className={styles.menuSearch}>Find an item<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this menu" type="search" /></label>}
       {items.length === 0 && previews.length === 0 && <p className={styles.muted}>{query ? "No matching menu items. Try another name." : "Ordering is unavailable here until we have complete, verified priced configurations. Choose another location above."}</p>}
       {hasRequirements && <p className={styles.muted} data-testid="menu-match-count">{matches.length} choices match the recorded requirements. This describes available evidence, not an allergy-safety guarantee.</p>}
       {renderCategories(matches)}
       {excluded.length > 0 && <details data-testid="excluded-menu"><summary>Inspect {excluded.length} conflicting or unverified choices</summary><p className={styles.muted}>Preference conflicts can request an explicit choice. Allergy conflicts and missing evidence cannot be overridden.</p>{renderCategories(excluded)}</details>}
-      {hasRequirements && <details data-testid="food-evidence"><summary>About this dietary evidence</summary><p className={styles.muted}>{first ? foodEvidenceFor(first.id, [], first.allowedModifiers).provenance.explanation : "Complete ingredient and preparation evidence is unavailable."}</p><p className={styles.muted}>Ingredients and preparation are checked separately. Removing one ingredient does not establish absence of an allergen elsewhere in a recipe.</p></details>}
+      {hasRequirements && <details data-testid="food-evidence"><summary>About this dietary evidence</summary><p className={styles.muted}>{first ? foodEvidenceFor(menu, first.id).provenance.explanation : "Complete ingredient and preparation evidence is unavailable."}</p><p className={styles.muted}>Ingredients and preparation are checked separately. Removing one ingredient does not establish absence of an allergen elsewhere in a recipe.</p></details>}
       {filter === "all" && previews.length > 0 && <div className={styles.menuCategory}>
         <h3 className={styles.categoryTitle}>Menu preview · ordering unavailable</h3>
         <div className={styles.menuGrid} role="group" aria-label="Menu preview">

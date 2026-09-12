@@ -79,6 +79,7 @@ export type Database = {
           allowed_modifiers: string[]
           category: string
           description: string
+          food_evidence: Json | null
           id: string
           label: string
           location_id: string
@@ -92,6 +93,7 @@ export type Database = {
           allowed_modifiers?: string[]
           category: string
           description: string
+          food_evidence?: Json | null
           id: string
           label: string
           location_id: string
@@ -105,6 +107,7 @@ export type Database = {
           allowed_modifiers?: string[]
           category?: string
           description?: string
+          food_evidence?: Json | null
           id?: string
           label?: string
           location_id?: string
@@ -231,17 +234,20 @@ export type Database = {
       modifiers: {
         Row: {
           id: string
+          effect: Json | null
           label: string
           price_cents: number
           version_id: string
         }
         Insert: {
           id: string
+          effect?: Json | null
           label: string
           price_cents: number
           version_id: string
         }
         Update: {
+          effect?: Json | null
           id?: string
           label?: string
           price_cents?: number

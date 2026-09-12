@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { API_VERSION, CORE_CODES, LIMITS, DEMO_ITEM_IDS, ModifierIdSchema, type ParseRequest } from "@/contracts";
+import { API_VERSION, CORE_CODES, LIMITS, DEMO_ITEM_IDS, type ParseRequest } from "@/contracts";
 import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 import {
   GeminiError,
@@ -142,7 +142,8 @@ describe("buildProviderSchema", () => {
     const flattened = enums.flat();
     expect(flattened).toEqual(expect.arrayContaining(["proposal", "clarify", "reject", "resolve", "requirements", "decide_requirements"]));
     expect(enums).toContainEqual([...DEMO_ITEM_IDS]);
-    expect(enums).toContainEqual(ModifierIdSchema.options);
+    // Modifier enums are the union of the scoped items' allowed modifiers, never a global list.
+    expect(enums).toContainEqual([...new Set(MENU.itemsForLocation("demo").flatMap((item) => item.allowedModifiers))].sort());
     expect(enums).toContainEqual([...CORE_CODES]);
     expect(enums).toContainEqual(["last"]);
     expect(enums).toContainEqual(["item"]);

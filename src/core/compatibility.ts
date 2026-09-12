@@ -1,12 +1,13 @@
 import type { CompatibilityResult, DietaryProfile, ModifierId } from "@/contracts";
-import { foodEvidenceFor, normalizeFoodName } from "@/contracts/food";
+import { normalizeFoodName } from "@/contracts/food";
+import { foodEvidenceFor } from "@/catalog/food";
 import type { CatalogIndex } from "@/catalog/lookup";
 
 /** Pure and shared by browsing, edits, suggestions, swaps, review and confirmation. Reads only the loaded catalog. */
 export function checkCompatibility(menu: CatalogIndex, itemId: string, modifiers: readonly ModifierId[], profile: DietaryProfile): CompatibilityResult {
   const item = menu.item(itemId);
   if (!item) return { status: "conflict", reasons: ["This item is not in the current catalog."], staffReview: false, source: "No catalog entry for this item." };
-  const evidence = foodEvidenceFor(itemId, modifiers, item.allowedModifiers);
+  const evidence = foodEvidenceFor(menu, itemId, modifiers);
   const reasons: string[] = [];
   let conflict = false;
   let unknown = false;
@@ -26,7 +27,9 @@ export function checkCompatibility(menu: CatalogIndex, itemId: string, modifiers
     const field = profile.preference === "vegan" ? "vegan" : "vegetarian";
     const incompatible = evidence.ingredients.filter(entry => entry[field] === false);
     if (incompatible.length) problem(`${incompatible.map(entry => entry.label).join(", ")} conflicts with your ${profile.preference} preference.`, "conflict");
-    if (evidence.completeness !== "complete" || evidence.ingredients.some(entry => entry[field] === null)) problem(`Complete ${profile.preference} ingredient evidence is unavailable.`, "unknown");
+    // A published "veggie"/"vegan" description satisfies a preference (never an allergy) unless an inferred ingredient contradicts it.
+    else if (evidence.dietaryClaims.includes(profile.preference)) reasons.push(`The published menu describes this item as ${profile.preference}.`);
+    else if (evidence.completeness !== "complete" || evidence.ingredients.some(entry => entry[field] === null)) problem(`Complete ${profile.preference} ingredient evidence is unavailable.`, "unknown");
   }
   for (const value of profile.dislikes) {
     const name = normalizeFoodName(value);

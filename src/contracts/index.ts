@@ -52,9 +52,10 @@ export const KIOSK_DEFAULT_LOCATION_ID = "188";
 // The fictional Demo Counter is publicly orderable for the meal/ingredient demonstration:
 // see CatalogIndex.publicLocationIds and catalogGuard(catalog) in src/catalog/lookup.ts.
 export const AllowedLocationIdsSchema = z.array(LocationIdSchema).min(1).max(100).refine(ids => new Set(ids).size === ids.length, "Location IDs must be unique.");
-export const ModifierIdSchema = z.enum([
-  "no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice",
-]);
+/** The seeded Demo Counter's modifiers; campus items gain generated no_<ingredient> removals from the catalog. */
+export const DEMO_MODIFIER_IDS = ["no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice"] as const;
+/** Modifier ids are catalog data (V3): bounded strings validated against the loaded catalog's modifier list. */
+export const ModifierIdSchema = z.string().min(1).max(60).regex(/^[a-z][a-z0-9_]*$/, "Modifier IDs use lowercase letters, digits and underscores.");
 export type ItemId = z.infer<typeof ItemIdSchema>;
 export type ModifierId = z.infer<typeof ModifierIdSchema>;
 
@@ -70,7 +71,8 @@ export const LabelSchema = z.string().min(1).max(LIMITS.labelChars);
 const CodeSchema = z.enum([...CORE_CODES, ...HTTP_CODES]);
 const CentsSchema = z.number().int().nonnegative();
 
-export const ModifiersSchema = z.array(ModifierIdSchema).max(ModifierIdSchema.options.length).superRefine((modifiers, ctx) => {
+export const MAX_MODIFIERS_PER_UNIT = 30;
+export const ModifiersSchema = z.array(ModifierIdSchema).max(MAX_MODIFIERS_PER_UNIT).superRefine((modifiers, ctx) => {
   if (new Set(modifiers).size !== modifiers.length) {
     ctx.addIssue({ code: "custom", message: "A modifier may occur only once per unit." });
   }
@@ -85,6 +87,30 @@ const CatalogUrlSchema = z.string().min(1).max(1000).nullable();
 const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/).nullable();
 export const CatalogCategorySchema = z.enum(["mains", "sides", "drinks"]);
 export type CatalogCategory = z.infer<typeof CatalogCategorySchema>;
+// Food evidence is catalog data: fictional recipes for the Demo Counter, ingredients
+// inferred from the published name and description for campus items. Inference only
+// ever adds ingredients; the absence of an ingredient is never certified.
+const FoodTextSchema = z.string().min(1).max(300);
+export const FoodIngredientSchema = z.strictObject({
+  id: FoodTextSchema, label: FoodTextSchema, aliases: z.array(FoodTextSchema), allergens: z.array(FoodTextSchema),
+  vegetarian: z.boolean().nullable(), vegan: z.boolean().nullable(),
+});
+export type FoodIngredient = z.infer<typeof FoodIngredientSchema>;
+export const DietaryClaimSchema = z.enum(["vegetarian", "vegan"]);
+export type DietaryClaim = z.infer<typeof DietaryClaimSchema>;
+export const FoodEvidenceSchema = z.strictObject({
+  completeness: z.enum(["complete", "partial", "unknown"]),
+  ingredients: z.array(FoodIngredientSchema).max(60),
+  allergenCoverage: z.array(FoodTextSchema),
+  /** Preference words in the published name or description ("veggie", "vegan"); never an allergy statement. */
+  dietaryClaims: z.array(DietaryClaimSchema).max(2).default([]),
+  preparation: z.strictObject({ status: z.enum(["fictional_separate", "possible_cross_contact", "unknown"]), allergens: z.array(FoodTextSchema), explanation: FoodTextSchema }),
+  provenance: z.strictObject({ kind: z.enum(["fictional_demo", "unverified_campus", "inferred_campus"]), explanation: FoodTextSchema, sourceUrl: z.string().url().nullable(), verifiedAt: z.string().date().nullable() }),
+});
+export type FoodEvidence = z.infer<typeof FoodEvidenceSchema>;
+/** What a modifier does to an item's evidence: remove ingredient ids, add ingredients. */
+export const ModifierEffectSchema = z.strictObject({ remove: z.array(FoodTextSchema).max(10), add: z.array(FoodIngredientSchema).max(10) });
+export type ModifierEffect = z.infer<typeof ModifierEffectSchema>;
 export const CatalogLocationSchema = z.strictObject({
   id: LocationIdSchema,
   name: CatalogTextSchema,
@@ -108,6 +134,7 @@ export const CatalogItemSchema = z.strictObject({
   aliases: z.array(CatalogTextSchema).max(50),
   allowedModifiers: ModifiersSchema,
   sourcePage: z.number().int().positive().nullable(),
+  foodEvidence: FoodEvidenceSchema,
 });
 export type CatalogItem = z.infer<typeof CatalogItemSchema>;
 export const CatalogPreviewSchema = z.strictObject({
@@ -120,7 +147,7 @@ export const CatalogPreviewSchema = z.strictObject({
   sourceSha256: Sha256Schema,
 });
 export type CatalogPreview = z.infer<typeof CatalogPreviewSchema>;
-export const CatalogModifierSchema = z.strictObject({ id: ModifierIdSchema, label: CatalogTextSchema, priceCents: CentsSchema });
+export const CatalogModifierSchema = z.strictObject({ id: ModifierIdSchema, label: CatalogTextSchema, priceCents: CentsSchema, effect: ModifierEffectSchema.nullable() });
 export type CatalogModifier = z.infer<typeof CatalogModifierSchema>;
 export const CatalogSnapshotSchema = z.strictObject({
   checkedAt: z.iso.date(),
@@ -133,7 +160,7 @@ export const CatalogSchema = z.strictObject({
   locations: z.array(CatalogLocationSchema).min(1).max(1000),
   items: z.array(CatalogItemSchema).max(10000),
   previews: z.array(CatalogPreviewSchema).max(10000),
-  modifiers: z.array(CatalogModifierSchema).max(ModifierIdSchema.options.length),
+  modifiers: z.array(CatalogModifierSchema).max(500),
 }).superRefine((catalog, ctx) => {
   const locationIds = new Set(catalog.locations.map((location) => location.id));
   if (locationIds.size !== catalog.locations.length) ctx.addIssue({ code: "custom", path: ["locations"], message: "Location IDs must be unique." });

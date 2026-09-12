@@ -26,4 +26,33 @@ Plan: `docs/plan/supabase-persistence.md` (revised 2026-09-12: new `sb_publishab
 - Upstream `origin/main` gained the kiosk redesign and the meal-budget / dietary-requirements release (4 commits, `bd87282`). Committed the persistence work on `feat/supabase-persistence` (`635b725`) and merged upstream into it: 21 conflicted files resolved by layer (contracts/core, parsers/route, controller/UI, docs/package.json); upstream's new food, meal, compatibility, requirements-parser and RequirementsPanel modules ported to the runtime catalog; `PUBLIC_LOCATION_IDS` became `menu.publicLocationIds` (ranked shortlist plus the fictional Demo Counter); badges live in the redesign's footer bar with unchanged test ids.
 - Upstream changed Demo Counter item data and bumped the menu version, so the merged bundled catalog is `cmu-meal-2026-09-12`, published to the project as a second immutable version and activated (`npm run db:seed:apply`, `npm run db:verify`).
 - Evidence: tsc 0, eslint clean, unit 751 passed / 30 skipped, build + check:build, e2e keyless 33 passed, e2e live 35 passed with cleanup, db live passed.
-- Still pending: Vercel environment variables and the deployed health check; merging the branch into `main` (fast-forward) and pushing, when you say so.
+- Upstream moved again (46ded0f, 1929df3: meal/dietary controls integrated into the redesign); merged as `ad28f16` with five small conflicts resolved on top of the catalog wiring. `main` fast-forwarded to `ad28f16` and pushed to origin on 2026-09-12. Still pending: Vercel environment variables and the deployed health check.
+
+## Dietary marks, ingredient modifiers, unavailable venues (2026-09-12, branch feat/dietary-marks)
+
+Request: mark items for dietary restrictions from their published description and ingredients, offer ingredient modifications based on what the menu says, and remove venues with no orderable menu.
+
+Design (see docs/adr-supabase-persistence.md invariants; evidence model from the meal release):
+- Food evidence becomes catalog data: `CatalogItem.foodEvidence` (jsonb `items.food_evidence`), fictional recipes for the Demo Counter, ingredients INFERRED from the published name and description for campus items (provenance `inferred_campus`, completeness `partial`). Inference only adds ingredients: a detected meat, dairy, egg, wheat, soy, nut, sesame, fish or shellfish yields a conflict for the matching restriction; absence stays unverified. A published "veggie"/"vegan" word is a `dietaryClaims` entry that satisfies a preference (never an allergy).
+- Modifiers become catalog data: `ModifierIdSchema` is a bounded string; `catalog.modifiers` carries the seven demo modifiers plus generated `no_<ingredient>` removals (price 0, `effect.remove`) for removable inferred toppings; each item's `allowedModifiers` lists the removals that apply to it. `foodEvidenceFor(menu, itemId, modifiers)` applies effects as data.
+- Public shortlist drops the three venues with zero priced items (Au Bon Pain 113, Capital Grains 179, Schatz 108); their rows stay archived. Eight venues remain.
+- New catalog version `cmu-dietary-2026-09-12` seeded to the project after a migration adding `items.food_evidence` and `modifiers.effect`.
+
+- [x] Contract: ModifierIdSchema string, FoodEvidence/ModifierEffect schemas in contracts/index.ts, CatalogItem.foodEvidence, CatalogModifier.effect, src/catalog/food.ts
+- [x] Inference module, bundled builder, seed rows, loader, migration, compatibility, lexicon and Gemini modifier enums, tests
+- [x] UI marks on cards and cart, eight-venue selector, e2e and docs
+- [x] Migration + seed applied (version cmu-dietary-2026-09-12 active), verify, full checks, committed on feat/dietary-marks (not merged or pushed)
+
+## Audio-clip language fallback (planned 2026-09-12, not started)
+
+Plan: `docs/plan/audio-language-fallback.md`. Orchestrate commands: `tasks/audio-language-fallback-orchestrate.md` (generated with `/ecc:plan-orchestrate`). Branch `feat/audio-language-fallback` from `main` once `feat/dietary-marks` is committed (both touch `src/contracts/index.ts` and `src/parser/gemini.server.ts`).
+
+- [ ] Step 1 — ADR `docs/adr-audio-language-fallback.md` + Chrome concurrent-capture check on `public/demo/clip-check.html`
+- [ ] Step 2 — additive contracts (`LIMITS.audioBytes/audioMs`, `AUDIO_MIME_TYPES`, `TranscribeResponseSchema`) + `src/parser/transcribe.server.ts`
+- [ ] Step 3 — `POST /api/transcribe` route (caps, key check, envelope, log hygiene)
+- [ ] Step 4 — `src/voice/useAudioClip.ts` + `src/voice/transcribe.client.ts`
+- [ ] Step 5 — `src/voice/fallbackPolicy.ts`, `submit` returns `{ outcome, code }`, `useSpeech` lang reset, `sessionLang`
+- [ ] Step 6 — Kiosk wiring, notices, engineering panel, real-controller test
+- [ ] Step 7 — Playwright spec, opt-in live test on a Spanish clip, eval rows
+- [ ] Step 8 — security review + chaos drill
+- [ ] Step 9 — docs, runbook, evidence

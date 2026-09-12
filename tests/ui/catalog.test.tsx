@@ -12,8 +12,20 @@ import { withCatalog } from "./withCatalog";
 const preview = (locationId: string, label: string, description: string, priceCents: number | null = null) => ({
   locationId, label, description, priceCents, sourceUrl: null, sourcePage: null, sourceSha256: null,
 });
+// Hand-built inferred evidence for one campus card, so the mark assertions do not
+// depend on the seed's inference lexicon; the rest of the catalog is the release.
+const inferredBurger = {
+  completeness: "partial", allergenCoverage: [], dietaryClaims: [],
+  ingredients: [
+    { id: "beef", label: "Beef", aliases: [], allergens: [], vegetarian: false, vegan: false },
+    { id: "cheese", label: "Cheese", aliases: [], allergens: ["milk"], vegetarian: true, vegan: false },
+  ],
+  preparation: { status: "unknown", allergens: [], explanation: "Preparation unknown." },
+  provenance: { kind: "inferred_campus", explanation: "Inferred from the published name.", sourceUrl: null, verifiedAt: null },
+};
 const catalog = CatalogSchema.parse({
   ...CATALOG,
+  items: CATALOG.items.map((item) => item.id === "cmu_188_smash_d_burger" ? { ...item, foodEvidence: inferredBurger } : item),
   locations: CATALOG.locations.map((location) => location.id === "110" ? { ...location, sourceNote: "Supplied CMU-hosted snapshot; current pricing unverified." } : location),
   previews: [
     preview("188", "Unresolved bowl", "Includes a side; choices need confirmation.", 1095),
@@ -27,11 +39,12 @@ const mount = (node: React.ReactNode) => render(withCatalog(node, "bundled", cat
 afterEach(cleanup);
 
 describe("consolidated public catalog", () => {
-  it("preserves the eleven requested locations and separates the explicit fictional demo", () => {
+  it("lists the eight venues with orderable menus in order and separates the explicit fictional demo", () => {
     const onChange = vi.fn();
     mount(<DiningLocation locationId="110" onChange={onChange} />);
     const options = screen.getAllByRole("option") as HTMLOptionElement[];
-    expect(options.map(option => option.value)).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108", "demo"]);
+    expect(options.map(option => option.value)).toEqual(["110", "92", "174", "82", "188", "114", "155", "109", "demo"]);
+    expect(screen.queryByRole("option", { name: /Au Bon Pain|Capital Grains|Schatz/ })).toBeNull();
     expect(screen.queryByRole("option", { name: /La Prima|El Gallo/ })).toBeNull();
     expect(screen.getByRole("group", { name: "Fictional meal demo" })).toBeTruthy();
     fireEvent.change(screen.getByTestId("dining-location"), { target: { value: "82" } });
@@ -93,6 +106,22 @@ describe("consolidated public catalog", () => {
     expect(screen.getByTestId("compatibility-onion_rings").textContent).toContain("milk");
     expect(screen.queryByTestId("menu-burger")).toBeNull();
     expect(screen.queryByTestId("menu-water")).toBeNull();
+  });
+
+  it("marks campus cards from inferred evidence and says so", () => {
+    mount(<MenuButtons locationId="188" disabled={false} onOps={vi.fn()} />);
+    expect(screen.getByTestId("inference-note").textContent).toContain("inferred from the published names and descriptions");
+    const marks = within(screen.getByTestId("menu-cmu_188_smash_d_burger")).getAllByTestId("dietary-mark");
+    expect(marks.map((mark) => mark.textContent)).toEqual(["Contains meat", "Contains: milk"]);
+    expect(screen.getAllByTestId("dietary-mark").length).toBeGreaterThan(2);
+  });
+
+  it("marks demo cards from the fictional recipes without the inferred suffix", () => {
+    mount(<MenuButtons locationId="demo" disabled={false} onOps={vi.fn()} />);
+    expect(screen.queryByTestId("inference-note")).toBeNull();
+    const burger = within(screen.getByTestId("menu-burger")).getAllByTestId("dietary-mark").map((mark) => mark.textContent);
+    expect(burger).toEqual(["Contains meat", "Contains: egg, sesame, wheat"]);
+    expect(burger.join(" ")).not.toContain("from menu wording");
   });
 
   it("retains actual priced ADD actions and the internal no-argument Demo fixture", () => {

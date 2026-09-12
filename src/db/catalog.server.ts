@@ -5,6 +5,7 @@
 import "server-only";
 import { CatalogSchema, type Catalog } from "@/contracts";
 import { freezeCatalog } from "@/catalog/lookup";
+import { unknownFoodEvidence } from "@/contracts/food";
 import { readerClient } from "./client.server";
 
 const MAX_ROWS = 10000;
@@ -44,12 +45,13 @@ function toCatalog(versionId: string, version: Row, locations: Row[], modifiers:
     items: items.map((row) => ({
       id: row.id, locationId: row.location_id, label: row.label, category: row.category, description: row.description, priceCents: row.price_cents,
       aliases: row.aliases, allowedModifiers: row.allowed_modifiers, sourcePage: nullable(row.source_page),
+      foodEvidence: row.food_evidence ?? unknownFoodEvidence(),
     })),
     previews: previews.map((row) => ({
       locationId: row.location_id, label: row.label, description: row.description, priceCents: nullable(row.price_cents),
       sourceUrl: nullable(row.source_url), sourcePage: nullable(row.source_page), sourceSha256: nullable(row.source_sha256),
     })),
-    modifiers: modifiers.map((row) => ({ id: row.id, label: row.label, priceCents: row.price_cents })),
+    modifiers: modifiers.map((row) => ({ id: row.id, label: row.label, priceCents: row.price_cents, effect: nullable(row.effect) })),
   });
   if (!parsed.success) {
     // Issue paths only: never row contents.

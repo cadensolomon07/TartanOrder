@@ -23,7 +23,7 @@ describe("shared strict contract V3", () => {
   it("exports the agreed API and menu versions and honest fixture envelopes", () => {
     expect(API_VERSION).toBe(3);
     expect(CATALOG.versionId).toBe(MENU_VERSION);
-    expect(MENU_VERSION).toBe("cmu-meal-2026-09-12");
+    expect(MENU_VERSION).toBe("cmu-dietary-2026-09-12");
     expect(ParseRequestSchema.parse(FIXTURE_REQUEST).source).toBe("fixture");
     for (const response of [FIXTURE_RESPONSE, FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION]) {
       expect(ParseResponseSchema.parse(response).parser).toBe("fixture");
@@ -108,7 +108,9 @@ describe("shared strict contract V3", () => {
     expect(OpSchema.safeParse({ ...addBurger, itemId: "pizza" }).success).toBe(true);
     expect(OpSchema.safeParse({ ...addBurger, itemId: "Pizza Pie!" }).success).toBe(false);
     expect(OpSchema.safeParse({ ...addBurger, itemId: "" }).success).toBe(false);
-    expect(OpSchema.safeParse({ ...addBurger, modifiers: ["bacon"] }).success).toBe(false);
+    expect(OpSchema.safeParse({ ...addBurger, modifiers: ["bacon"] }).success).toBe(true);
+    expect(MENU.modifier("bacon")).toBeUndefined();
+    expect(OpSchema.safeParse({ ...addBurger, modifiers: ["Bacon!"] }).success).toBe(false);
     expect(OpSchema.safeParse({ ...addBurger, modifiers: ["double", "double"] }).success).toBe(false);
     expect(OpSchema.safeParse({ ...addBurger, modifiers: ["double", "no_onions", "extra_cheese", "no_lettuce", "no_mayo"] }).success).toBe(true);
   });
@@ -201,7 +203,10 @@ describe("V2 bounded conversation and interpretation", () => {
     for (const schema of [ParseResultSchema, ModelParseResultSchema]) {
       expect(schema.safeParse({ kind: "proposal", ops: [addBurger], notices: [notice] }).success).toBe(true);
       expect(schema.safeParse({ kind: "reject", code: "INVALID_MODIFIER", message: "Unavailable option", notices: [notice] }).success).toBe(true);
-      expect(schema.safeParse({ kind: "proposal", ops: [{ ...addBurger, modifiers: ["extra_salt"] }], notices: [notice] }).success).toBe(false);
+      // Modifier ids are catalog data: a malformed id fails the shape; a well-formed unknown one is caught by the catalog, not the schema.
+      expect(schema.safeParse({ kind: "proposal", ops: [{ ...addBurger, modifiers: ["Extra Salt!"] }], notices: [notice] }).success).toBe(false);
+      expect(schema.safeParse({ kind: "proposal", ops: [{ ...addBurger, modifiers: ["extra_salt"] }], notices: [notice] }).success).toBe(true);
+      expect(MENU.modifier("extra_salt")).toBeUndefined();
     }
     for (const value of [{ ...notice, itemId: "Pizza Pie!" }, { ...notice, option: " " }, { ...notice, option: "x".repeat(61) }, { ...notice, priceCents: 0 }]) {
       expect(UnavailableOptionNoticeSchema.safeParse(value).success).toBe(false);
@@ -297,7 +302,8 @@ describe("authoritative seeded menu", () => {
       expect(new Set(entry.allowedModifiers).size).toBe(entry.allowedModifiers.length);
       for (const modifier of entry.allowedModifiers) expect(ModifierIdSchema.safeParse(modifier).success).toBe(true);
     }
-    const accepting = (modifier: string) => CATALOG.items.filter((entry) => entry.allowedModifiers.includes(modifier as never)).map((entry) => entry.id);
+    // Demo Counter pairings only; campus items carry generated no_<ingredient> removals from their inferred evidence.
+    const accepting = (modifier: string) => CATALOG.items.filter((entry) => entry.locationId === "demo" && entry.allowedModifiers.includes(modifier as never)).map((entry) => entry.id);
     expect(accepting("double")).toEqual(["burger"]);
     expect(accepting("no_lettuce")).toEqual(["burger", "chicken_sandwich", "veggie_wrap"]);
     expect(accepting("no_ice")).toEqual(["lemonade", "iced_tea", "cola"]);

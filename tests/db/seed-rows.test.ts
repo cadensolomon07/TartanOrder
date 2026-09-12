@@ -8,8 +8,10 @@ describe("catalog seed rows", () => {
   it("produces the documented counts with ordinals and an inactive version row", () => {
     expect(rows.version).toEqual({ id: CATALOG.versionId, source_snapshot: CATALOG.snapshot, is_active: false });
     expect(rows.locations).toHaveLength(46);
-    expect(rows.locations.filter((location) => location.active_rank !== null)).toHaveLength(11);
-    expect(rows.modifiers).toHaveLength(7);
+    expect(rows.locations.filter((location) => location.active_rank !== null)).toHaveLength(8);
+    expect(rows.modifiers).toHaveLength(CATALOG.modifiers.length);
+    expect(rows.modifiers.find((modifier) => modifier.id === "no_bacon")?.effect).toEqual({ remove: ["bacon"], add: [] });
+    expect(rows.items.every((item) => item.food_evidence.provenance.kind.length > 0)).toBe(true);
     expect(rows.items).toHaveLength(506);
     expect(rows.items.map((item) => item.ordinal)).toEqual(rows.items.map((_, index) => index + 1));
     expect(rows.previews).toHaveLength(50);
@@ -27,6 +29,9 @@ describe("catalog seed rows", () => {
     expect(sql).toContain("'Stack''d Underground'");
     expect(sql).toContain("array['no_onions', 'double', 'extra_cheese', 'no_lettuce', 'no_mayo']::text[]");
     expect(sql).toContain("'{}'::text[]");
+    expect(sql).toContain("inferred_campus");
+    expect(sql).toContain("food_evidence");
+    expect(sql).toContain(", effect)");
     expect(sql.indexOf("set is_active = false")).toBeLessThan(sql.indexOf("set is_active = true"));
     expect(sql).not.toContain("sb_secret");
   });

@@ -1,8 +1,10 @@
 // Published facts transcribed from CMU-hosted menus linked by ScottyLabs.
 // See docs/dining-data.md. Update prices only after source review and bump MENU_VERSION.
-// Public shortlist in the user's requested order. Other snapshot entries below
-// are retained only for internal regression fixtures and price provenance.
-export const ACTIVE_LOCATION_IDS = ["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"] as const;
+// Public shortlist in the user's requested order, minus the venues whose published
+// menus carry no complete prices (Capital Grains 179, Au Bon Pain 113, Schatz 108 were
+// removed on 2026-09-12; their rows and previews stay archived below). Other snapshot
+// entries are retained only for internal regression fixtures and price provenance.
+export const ACTIVE_LOCATION_IDS = ["110", "92", "174", "82", "188", "114", "155", "109"] as const;
 export const DINING_SNAPSHOT = {
   "checkedAt": "2026-09-12",
   "directoryUrl": "https://api.cmueats.com/v2/locations",

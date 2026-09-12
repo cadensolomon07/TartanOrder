@@ -4,7 +4,8 @@ import { test, expect } from "./fixtures";
 import { HealthResponseSchema } from "../../src/contracts/index";
 import { BUNDLED_VERSION_ID } from "../../src/catalog/bundled";
 
-const SHORTLIST = ["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"];
+// The three requested venues with no complete prices (113, 179, 108) are no longer selectable.
+const SHORTLIST = ["110", "92", "174", "82", "188", "114", "155", "109"];
 // The fictional Demo Counter is public for the meal demo and listed after the ranked shortlist.
 const PUBLIC = [...SHORTLIST, "demo"];
 
@@ -32,10 +33,13 @@ test("health, header badges and the selector agree on catalog source, version an
   await expect(selector).toHaveValue("188");
   const values = await selector.locator("option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value));
   expect(values).toEqual(PUBLIC);
-  await selector.selectOption("113");
-  const preview = page.getByTestId("menu-preview-113-0");
+  await selector.selectOption("110");
+  const preview = page.getByTestId("menu-preview-110-0");
   await expect(preview).toBeVisible();
   await expect(preview).toBeDisabled();
+  await selector.selectOption("188");
+  await expect(page.getByTestId("inference-note")).toContainText("inferred from the published names and descriptions");
+  await expect(page.getByTestId("menu-cmu_188_smash_d_burger").getByTestId("dietary-mark").first()).toBeVisible();
 });
 
 test("keyless CI mode serves the bundled catalog with server saving off", async ({ request }) => {

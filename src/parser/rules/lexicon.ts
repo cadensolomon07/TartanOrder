@@ -1,4 +1,4 @@
-import { ModifierIdSchema, type Catalog, type ItemId, type ModifierId } from "@/contracts";
+import type { Catalog, ItemId, ModifierId } from "@/contracts";
 import { indexCatalog, type CatalogIndex } from "@/catalog/lookup";
 
 /** One surface form for a menu item: alias tokens (singular or derived plural) → item. */
@@ -96,7 +96,7 @@ export function buildLexicon(catalog: Catalog): Lexicon {
     .sort((a, b) => b.tokens.length - a.tokens.length);
   const aliasTokens: ReadonlySet<string> = new Set(itemAliases.flatMap((alias) => alias.tokens));
   const soleItemForModifier: Readonly<Partial<Record<ModifierId, ItemId>>> = Object.fromEntries(
-    ModifierIdSchema.options.flatMap((modifier) => {
+    catalog.modifiers.map((modifier) => modifier.id).flatMap((modifier) => {
       const accepting = demo.filter((item) => item.allowedModifiers.includes(modifier));
       return accepting.length === 1 ? [[modifier, accepting[0].id]] : [];
     }),

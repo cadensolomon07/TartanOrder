@@ -7,6 +7,8 @@ import { itemLabel, modifierLabel, modifiersFor } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
 import { glyphFor } from "./MenuButtons";
+import { DietaryMarks } from "./DietaryMarks";
+import { foodEvidenceFor } from "@/catalog/food";
 
 export type CartProps = {
   lines: Line[];
@@ -66,6 +68,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                     {line.modifiers.map((m) => modifierLabel(menu, m)).join(", ")}
                   </span>
                 )}
+                {item && <DietaryMarks evidence={foodEvidenceFor(menu, line.itemId, line.modifiers)} compact testId="line-marks" />}
               </span>
               {editable ? (
                 <span className={styles.stepper}>

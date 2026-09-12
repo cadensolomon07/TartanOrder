@@ -45,7 +45,9 @@ describe("catalog loader", () => {
     const first = await loadCatalogVersion(versionId, reader);
     expect(first.versionId).toBe(versionId);
     expect(first.items).toHaveLength(506);
-    expect(first.locations.filter((location) => location.activeRank !== null)).toHaveLength(11);
+    expect(first.locations.filter((location) => location.activeRank !== null)).toHaveLength(8);
+    expect(first.items.find((item) => item.id === "burger")?.foodEvidence.provenance.kind).toBe("fictional_demo");
+    expect(first.modifiers.find((modifier) => modifier.id === "no_onions")?.effect).toEqual({ remove: ["onions"], add: [] });
     expect(Object.isFrozen(first)).toBe(true);
     const callsAfterFirst = calls.length;
     expect(callsAfterFirst).toBe(5);

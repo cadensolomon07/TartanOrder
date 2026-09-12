@@ -57,7 +57,7 @@ const QTY_PROPERTY = "qty";
 // which the decoder does not need: the untouched strict validator enforces all of them
 // after the call. `maximum` is stripped from `qty` only (see D6/D7): an over-limit
 // quantity must surface and be rejected, never be clamped by the constrained decoder.
-const DROPPED_KEYWORDS = new Set(["$schema", "$id", "title", "additionalProperties", "minLength", "maxLength", "minItems", "maxItems", "minimum"]);
+const DROPPED_KEYWORDS = new Set(["$schema", "$id", "title", "additionalProperties", "minLength", "maxLength", "minItems", "maxItems", "minimum", "pattern"]);
 
 // ---------------------------------------------------------------------------
 // Provider-facing schema
@@ -74,6 +74,11 @@ function scopedItemIds(menu: CatalogIndex, req?: ParseRequest): string[] {
     ...(req?.context?.requirements?.decision?.proposedMeal?.selections.map((selection) => selection.itemId) ?? []),
     ...(req?.context?.requirements?.decision?.proposedMeal?.lockedItemIds ?? []),
   ])];
+}
+
+/** Modifier ids the scoped items allow, sorted; the provider schema enumerates exactly these. */
+function scopedModifierIds(menu: CatalogIndex, req?: ParseRequest): string[] {
+  return [...new Set(scopedItemIds(menu, req).flatMap((id) => menu.item(id)?.allowedModifiers ?? []))].sort();
 }
 
 /** Short provider-only symbols avoid Gemini's limit on repeated long enum strings. */
@@ -100,20 +105,21 @@ function decodeProviderResult(value: unknown, req: ParseRequest, menu: CatalogIn
 }
 
 export function buildProviderSchema(req: ParseRequest | undefined, catalog: Catalog): Record<string, unknown> {
-  const ids = [...providerDictionary(indexCatalog(catalog), req).values()];
-  const simplified = simplifyNode(narrowItemEnums(z.toJSONSchema(ModelParseResultSchema), ids), false);
+  const menu = indexCatalog(catalog);
+  const ids = [...providerDictionary(menu, req).values()];
+  const simplified = simplifyNode(narrowItemEnums(z.toJSONSchema(ModelParseResultSchema), ids, scopedModifierIds(menu, req)), false);
   if (!isRecord(simplified)) throw new Error("Provider schema must be a JSON object.");
   return simplified;
 }
 
-/** Derive from the shared strict schema, pruning impossible item-ID branches. */
-function narrowItemEnums(node: unknown, ids: readonly string[]): unknown {
-  if (Array.isArray(node)) return node.map((entry) => narrowItemEnums(entry, ids));
+/** Derive from the shared strict schema, pruning impossible item-ID and modifier branches. */
+function narrowItemEnums(node: unknown, ids: readonly string[], modifierIds: readonly string[]): unknown {
+  if (Array.isArray(node)) return node.map((entry) => narrowItemEnums(entry, ids, modifierIds));
   if (!isRecord(node)) return node;
   const narrowed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
     if ((key === "anyOf" || key === "oneOf") && Array.isArray(value)) {
-      const branches = value.map((entry) => narrowItemEnums(entry, ids)).filter((entry) => entry !== false);
+      const branches = value.map((entry) => narrowItemEnums(entry, ids, modifierIds)).filter((entry) => entry !== false);
       if (!branches.length) return false;
       narrowed[key] = branches;
     } else if (key === "properties" && isRecord(value)) {
@@ -121,14 +127,18 @@ function narrowItemEnums(node: unknown, ids: readonly string[]): unknown {
       for (const [name, schema] of Object.entries(value)) {
         const child = name === "itemId" && isRecord(schema)
           ? ids.length ? { ...schema, enum: [...ids] } : false
-          : narrowItemEnums(schema, ids);
+          : name === "modifier" && isRecord(schema)
+            ? modifierIds.length ? { ...schema, enum: [...modifierIds] } : false
+            : name === "modifiers" && isRecord(schema) && isRecord(schema.items) && modifierIds.length
+              ? { ...schema, items: { ...schema.items, enum: [...modifierIds] } }
+              : narrowItemEnums(schema, ids, modifierIds);
         if (child === false) {
           if (Array.isArray(node.required) && node.required.includes(name)) return false;
         } else properties[name] = child;
       }
       narrowed[key] = properties;
     } else {
-      narrowed[key] = narrowItemEnums(value, ids);
+      narrowed[key] = narrowItemEnums(value, ids, modifierIds);
     }
   }
   return narrowed;
@@ -459,7 +469,10 @@ function validateSemantics(result: ParseResult, req: ParseRequest, menu: Catalog
   }
   const batches = resolvedOps ? [resolvedOps] : result.kind === "proposal" ? [result.ops] : result.kind === "requirements" ? result.ops ? [result.ops] : [] : result.kind === "clarify" ? result.choices.map((choice) => choice.ops) : [];
   const lineIds = new Set(req.context?.lines.map((line) => line.lineId) ?? []);
+  const knownModifier = (modifier: string) => menu.modifier(modifier) !== undefined;
   for (const ops of batches) for (const op of ops) {
+    if (op.type === "ADD" && !op.modifiers.every(knownModifier)) throw invalidOutput("Model output failed validation: unknown modifier id.");
+    if (op.type === "MOD" && !knownModifier(op.modifier)) throw invalidOutput("Model output failed validation: unknown modifier id.");
     if (op.type === "ADD") {
       const item = menu.item(op.itemId);
       if (!item) throw invalidOutput("Model output failed validation: unknown menu item.");

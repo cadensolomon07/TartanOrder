@@ -9,12 +9,15 @@ describe("bundled catalog", () => {
 
   it("is the released shortlist version with the documented counts", () => {
     expect(catalog.versionId).toBe(BUNDLED_VERSION_ID);
-    expect(BUNDLED_VERSION_ID).toBe("cmu-meal-2026-09-12");
+    expect(BUNDLED_VERSION_ID).toBe("cmu-dietary-2026-09-12");
     expect(catalog.items).toHaveLength(506);
     expect(catalog.locations).toHaveLength(46);
     expect(catalog.previews).toHaveLength(50);
-    expect(catalog.modifiers).toHaveLength(7);
-    expect(menu.activeLocationIds).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"]);
+    expect(catalog.modifiers.length).toBeGreaterThan(7);
+    expect(catalog.modifiers.slice(0, 7).map((modifier) => modifier.id)).toEqual(["no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice"]);
+    // Venues without a single complete price were removed from the public shortlist; their rows stay archived.
+    expect(menu.activeLocationIds).toEqual(["110", "92", "174", "82", "188", "114", "155", "109"]);
+    for (const archived of ["179", "113", "108"]) expect(menu.location(archived)?.activeRank).toBeNull();
     expect(menu.publicLocationIds).toEqual([...menu.activeLocationIds, "demo"]);
     expect(catalog.items.filter((item) => menu.activeLocationIds.includes(item.locationId))).toHaveLength(237);
     expect(catalog.items.filter((item) => item.locationId === "demo")).toHaveLength(11);
@@ -42,6 +45,27 @@ describe("bundled catalog", () => {
     expect(menu.itemsForLocation("188").every((item) => item.locationId === "188")).toBe(true);
     expect(menu.previewsForLocation("113").length).toBeGreaterThan(0);
     expect(menu.modifier("double")?.priceCents).toBe(250);
+  });
+
+  it("carries food evidence and generated removal modifiers as catalog data", () => {
+    const ids = new Set(catalog.modifiers.map((modifier) => modifier.id));
+    expect(catalog.items.every((item) => item.allowedModifiers.every((modifier) => ids.has(modifier)))).toBe(true);
+    expect(catalog.items.filter((item) => item.locationId === "demo").every((item) => item.foodEvidence.provenance.kind === "fictional_demo")).toBe(true);
+    const campus = catalog.items.filter((item) => item.locationId !== "demo");
+    expect(campus.every((item) => ["inferred_campus", "unverified_campus"].includes(item.foodEvidence.provenance.kind))).toBe(true);
+    expect(campus.filter((item) => item.foodEvidence.provenance.kind === "inferred_campus").length).toBeGreaterThan(150);
+    expect(campus.every((item) => item.foodEvidence.completeness !== "complete")).toBe(true);
+    const generated = catalog.modifiers.slice(7);
+    expect(generated.every((modifier) => modifier.id.startsWith("no_") && modifier.priceCents === 0 && modifier.effect?.remove.length === 1 && modifier.effect.add.length === 0)).toBe(true);
+    expect(generated.map((modifier) => modifier.id)).toEqual([...generated.map((modifier) => modifier.id)].sort());
+    const bacon = catalog.items.find((item) => item.label === "Smash'd Bacon Burger")!;
+    expect(bacon.allowedModifiers).toEqual(["no_bacon"]);
+    expect(bacon.foodEvidence.ingredients.map((ingredient) => ingredient.id)).toEqual(["beef", "bacon"]);
+    expect(menu.modifier("no_bacon")).toEqual({ id: "no_bacon", label: "No bacon", priceCents: 0, effect: { remove: ["bacon"], add: [] } });
+    expect(menu.modifier("no_onions")?.effect).toEqual({ remove: ["onions"], add: [] });
+    // Archived venues get no removals and the demo modifiers keep their fictional effects.
+    expect(catalog.items.filter((item) => item.locationId === "136").every((item) => item.allowedModifiers.length === 0)).toBe(true);
+    expect(menu.modifier("extra_cheese")?.effect?.add[0]?.id).toBe("cheese");
   });
 
   it("guards public requests to the active shortlist", () => {

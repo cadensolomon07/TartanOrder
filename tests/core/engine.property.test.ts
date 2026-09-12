@@ -29,10 +29,14 @@ function envelope(state: EngineState, requestId: string, ops: Op[]): ParseRespon
 }
 
 function assertTransition(before: EngineState, event: AuditEvent): EngineState {
-  const saved = structuredClone(before);
+  // The catalog is frozen and shared by reference; snapshotting it per event would only measure structuredClone.
+  const { catalog: beforeCatalog, ...beforeRest } = before;
+  const saved = structuredClone(beforeRest);
   const savedEvent = structuredClone(event);
   const state = reduceEngine(before, event);
-  expect(before).toEqual(saved);
+  expect(beforeRest).toEqual(saved);
+  expect(before.catalog).toBe(beforeCatalog);
+  expect(state.catalog).toBe(beforeCatalog);
   expect(event).toEqual(savedEvent);
   const view = getView(state);
   expect(OrderViewSchema.safeParse(view).success).toBe(true);
