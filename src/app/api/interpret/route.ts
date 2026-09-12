@@ -16,7 +16,7 @@ import { raceAbort } from "@/parser/abort";
 import { GeminiError, parseGemini, type GeminiUsage } from "@/parser/gemini.server";
 import { resolveParserMode, type ParserMode } from "@/parser/mode.server";
 import { parseRules } from "@/parser/rules";
-import { ACTIVE_LOCATION_IDS } from "@/contracts/campus";
+import { PUBLIC_LOCATION_IDS } from "@/contracts";
 import { MENU } from "@/contracts/menu";
 
 /**
@@ -278,8 +278,17 @@ function deliver(
     return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
   }
   const accepted = envelope.data.result;
-  const ops = accepted.kind === "proposal" ? accepted.ops : accepted.kind === "clarify" ? accepted.choices.flatMap(choice => choice.ops) : [];
-  if(ops.some(op => op.type === "ADD" && !ACTIVE_LOCATION_IDS.some(id => id === MENU[op.itemId].locationId))) {
+  const itemIds: string[] = [];
+  const collectIds = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(collectIds); return; }
+    if (value && typeof value === "object") for (const [key, child] of Object.entries(value)) {
+      if (key === "itemId" && typeof child === "string")itemIds.push(child);
+      else collectIds(child);
+    }
+  };
+  collectIds(accepted);
+  const foreignRequirementLocation = accepted.kind === "requirements" && (accepted.locationId !== req.locationId || accepted.changes.some(change => change.type === "SWITCH_LOCATION" && !PUBLIC_LOCATION_IDS.some(id => id === change.locationId)));
+  if(foreignRequirementLocation || itemIds.some(itemId => !PUBLIC_LOCATION_IDS.some(id => id === MENU[itemId as keyof typeof MENU]?.locationId))) {
     return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
   }
   const shadow = shadowAgreement(req, envelope.data.result);
@@ -369,7 +378,7 @@ function serverTiming(timing: Timing): string {
 function emitLog(input: LogInput): void {
   const line = {
     event: "interpret",
-    requestId: input.requestId,
+    // Caller-supplied identifiers can contain personal details; do not log them.
     mode: input.mode,
     outcome: input.outcome,
     code: input.code,

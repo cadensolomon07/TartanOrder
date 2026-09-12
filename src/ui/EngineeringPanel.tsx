@@ -63,6 +63,7 @@ export function EngineeringPanel(p: EngineeringProps) {
       </button>
       {open && (
         <div id="eng-body" className={styles.engBody} data-testid="eng-body">
+          <p className={styles.muted}>An explicit log download includes transcripts and food requirements. Keep it private unless you choose to share it.</p>
           <dl className={styles.engGrid}>
             <dt>Parser</dt>
             <dd data-testid="eng-parser">{p.controller.parser}</dd>

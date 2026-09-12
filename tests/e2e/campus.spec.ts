@@ -68,14 +68,14 @@ test("a campus HTTP 503 actually falls back to the selected location's rules", a
 });
 
 
-test("the public selector exposes exactly the eleven requested locations and no archived demo", async ({ page }) => {
+test("the public selector preserves eleven campus locations and a separate fictional meal demo", async ({ page }) => {
   await page.goto("/");
   const selector = page.getByTestId("dining-location");
   await expect(selector).toHaveValue("188");
-  await expect(selector.locator("option")).toHaveCount(11);
+  await expect(selector.locator("option")).toHaveCount(12);
   const values = await selector.locator("option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value));
-  expect([...values].sort()).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"].sort());
-  for (const retired of ["demo", "84", "180", "190", "127"]) expect(values).not.toContain(retired);
-  await expect(selector).not.toContainText("Demo Counter");
+  expect([...values].sort()).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108", "demo"].sort());
+  for (const retired of ["84", "180", "190", "127"]) expect(values).not.toContain(retired);
+  await expect(selector).toContainText("Demo Counter");
   await expect(page.getByTestId("menu-burger")).toHaveCount(0);
 });

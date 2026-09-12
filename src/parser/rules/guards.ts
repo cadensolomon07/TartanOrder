@@ -64,13 +64,13 @@ export function guardTranscript(text: string): Rejection | null {
 }
 
 /** Conservative post-model quantity validation; it never decides natural-language grammar. */
-export function guardExplicitQuantities(text: string): Rejection | null {
+export function guardExplicitQuantities(text: string, maximum: number = LIMITS.quantity): Rejection | null {
   const tokens = quantityTokens(text);
   for (let index = 0; index < tokens.length; index += 1) {
     const reading = readNumber(tokens, index);
     if (!reading) continue;
-    if (reading.form === "integer" && (reading.value < 1 || reading.value > LIMITS.quantity)) {
-      return reject("QUANTITY_LIMIT", MESSAGES.quantityLimit);
+    if (reading.form === "integer" && (reading.value < 1 || reading.value > maximum)) {
+      return reject("QUANTITY_LIMIT", maximum === 1 ? "Build my meal supports one item per selected component. Your requested quantity was not reduced." : MESSAGES.quantityLimit);
     }
     if (reading.form === "decimal") return reject("UNSUPPORTED", MESSAGES.quantityDecimal);
     index += reading.length - 1;

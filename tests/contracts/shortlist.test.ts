@@ -15,7 +15,7 @@ describe("the requested public shortlist", () => {
     expect(ACTIVE_CAMPUS_ITEMS.every(item => item.priceCents > 0 && Number.isSafeInteger(item.priceCents))).toBe(true);
     expect(UNPRICED_MENU_ITEMS).toHaveLength(50);
     expect(UNPRICED_MENU_ITEMS.every(item => !('id' in item) && !('ops' in item))).toBe(true);
-    expect(MENU_VERSION).toBe("cmu-shortlist-2026-09-12");
+    expect(MENU_VERSION).toBe("cmu-meal-2026-09-12");
   });
 
   it("keeps published campus prices instead of pasted off-campus proxies", () => {
@@ -26,9 +26,10 @@ describe("the requested public shortlist", () => {
   });
 
   it("rejects archived HTTP selections and cart context, regardless of fixture source", () => {
-    for (const locationId of ["demo", "115", "94", "190", "84", "180", "91"]) {
+    for (const locationId of ["115", "94", "190", "84", "180", "91"]) {
       expect(PublicParseRequestSchema.safeParse({ ...PUBLIC_FIXTURE_REQUEST, locationId }).success).toBe(false);
     }
+    expect(PublicParseRequestSchema.safeParse({ ...PUBLIC_FIXTURE_REQUEST, locationId: "demo" }).success).toBe(true);
     expect(PublicParseRequestSchema.parse({ ...PUBLIC_FIXTURE_REQUEST, locationId: undefined }).locationId).toBe("188");
     expect(PublicParseRequestSchema.safeParse({ ...PUBLIC_FIXTURE_REQUEST, context: {
       lines: [{ lineId: "retired:0", itemId: "cmu_190_vanilla_milkshake", qty: 1, modifiers: [] }],

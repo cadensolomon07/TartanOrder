@@ -20,6 +20,9 @@ const messages:Record<string,string> = {
   AMBIGUOUS_REFERENCE:"Choose the cart item you meant.",
   STALE_RESPONSE:"An outdated response was ignored.",
   STALE_OFFER:"That alternative is no longer active. Your cart was not changed.",
+  STALE_DECISION:"That decision is no longer active. Your requirements and cart were not changed.",
+  REQUIREMENT_CONFLICT:"That change conflicts with your active requirements. Your cart was not changed.",
+  STAFF_REVIEW_REQUIRED:"Ingredient or preparation information needs staff review before this order can be confirmed.",
   REVIEW_REQUIRED:"Review the current order before confirming it.",
   EMPTY_CART:"Add something to your cart first.",
   NO_UNDO:"There are no earlier cart edits to restore.",
@@ -56,8 +59,16 @@ export function createOrderController(deps:Dependencies = {}) {
     for (const listener of listeners) listener();
   };
   const dispatch = (event:Parameters<typeof reduceEngine>[1])=>{
+    const previousRequirementMessage = engine.view.requirements?.message;
     engine=reduceEngine(engine,event);
     notice=engine.lastCode ? messages[engine.lastCode] ?? engine.lastCode : null;
+    const requirements = engine.view.requirements;
+    if (requirements && requirements.locationId !== locationId) {
+      locationId = requirements.locationId;
+      conversation = [];
+    }
+    if (requirements && ["REQUIREMENT_CONFLICT", "STAFF_REVIEW_REQUIRED"].includes(engine.lastCode ?? ""))notice=requirements.decision?.message ?? (requirements.message !== previousRequirementMessage ? requirements.message : null) ?? notice;
+    if (requirements?.meal && engine.lastCode === "QUANTITY_LIMIT")notice="Build my meal supports one item per selected component. Leave meal mode to order additional quantities.";
     if(engine.lastCode === "OFF_MENU" && locationId !== "demo")notice=itemsForLocation(locationId).length
       ? `That item isn't in ${locationName(locationId)}'s published menu. Choose an item shown below.`
       : `We don't have verified item prices for ${locationName(locationId)}. Choose another location to order.`;
@@ -68,13 +79,19 @@ export function createOrderController(deps:Dependencies = {}) {
     if (getView(engine).phase==="committed") { notice=messages.SESSION_COMMITTED;publish();return; }
     cancel();assistant=null;parser="none";capture=true;dispatch({type:"INPUT_STARTED"});publish();
   }
-  function endInput() { capture=false;publish(); }
+  function endInput() {
+    const wasCapture = capture;
+    capture=false;
+    if (wasCapture && !active && engine.requirementsContinuation)dispatch({type:"UI",action:{type:"RESUME_REQUIREMENTS_DECISION"}});
+    publish();
+  }
   async function submit(text:string,source:ParseRequest["source"],asrConfidence:number|null) {
     if (getView(engine).phase==="committed") {notice=messages.SESSION_COMMITTED;publish();return;}
     if(active && active.request.text === text.trim() && active.request.source === source)return;
     cancel();assistant=null;parser="none";capture=false;dispatch({type:"INPUT_STARTED"});
     const state=getView(engine);
-    const context={lines:state.lines,lastLineId:state.lastLineId,pending:state.pending ?? engine.continuation?.pending ?? null,recent:structuredClone(conversation)};
+    const context={lines:state.lines,lastLineId:state.lastLineId,pending:state.pending ?? engine.continuation?.pending ?? null,recent:structuredClone(conversation),
+      ...(state.requirements ? {requirements:{...state.requirements, decision:state.requirements.decision ?? engine.requirementsContinuation ?? null}} : {})};
     const candidate=ParseRequestSchema.safeParse({v:API_VERSION,menuVersion:MENU_VERSION,requestId:`r${++counter}`,baseRevision:state.revision,text:text.trim(),source,asrConfidence,context,locationId});
     if (!candidate.success) {notice=messages.INVALID_SCHEMA;publish();return;}
     remember("user", candidate.data.text);
@@ -89,13 +106,14 @@ export function createOrderController(deps:Dependencies = {}) {
       if(!checked.success){notice=messages.INVALID_SCHEMA;return;}
       const response=checked.data;
       if(response.requestId!==ticket.request.requestId||response.baseRevision!==ticket.request.baseRevision||response.menuVersion!==MENU_VERSION){notice=messages.STALE_RESPONSE;return;}
+      if (response.result.kind === "requirements" && response.result.locationId !== ticket.request.locationId) {notice=messages.INVALID_SCHEMA;return;}
       parser=response.parser;
       dispatch({type:"PARSE_RECEIVED",response});
       if(engine.lastOutcome === "clarify") {
-        answer(getView(engine).pending?.question ?? "Which item did you mean?");
+        answer(getView(engine).requirements?.decision?.message ?? getView(engine).requirements?.message ?? getView(engine).pending?.question ?? "Which item did you mean?");
       } else if(engine.lastOutcome === "applied") {
         const notices=response.result.kind === "proposal" ? response.result.notices ?? [] : [];
-        answer(describeChanges(before, getView(engine), notices));
+        answer(requirementReply(before, getView(engine), notices));
       } else {
         if(engine.lastOutcome === "rejected" && response.result.kind === "reject" && response.result.code === "INVALID_MODIFIER") {
           const options=response.result.notices?.filter(item=>item.kind === "unavailable_option") ?? [];
@@ -116,6 +134,9 @@ export function createOrderController(deps:Dependencies = {}) {
     }
   }
   function act(action:UiAction) {
+    if(action.type === "DECIDE_REQUIREMENTS" && (capture || active)) {
+      notice=messages.STALE_DECISION;publish();return;
+    }
     if(action.type === "ACCEPT_SWAP" && (capture || active)) {
       notice=messages.STALE_OFFER;publish();return;
     }
@@ -127,13 +148,13 @@ export function createOrderController(deps:Dependencies = {}) {
     if(action.type!=="REVIEW"&&action.type!=="CONFIRM")cancel();
     const before=getView(engine);
     dispatch({type:"UI",action});
-    if(engine.lastOutcome === "clarify")answer(getView(engine).pending?.question ?? "Which item did you mean?");
+    if(engine.lastOutcome === "clarify")answer(getView(engine).requirements?.decision?.message ?? getView(engine).requirements?.message ?? getView(engine).pending?.question ?? "Which item did you mean?");
     else if(engine.lastOutcome === "applied" && action.type === "DECLINE_SWAP")answer("Keeping your current item. Is there anything else I can get you?");
     else if(engine.lastOutcome === "applied" && action.type !== "REVIEW" && action.type !== "CONFIRM") {
       // Wait recommendations stay out of the model's conversation context.
       // Only the accepted food/vendor change is remembered.
       if(action.type === "ACCEPT_SWAP" && before.swapOffer)locationId=before.swapOffer.alternative.vendorId;
-      answer(describeChanges(before,getView(engine),[]));
+      answer(requirementReply(before,getView(engine),[]));
     }
     else if(engine.lastOutcome === "rejected" && notice)answer(notice);
     publish();
@@ -156,6 +177,13 @@ export function createOrderController(deps:Dependencies = {}) {
     if(deps.allowedLocationIds && !deps.allowedLocationIds.includes(checked.data)) {
       cancel();capture=false;assistant=null;dispatch({type:"INPUT_STARTED",discardContinuation:true});
       notice="That restaurant is not in this kiosk's selected campus menu.";publish();return;
+    }
+    if (getView(engine).requirements) {
+      cancel();capture=false;assistant=null;parser="none";
+      dispatch({type:"UI",action:{type:"REQUIREMENTS",locationId,changes:[{type:"SWITCH_LOCATION",locationId:checked.data}]}});
+      const next = getView(engine);
+      answer(next.requirements?.decision?.message ?? next.requirements?.message ?? notice ?? `Ordering from ${locationName(locationId)}.`);
+      publish();return;
     }
     cancel();capture=false;locationId=checked.data;parser="none";assistant=null;conversation=[];
     dispatch({type:"INPUT_STARTED",discardContinuation:true});
@@ -204,4 +232,16 @@ function describeNotices(notices: OrderNotice[]): string {
     ? `We don't sell ${notice.item}.`
     : `We can't add ${notice.option} to ${MENU[notice.itemId].label.toLowerCase()}; that option isn't on our ${MENU[notice.itemId].locationId === "demo" ? "demo" : "published"} menu.`
   ).join(" ");
+}
+
+
+/** All budgets, conflicts and compatibility explanations come from the deterministic state. */
+function requirementReply(before: OrderView, after: OrderView, notices: OrderNotice[]): string {
+  const requirements = after.requirements;
+  if (!requirements)return describeChanges(before, after, notices);
+  if (requirements.decision)return requirements.decision.message;
+  const changed = JSON.stringify(before.lines) !== JSON.stringify(after.lines);
+  if (!changed && requirements.message)return requirements.message;
+  const edits = describeChanges(before, after, notices).replace(/ Is there anything else I can get you\?$/, "");
+  return [edits, requirements.message].filter(Boolean).join(" ");
 }

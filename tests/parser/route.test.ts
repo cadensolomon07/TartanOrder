@@ -186,7 +186,7 @@ describe("POST /api/interpret: admission", () => {
   it("logs one structured line for an error without the transcript", async () => {
     await postJson({ ...FIXTURE_REQUEST, text: "   " });
     const line = loggedLine();
-    expect(line).toMatchObject({ event: "interpret", mode: "rules", outcome: "error", code: "INVALID_REQUEST", requestId: "u1" });
+    expect(line).toMatchObject({ event: "interpret", mode: "rules", outcome: "error", code: "INVALID_REQUEST" });
     expect(JSON.stringify(line)).not.toContain("   \"");
   });
 });
@@ -210,7 +210,7 @@ describe("POST /api/interpret: one deadline bounds the whole body-read and parse
     const body = await expectApiError(res, 504, "PARSE_TIMEOUT", true);
     expect(body.requestId).toBeNull();
     expect(cancel).toHaveBeenCalledTimes(1);
-    expect(loggedLine()).toMatchObject({ mode: "rules", outcome: "error", code: "PARSE_TIMEOUT", requestId: null });
+    expect(loggedLine()).toMatchObject({ mode: "rules", outcome: "error", code: "PARSE_TIMEOUT" });
   });
 
   it("answers 400 INVALID_REQUEST (never an uncaught rejection) when the body stream fails mid-read", async () => {
@@ -268,9 +268,10 @@ describe("POST /api/interpret: rules mode", () => {
   it("logs one structured line without shadow fields, transcript, or headers", async () => {
     await postJson(FIXTURE_REQUEST);
     const line = loggedLine();
-    expect(line).toMatchObject({ event: "interpret", requestId: "u1", mode: "rules", outcome: "proposal", code: null, providerMs: 0, tokens: null });
+    expect(line).toMatchObject({ event: "interpret", mode: "rules", outcome: "proposal", code: null, providerMs: 0, tokens: null });
     expect(typeof line.latencyMs).toBe("number");
     expect(line).not.toHaveProperty("shadowAgree");
+    expect(line).not.toHaveProperty("requestId");
     expect(JSON.stringify(line)).not.toContain(FIXTURE_TEXT);
     expect(JSON.stringify(line)).not.toContain("content-type");
   });
@@ -470,7 +471,7 @@ describe("POST /api/interpret: gemini mode", () => {
 
 
 describe("public restaurant shortlist admission", () => {
-  it.each(["demo", "115", "94", "190", "84", "180", "91"])("rejects retired location %s before a provider call", async (locationId) => {
+  it.each(["115", "94", "190", "84", "180", "91"])("rejects retired location %s before a provider call", async (locationId) => {
     const response = await postJson({ ...FIXTURE_REQUEST, locationId });
     await expectApiError(response, 400, "INVALID_REQUEST", false);
     expect(parseGemini).not.toHaveBeenCalled();

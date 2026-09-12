@@ -44,9 +44,9 @@ export const DEMO_MENU: Readonly<Record<(typeof DEMO_ITEM_IDS)[number], Readonly
   }),
   veggie_wrap: item({
     id: "veggie_wrap", label: "Veggie Wrap", category: "mains", priceCents: 750,
-    description: "Roasted vegetables, lettuce and mayo in a soft wrap.",
+    description: "Roasted vegetables, lettuce and plant-based mayo in a soft wrap.",
     aliases: ["veggie wrap", "vegetable wrap", "vegetarian wrap"],
-    allowedModifiers: ["no_lettuce", "no_mayo"],
+    allowedModifiers: ["no_lettuce", "no_mayo", "extra_cheese"],
   }),
   grilled_cheese: item({
     id: "grilled_cheese", label: "Grilled Cheese", category: "mains", priceCents: 650,

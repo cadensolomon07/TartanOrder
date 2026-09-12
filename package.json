@@ -18,7 +18,8 @@
     "record:demo": "playwright test --config tests/e2e/record.config.ts",
     "dining:check": "node scripts/check-dining.mjs",
     "test:campus:live": "node scripts/verify-campus-browser.mjs",
-    "test:waits:live": "node scripts/verify-waits-browser.mjs"
+    "test:waits:live": "node scripts/verify-waits-browser.mjs",
+    "test:meal:live": "node scripts/verify-meal-browser.mjs"
   },
   "dependencies": {
     "next": "16.3.5",

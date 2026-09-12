@@ -609,6 +609,11 @@
 
 /* Narrow layout. Kept at the END of the file: these share specificity with the
    base rules above, so source order is what makes them win. */
+.menuBtn.menuEvidenceBlocked:disabled {
+  opacity: 1;
+  color: var(--ink);
+  cursor: default;
+}
 @media (max-width: 860px) {
   .main {
     grid-template-columns: 1fr;

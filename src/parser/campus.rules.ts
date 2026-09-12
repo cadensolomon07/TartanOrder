@@ -81,7 +81,7 @@ export function campusAdditionAmbiguity(req: ParseRequest): ParseResult | null {
 }
 
 /** Ignore only intrinsic menu-name numbers; an explicit leading quantity remains. */
-export function guardCampusQuantities(req: ParseRequest): Rejection | null {
+export function guardCampusQuantities(req: ParseRequest, maximum: number = LIMITS.quantity): Rejection | null {
   const items = [...itemsForLocation(req.locationId ?? "demo"), ...(req.context?.lines.map((line) => MENU[line.itemId]) ?? [])];
   let text = req.text.normalize("NFKC").toLowerCase().replace(/[’']/g, "").replace(/&/g, " and ");
   const aliases = [...new Set(items.flatMap((item) => [item.label, ...item.aliases]))]
@@ -99,7 +99,7 @@ export function guardCampusQuantities(req: ParseRequest): Rejection | null {
     const units = unit.startsWith("oz") || unit.startsWith("ounce") ? "(?:oz|ounces?)" : "pieces?";
     text = text.replace(new RegExp(`(?<![\\d.,-])${escapePattern(value)}\\s*${units}\\b`, "g"), "menu size");
   }
-  return guardExplicitQuantities(text);
+  return guardExplicitQuantities(text, maximum);
 }
 
 function escapePattern(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

@@ -11,6 +11,7 @@ import styles from "./Kiosk.module.css";
 import { Cart } from "./Cart";
 import { MenuButtons } from "./MenuButtons";
 import { DiningLocation } from "./DiningLocation";
+import { RequirementsPanel, RequirementsSummary } from "./RequirementsPanel";
 import { InputBar } from "./InputBar";
 import { ClarifyPanel } from "./ClarifyPanel";
 import { ReviewPanel } from "./ReviewPanel";
@@ -69,6 +70,9 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const [draft, setDraft] = useState("");
   // true once startInput has been sent for the current typed draft
   const [draftStarted, setDraftStarted] = useState(false);
+  const requirementsDraftOwner = useRef(false);
+  const [requirementsDraftActive, setRequirementsDraftActive] = useState(false);
+  const [requirementsDraftEpoch, setRequirementsDraftEpoch] = useState(0);
   const [inputMode, setInputMode] = useState<"voice" | "text">("text");
   const [lastTranscript, setLastTranscript] = useState("");
   const [lastConf, setLastConf] = useState<number | null>(null);
@@ -83,6 +87,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const offer = phase === "editing" && state.wait ? state.swapOffer : null;
   const offerSpeech = offer && state.wait ? swapOfferToSpeech(offer, state.wait.source) : null;
   const offerSpeechId = offer ? `${state.sessionId}:${offer.offerId}` : null;
+  const endRequirementsDraft = useCallback(() => {
+    if (!requirementsDraftOwner.current) return;
+    requirementsDraftOwner.current = false;
+    setRequirementsDraftActive(false);
+    setRequirementsDraftEpoch(value => value + 1);
+    controller.endInput();
+  }, [controller]);
 
   // ---- voice -----------------------------------------------------------
   const speech = useSpeech({
@@ -118,6 +129,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
     // Idempotent: a second press during the mic-permission gap must not
     // re-issue startInput() (extra INPUT_STARTED events) while nothing new opens.
     if (phase === "committed" || speech.active) return;
+    endRequirementsDraft();
     cancelSpeech();
     setMicNotice(null);
     setInputMode("voice");
@@ -125,7 +137,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
     setDraftStarted(false);
     controller.startInput(); // invalidates review/pending, advances revision
     speech.start();
-  }, [controller, phase, speech]);
+  }, [controller, phase, speech, endRequirementsDraft]);
 
   const cancelTalk = useCallback(() => {
     speech.abort();
@@ -137,12 +149,22 @@ export function Kiosk({ controller, replay }: KioskProps) {
   // late recognition result cannot land on a different cart.
   const stopAnyCapture = useCallback(() => {
     cancelSpeech();
+    endRequirementsDraft();
     // `active` covers the gap between start() and the engine's onstart too.
     if (speech.active) {
       speech.abort();
       controller.endInput();
     }
-  }, [controller, speech]);
+  }, [controller, speech, endRequirementsDraft]);
+
+  const startRequirementsDraft = useCallback(() => {
+    if (requirementsDraftOwner.current) return;
+    stopAnyCapture();
+    setDraft(""); setDraftStarted(false); setMicNotice(null);
+    requirementsDraftOwner.current = true;
+    setRequirementsDraftActive(true);
+    controller.startInput();
+  }, [controller, stopAnyCapture]);
 
   const changeLocation = (id: LocationId) => {
     if (id === locationId) return;
@@ -162,6 +184,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       // discarded or erased. (A's first-intake correction on PR #2.)
       if (!draftStarted && (v.trim() !== "" || (offer && v !== "")) && phase !== "committed") {
         cancelSpeech();
+        endRequirementsDraft();
         controller.startInput();
         setDraftStarted(true);
       } else if (draftStarted && v.trim() === "") {
@@ -170,7 +193,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       }
       setDraft(v);
     },
-    [controller, phase, draftStarted, offer],
+    [controller, phase, draftStarted, offer, endRequirementsDraft],
   );
 
   const submitDraft = useCallback(() => {
@@ -281,9 +304,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   // ---- derived ---------------------------------------------------------
   // busy covers capture + draft + parsing; only the last one is "working on" text.
-  const parsing = busy && !speech.active && !draftStarted;
-  const canReview = phase === "editing" && state.lines.length > 0 && !state.pending && !busy;
-  const canConfirm = phase === "reviewing" && !busy && !speech.active && !draftStarted;
+  const parsing = busy && !speech.active && !draftStarted && !requirementsDraftActive;
+  const requirementsReady = !state.requirements?.decision && (state.requirements?.checks.every(check => check.status === "match") ?? true);
+  const canReview = phase === "editing" && state.lines.length > 0 && !state.pending && !busy && requirementsReady;
+  const canConfirm = phase === "reviewing" && !busy && !speech.active && !draftStarted && requirementsReady;
   const editable = phase === "editing" || phase === "clarifying";
   const conversationStatus = speech.active ? "Listening" : parsing ? "Processing" : speaking ? "Responding" : "Ready";
 
@@ -303,7 +327,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
           {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
           {busy && (
             <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
-              {speech.active ? "listening" : draftStarted ? "typing" : "working"}
+              {speech.active ? "listening" : draftStarted || requirementsDraftActive ? "typing" : "working"}
             </span>
           )}
         </div>
@@ -352,10 +376,12 @@ export function Kiosk({ controller, replay }: KioskProps) {
               micNotice={micNotice}
             />
             </section>
-            <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} />
+            <RequirementsPanel key={`${state.sessionId}:${requirementsDraftEpoch}`} requirements={state.requirements} lines={state.lines} acceptedTotalCents={state.totalCents} locationId={locationId} disabled={busy && !requirementsDraftActive} onAction={act} onStartDraft={startRequirementsDraft} onEndDraft={endRequirementsDraft} />
+            <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} profile={state.requirements?.profile} onMealItem={state.requirements?.meal ? itemId => act({ type: "REQUIREMENTS", locationId, changes: [{ type: "SELECT_ITEM", itemId, modifiers: [], locked: false }] }) : undefined} />
           </div>
 
           <div className={styles.right}>
+            <RequirementsSummary requirements={state.requirements} />
             {phase === "clarifying" && state.pending && (
               <ClarifyPanel
                 question={state.pending.question}
