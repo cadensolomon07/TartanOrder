@@ -50,6 +50,31 @@ Capture stays active across manual edits and mode changes until B calls `endInpu
 
 Each handoff records SHA, owned files/exports, checks actually run, runnable example, deployment URL if available, actual parser/input mode, known failures and next dependency. Check remote branches before integrating, and never force-push shared branches.
 
+### First B/C handoffs: ready-to-integrate information
+
+Access verified September 11 around 10:23 p.m. EDT after the repository transfer: GitHub reports **write/push access** for `ClearSky00` and `levi10101010`; `cadensolomon07` remains admin. No permission changes were needed. At that check there were no open PRs; both teammate branches still pointed to bootstrap `1676b3d`.
+
+Each teammate should bring the latest main into their own branch, preserve existing changes, and send:
+
+1. A **ready-to-integrate PR link** against main, or the branch name plus exact commit SHA and an explicit “ready” note. Leave unfinished PRs as drafts.
+2. Changed owned files/exports and a sentence describing the working change.
+3. The exact commands/tests actually run and their results, plus one reproducible demo with expected behavior.
+4. Actual input/parser mode, known failures and remaining work. If a package, shared schema, configuration or global CSS change is needed, give A the exact request rather than editing A-owned files.
+
+**B additionally supplies:** tested browser/OS; whether the microphone was tested for real; results for permission denial, cancellation, empty capture, reset and unsupported-browser typed fallback; how stale recognition callbacks are discarded; and which complete review snapshot speech reads. Preserve `Kiosk({controller})`, typed ordering, ambiguity, undo and explicit confirmation. Start capture with `startInput()` before recognition. Call `endInput()` for abandoned capture. Interim or obsolete speech must never submit. Review/confirm stay blocked while busy; voice callbacks never confirm. An action that cancels an already-running parse must call `startInput()` then `endInput()`; `endInput()` alone only releases capture. B must invalidate its own recognition generation on reset or cancellation so an old callback cannot start a fresh parse.
+
+**C additionally supplies:** supported example phrases; exported `interpret(req, options)` and `parseRules(req)` behavior; local-only/offline and HTTP/error/fallback results; proposed eval command; and whether a real Gemini request was verified, including model name and a sanitized result. No key is needed in the handoff. Explain how A's health route can determine the effective configured parser mode honestly. Keep real rules available and default to rules until credentials/model are verified. Test 5-second server / 6-second client deadlines, exact identifier echoes, strict validation, 4096-byte bounds, cancellation throwing `AbortError` without fallback, no automatic retry, and same-request fallback only for eligible transient failures. Malformed input, version mismatch and invalid model/schema output must not become successful fallback.
+
+### A's first integration procedure
+
+Fetch and inspect the exact ready SHA against current main. Check the owned-path diff and shared exports, and review input cancellation, atomicity and confirmation behavior before merging. A does not rewrite B/C modules; report author-owned defects for correction. Shared changes require A's review and implementation. Use an isolated worktree if needed to preserve local work.
+
+Integrate one handoff at a time. Run typecheck, lint, all unit/contract/property tests, relevant teammate tests, production build and applicable e2e. C's eval command is added by A when available. Preserve the existing 1,000-sequence seed `20260912` evidence; never weaken its assertions to accommodate a handoff.
+
+After checks pass, merge/push main without force, deploy to the existing Vercel project, and verify public health plus a fresh logged-out browser's typed total/edit/undo/ambiguity/input-invalidates-review/explicit simulated receipt journey. Record the reviewed/merged SHA, actual modes, checks and URL. Do not enable Gemini solely because an environment variable exists.
+
+A's task checks for first handoffs every 10 minutes, stopping after both first working handoffs are integrated and deployed or at Saturday 11 a.m. EDT feature freeze. Unmarked branch changes require a readiness decision; unchanged branches do not trigger repetitive updates. Keep the desktop app running and the computer awake for local follow-up checks.
+
 Scheduled sequential merges: H1.5, H3, H5.5, H8, H11, H14. H3 must show a real rules text-to-receipt journey; if it fails, stop feature expansion. Cut import/replay UI and visual extras first, while keeping engine/export/replay tests, atomicity and explicit confirmation.
 
 ## Published A checkpoint
