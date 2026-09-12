@@ -64,7 +64,10 @@ const QTY_PROPERTY = "qty";
 // which the decoder does not need: the untouched strict validator enforces all of them
 // after the call. `maximum` is stripped from `qty` only (see D6/D7): an over-limit
 // quantity must surface and be rejected, never be clamped by the constrained decoder.
-const DROPPED_KEYWORDS = new Set(["$schema", "$id", "title", "additionalProperties", "minLength", "maxLength"]);
+// Gemini 3.x (gemini-3.6-flash) rejects the whole request (HTTP 400 INVALID_ARGUMENT) when the
+// schema carries minItems/maxItems/minimum; they are dropped too and, like the other keywords,
+// enforced by the untouched strict validator after the call. (B, 2026-09-12, verified live.)
+const DROPPED_KEYWORDS = new Set(["$schema", "$id", "title", "additionalProperties", "minLength", "maxLength", "minItems", "maxItems", "minimum"]);
 
 // ---------------------------------------------------------------------------
 // Provider-facing schema
@@ -199,7 +202,8 @@ function buildRequestBody(text: string): Record<string, unknown> {
       responseMimeType: "application/json",
       responseJsonSchema: buildProviderSchema(),
       temperature: 0,
-      thinkingConfig: { thinkingBudget: 0 },
+      // thinkingBudget: 0 is rejected outright by Gemini 3.x models (HTTP 400); gemini-2.5-flash
+      // accepted it. Omit thinkingConfig so the same request works on both generations.
       maxOutputTokens: MAX_OUTPUT_TOKENS,
     },
   };
