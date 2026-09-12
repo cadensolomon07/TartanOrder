@@ -5,8 +5,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
-  testMatch: "demo-record.record.ts",
+  testMatch: process.env.RECORDING_PARSER === "gemini" ? "gemini-demo.record.ts" : "demo-record.record.ts",
   timeout: 240_000,
+  workers: 1,
   retries: 0,
   reporter: [["list"]],
   outputDir: "../../test-results/demo-recording", // never under public/: not served, not committed

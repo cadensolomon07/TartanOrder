@@ -7,7 +7,7 @@ const ui = (state: EngineState, action: UiAction) => reduceEngine(state, { type:
 const manual = (state: EngineState, ...ops: Op[]) => ui(state, { type: "MANUAL", ops });
 const input = (state: EngineState) => reduceEngine(state, { type: "INPUT_STARTED" });
 const response = (state: EngineState, requestId: string, ops: Op[]): ParseResponse => ({
-  v: 1, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
+  v: 2, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
   parser: "rules", fallbackReason: null, result: { kind: "proposal", ops },
 });
 const receive = (state: EngineState, result: ParseResponse) => reduceEngine(state, { type: "PARSE_RECEIVED", response: result });
@@ -248,7 +248,7 @@ describe("pure order transactions", () => {
 
   it("rejects malformed envelopes and generated line IDs over the 100-character cap", () => {
     const state = input(createEngine("malformed"));
-    for (const patch of [{ v: 2 }, { menuVersion: "different" }, { balances: 100 }, { requestId: "" }]) {
+    for (const patch of [{ v: 999 }, { menuVersion: "different" }, { balances: 100 }, { requestId: "" }]) {
       const next = receive(state, { ...response(state, "valid", [add("burger")]), ...patch } as ParseResponse);
       expect(next.lastCode).toBe("INVALID_SCHEMA");
       expect(next.view.lines).toEqual([]);

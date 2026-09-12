@@ -22,6 +22,19 @@ export const ALIAS_TOKENS: ReadonlySet<string> = new Set(ITEM_ALIASES.flatMap((a
 
 /** Spoken modifier phrases, longest first. Pairing validity is the engine's job (D1). */
 export const MODIFIER_PHRASES: readonly ModifierPhrase[] = [
+  { tokens: ["hold", "the", "lettuce"], modifier: "no_lettuce", enabled: true },
+  { tokens: ["without", "lettuce"], modifier: "no_lettuce", enabled: true },
+  { tokens: ["no", "lettuce"], modifier: "no_lettuce", enabled: true },
+  { tokens: ["with", "lettuce"], modifier: "no_lettuce", enabled: false },
+  { tokens: ["lettuce", "back"], modifier: "no_lettuce", enabled: false },
+  { tokens: ["no", "mayo"], modifier: "no_mayo", enabled: true },
+  { tokens: ["without", "mayo"], modifier: "no_mayo", enabled: true },
+  { tokens: ["with", "mayo"], modifier: "no_mayo", enabled: false },
+  { tokens: ["dressing", "on", "the", "side"], modifier: "dressing_on_side", enabled: true },
+  { tokens: ["dressing", "on", "side"], modifier: "dressing_on_side", enabled: true },
+  { tokens: ["no", "ice"], modifier: "no_ice", enabled: true },
+  { tokens: ["without", "ice"], modifier: "no_ice", enabled: true },
+  { tokens: ["with", "ice"], modifier: "no_ice", enabled: false },
   { tokens: ["hold", "the", "onions"], modifier: "no_onions", enabled: true },
   { tokens: ["without", "onions"], modifier: "no_onions", enabled: true },
   { tokens: ["no", "onions"], modifier: "no_onions", enabled: true },

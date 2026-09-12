@@ -12,7 +12,7 @@ import { GeminiError, parseGemini, type GeminiConfig, type GeminiOutcome } from 
 
 const apiKey = process.env.GEMINI_API_KEY ?? "";
 const isEnabled = process.env.GEMINI_LIVE === "1" && apiKey.length > 0;
-const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const model = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 const TIMEOUT_MS = 15_000;
 const RATE_LIMIT_BACKOFF_MS = 20_000;
 const RUNS_DIR = join(process.cwd(), "evals", "runs");
@@ -45,7 +45,7 @@ function liveConfig(): GeminiConfig {
 }
 
 function requestFor(text: string, index: number): ParseRequest {
-  return { v: 1, requestId: `live-${index}`, baseRevision: 0, menuVersion: "demo-v1", text, source: "fixture", asrConfidence: null };
+  return { v: 2, requestId: `live-${index}`, baseRevision: 0, menuVersion: "demo-v2", text, source: "fixture", asrConfidence: null };
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

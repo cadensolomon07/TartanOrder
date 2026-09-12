@@ -1,0 +1,261 @@
+{
+  "recordedAt": "2026-09-12T05:31:14.815Z",
+  "model": "gemini-3.8-flash",
+  "source": "fixture",
+  "parser": "gemini",
+  "note": "Raw model proposals before any engine validation; no cart or prices were sent.",
+  "latencyMs": {
+    "n": 10,
+    "min": 840.2940419999995,
+    "max": 2726.9460830000007
+  },
+  "cases": [
+    {
+      "text": "a burger, fries and lemonade",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "type": "ADD",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "type": "ADD",
+            "itemId": "lemonade",
+            "qty": 1,
+            "modifiers": []
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1068,
+        "candidateTokens": 129,
+        "totalTokens": 1197
+      },
+      "rawText": "{\n  \"kind\": \"proposal\",\n  \"ops\": [\n    {\n      \"type\": \"ADD\",\n      \"itemId\": \"burger\",\n      \"qty\": 1,\n      \"modifiers\": []\n    },\n    {\n      \"type\": \"ADD\",\n      \"itemId\": \"fries\",\n      \"qty\": 1,\n      \"modifiers\": []\n    },\n    {\n      \"type\": \"ADD\",\n      \"itemId\": \"lemonade\",\n      \"qty\": 1,\n      \"modifiers\": []\n    }\n  ]\n}",
+      "latencyMs": 1284.282917,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "two burgers",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "burger",
+            "qty": 2,
+            "modifiers": []
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1064,
+        "candidateTokens": 23,
+        "totalTokens": 1117
+      },
+      "rawText": "{\"kind\":\"proposal\",\"ops\":[{\"type\":\"ADD\",\"itemId\":\"burger\",\"qty\":2,\"modifiers\":[]}]}",
+      "latencyMs": 981.4836660000001,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "make the burger a double",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "MOD",
+            "ref": {
+              "by": "item",
+              "itemId": "burger"
+            },
+            "modifier": "double",
+            "enabled": true
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1067,
+        "candidateTokens": 73,
+        "totalTokens": 1208
+      },
+      "rawText": "{\n  \"kind\": \"proposal\",\n  \"ops\": [\n    {\n      \"type\": \"MOD\",\n      \"ref\": {\n        \"by\": \"item\",\n        \"itemId\": \"burger\"\n      },\n      \"modifier\": \"double\",\n      \"enabled\": true\n    }\n  ]\n}",
+      "latencyMs": 1404.3987499999998,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "remove the fries",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "REMOVE",
+            "ref": {
+              "by": "item",
+              "itemId": "fries"
+            }
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1065,
+        "candidateTokens": 22,
+        "totalTokens": 1087
+      },
+      "rawText": "{\"kind\":\"proposal\",\"ops\":[{\"type\":\"REMOVE\",\"ref\":{\"by\":\"item\",\"itemId\":\"fries\"}}]}",
+      "latencyMs": 1212.1674999999996,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "make that two",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "SET_QTY",
+            "ref": {
+              "by": "last"
+            },
+            "qty": 2
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1065,
+        "candidateTokens": 60,
+        "totalTokens": 1189
+      },
+      "rawText": "{\n  \"kind\": \"proposal\",\n  \"ops\": [\n    {\n      \"type\": \"SET_QTY\",\n      \"ref\": {\n        \"by\": \"last\"\n      },\n      \"qty\": 2\n    }\n  ]\n}",
+      "latencyMs": 1204.8097499999994,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "no onions",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "MOD",
+            "ref": {
+              "by": "item",
+              "itemId": "burger"
+            },
+            "modifier": "no_onions",
+            "enabled": true
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1064,
+        "candidateTokens": 33,
+        "totalTokens": 1097
+      },
+      "rawText": "{\"kind\":\"proposal\",\"ops\":[{\"type\":\"MOD\",\"ref\":{\"by\":\"item\",\"itemId\":\"burger\"},\"modifier\":\"no_onions\",\"enabled\":true}]}",
+      "latencyMs": 853.0980410000002,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "undo",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "UNDO"
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1063,
+        "candidateTokens": 12,
+        "totalTokens": 1128
+      },
+      "rawText": "{\"kind\":\"proposal\",\"ops\":[{\"type\":\"UNDO\"}]}",
+      "latencyMs": 935.5890409999993,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "a burger, no wait, fries",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1069,
+        "candidateTokens": 23,
+        "totalTokens": 1171
+      },
+      "rawText": "{\"kind\":\"proposal\",\"ops\":[{\"type\":\"ADD\",\"itemId\":\"fries\",\"qty\":1,\"modifiers\":[]}]}",
+      "latencyMs": 995.3910830000004,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "a pizza",
+      "result": {
+        "kind": "reject",
+        "code": "OFF_MENU",
+        "message": "Sorry, pizza is not on the menu. We offer burgers, fries, and lemonade."
+      },
+      "usage": {
+        "promptTokens": 1064,
+        "candidateTokens": 32,
+        "totalTokens": 1096
+      },
+      "rawText": "{\"kind\":\"reject\",\"code\":\"OFF_MENU\",\"message\":\"Sorry, pizza is not on the menu. We offer burgers, fries, and lemonade.\"}",
+      "latencyMs": 840.2940419999995,
+      "error": null,
+      "retriedAfterRateLimit": false
+    },
+    {
+      "text": "una hamburguesa y papas fritas",
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "type": "ADD",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          }
+        ]
+      },
+      "usage": {
+        "promptTokens": 1070,
+        "candidateTokens": 39,
+        "totalTokens": 1177
+      },
+      "rawText": "{\"kind\":\"proposal\",\"ops\":[{\"type\":\"ADD\",\"itemId\":\"burger\",\"qty\":1,\"modifiers\":[]},{\"type\":\"ADD\",\"itemId\":\"fries\",\"qty\":1,\"modifiers\":[]}]}",
+      "latencyMs": 2726.9460830000007,
+      "error": null,
+      "retriedAfterRateLimit": false
+    }
+  ]
+}

@@ -13,7 +13,9 @@
     "eval": "vitest run tests/parser/eval.test.ts",
     "test:e2e": "playwright test",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:gemini": "vitest run tests/core/gemini.acceptance.test.ts",
+    "record:demo": "playwright test --config tests/e2e/record.config.ts"
   },
   "dependencies": {
     "next": "16.3.5",

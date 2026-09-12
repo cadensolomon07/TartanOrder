@@ -15,7 +15,7 @@ import {
 import { raceAbort } from "@/parser/abort";
 import { GeminiError, parseGemini, type GeminiUsage } from "@/parser/gemini.server";
 import { resolveParserMode, type ParserMode } from "@/parser/mode.server";
-import { guardTranscript, parseRules } from "@/parser/rules";
+import { parseRules } from "@/parser/rules";
 
 /**
  * POST /api/interpret — validates a ParseRequest with the shared schemas, runs the
@@ -24,11 +24,10 @@ import { guardTranscript, parseRules } from "@/parser/rules";
  * Status semantics worth knowing:
  * - Text over `LIMITS.transcriptChars` fails `ParseRequestSchema`, so it is 400
  *   INVALID_REQUEST; 413 INPUT_TOO_LARGE is reserved for the 4096-byte body bound.
- * - In gemini mode the rules `guardTranscript` runs before any model call. When it
- *   rejects, the 200 envelope is labelled `parser: "rules"` because the rules guard
- *   decided and no model was consulted; `fallbackReason` stays null (nothing failed).
+ * - In Gemini mode every admitted transcript reaches the provider; no keyword grammar
+ *   dispatches or rejects natural language before interpretation.
  * - One `LIMITS.serverTimeoutMs` deadline, armed before the first body byte is read, bounds
- *   the whole lifecycle: body read, validation, rules guard, and the provider call. A body
+ *   the whole lifecycle: body read, validation, and the provider call. A body
  *   held open past it is 504 PARSE_TIMEOUT with `requestId: null` (nothing was parsed); a
  *   body whose stream fails is 400 INVALID_REQUEST. The reader is cancelled either way.
  * - `retryable: true` only ever accompanies 429/503/504 — but not every 503 is retryable.
@@ -99,11 +98,11 @@ type LogInput = {
   shadow: Shadow | null;
 };
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
-const PROVIDER_TIMEOUT_MS = 4500;
+const DEFAULT_MODEL = "gemini-3.6-flash";
+const PROVIDER_TIMEOUT_MS = 14000;
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 503, 504]);
 const MESSAGES: Readonly<Record<HttpCode, string>> = {
-  INVALID_REQUEST: "The request did not match the V1 interpret format. Your cart was not changed.",
+  INVALID_REQUEST: "The request did not match the V2 interpret format. Your cart was not changed.",
   MENU_VERSION_MISMATCH: `This kiosk serves menu ${MENU_VERSION}. Reload to sync the menu.`,
   INPUT_TOO_LARGE: `The request exceeds ${LIMITS.requestBytes} bytes.`,
   INVALID_MODEL_OUTPUT: "The model response was rejected. Your cart was not changed.",
@@ -251,8 +250,6 @@ async function geminiModeResponse(lifecycle: Lifecycle, req: ParseRequest, timin
     // A missing key is a deployment fault, not an outage: retrying the same call cannot succeed.
     return failureResponse(refuse(503, "PROVIDER_UNAVAILABLE", req.requestId), "gemini", timing);
   }
-  const guarded = guardTranscript(req.text);
-  if (guarded) return deliver(req, "rules", guarded, { timing, usage: null });
   const call = await callProvider(lifecycle, req, apiKey, timing);
   if (call.kind === "disconnected") return disconnectedResponse();
   if (call.kind === "failure") return failureResponse(call.failure, "gemini", call.timing);

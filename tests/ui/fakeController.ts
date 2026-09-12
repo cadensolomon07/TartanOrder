@@ -1,6 +1,7 @@
 // Test-only fake of A's OrderController. Uses the SHARED types; never a copy
 // of production logic. Records every call so tests can assert on them.
 import type { Line, OrderController, OrderView, ParseRequest, UiAction } from "@/contracts";
+import { API_VERSION, MENU_VERSION } from "@/contracts";
 
 export type FakeCall =
   | { fn: "startInput" }
@@ -46,8 +47,10 @@ export function makeFake(
     calls: [],
     state: { ...EMPTY, ...initial },
     busy: false,
+    localOnly: false,
     parser: "fixture",
     notice: null,
+    assistant: null,
     set(patch) {
       fake.state = { ...fake.state, ...patch };
       onChange();
@@ -66,6 +69,7 @@ export function makeFake(
         return;
       }
       fake.busy = true;
+      fake.assistant = null;
       fake.set({ review: null, pending: null, phase: "editing", revision: fake.state.revision + 1 });
     },
     endInput() {
@@ -83,14 +87,17 @@ export function makeFake(
     },
     setLocalOnly(value) {
       fake.calls.push({ fn: "setLocalOnly", value });
+      fake.localOnly = value;
+      onChange();
     },
     reset() {
       fake.calls.push({ fn: "reset" });
+      fake.assistant = null;
       fake.set({ ...EMPTY, sessionId: `s${fake.calls.length}` });
     },
     exportLog() {
       fake.calls.push({ fn: "exportLog" });
-      return JSON.stringify({ v: 1, menuVersion: "demo-v1", sessionId: fake.state.sessionId, audit: fake.state.audit });
+      return JSON.stringify({ v: API_VERSION, menuVersion: MENU_VERSION, sessionId: fake.state.sessionId, audit: fake.state.audit });
     },
     ...overrides,
   };

@@ -162,7 +162,8 @@ describe("useOrderController React lifecycle", () => {
     expect(current.result.current.state.pending).toBeNull();
     expect(current.result.current.state.lines).toEqual([]);
     expect(current.result.current.parser).toBe("fixture");
-    expect(current.result.current.notice).toBe(FIXTURE_REJECTION.result.kind === "reject" ? FIXTURE_REJECTION.result.message : "");
+    // Rejection copy is application-owned; a model cannot claim a cart edit.
+    expect(current.result.current.notice).toMatch(/isn't on our demo menu/);
     expect(current.result.current.busy).toBe(false);
     expect(interpretMock).toHaveBeenCalledTimes(3);
     expect(fetchMock).not.toHaveBeenCalled();

@@ -6,14 +6,14 @@ import { createEngine, exportLog, getView, reduceEngine, replayLog, type EngineS
 
 // Reproduce this run with: npm test -- tests/core/engine.property.test.ts
 export const PROPERTY_SEED = 20260912;
-const ITEMS: ItemId[] = ["burger", "fries", "lemonade"];
-const MODIFIERS_IDS: ModifierId[] = ["no_onions", "double", "extra_cheese"];
+const ITEMS = Object.keys(MENU) as ItemId[];
+const MODIFIERS_IDS = Object.keys(MODIFIERS) as ModifierId[];
 type Descriptor = { kind: number; item: number; qty: number; modifier: number; flag: boolean };
 const descriptor = fc.record({
-  kind: fc.integer({ min: 0, max: 15 }),
-  item: fc.integer({ min: 0, max: 2 }),
+  kind: fc.integer({ min: 0, max: 16 }),
+  item: fc.integer({ min: 0, max: ITEMS.length - 1 }),
   qty: fc.integer({ min: -1, max: 7 }),
-  modifier: fc.integer({ min: 0, max: 2 }),
+  modifier: fc.integer({ min: 0, max: MODIFIERS_IDS.length - 1 }),
   flag: fc.boolean(),
 });
 
@@ -23,7 +23,7 @@ function add(itemId: ItemId, qty = 1): Op {
 
 function envelope(state: EngineState, requestId: string, ops: Op[]): ParseResponse {
   return {
-    v: 1, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
+    v: 2, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
     parser: "rules", fallbackReason: null, result: { kind: "proposal", ops },
   };
 }
@@ -121,7 +121,7 @@ function runSequence(descriptors: Descriptor[]) {
         event = { type: "PARSE_RECEIVED", response: latestResponse };
         break;
       case 12: event = { type: "PARSE_RECEIVED", response: latestResponse }; break;
-      case 13: event = { type: "PARSE_RECEIVED", response: { ...envelope(state, `malformed-${counter}`, [add(itemId)]), v: 2 } as unknown as ParseResponse }; break;
+      case 13: event = { type: "PARSE_RECEIVED", response: { ...envelope(state, `malformed-${counter}`, [add(itemId)]), v: 999 } as unknown as ParseResponse }; break;
       case 14: event = { type: "PARSE_RECEIVED", response: {
         ...envelope(state, `clarify-${counter}`, [add(itemId)]),
         result: { kind: "clarify", question: "Which menu item?", choices: [
@@ -129,6 +129,11 @@ function runSequence(descriptors: Descriptor[]) {
           { id: "fries", label: "Fries", ops: [add("fries")] },
         ] },
       } }; break;
+      case 15: {
+        const pending=state.view.pending ?? state.continuation?.pending;
+        event={type:"PARSE_RECEIVED",response:{...envelope(state,`resolve-${counter}`,[add(itemId)]),result:{kind:"resolve",pendingId:pending?.id ?? "missing",choiceId:spec.flag ? pending?.choices[0]?.id ?? "missing" : "missing"}}};
+        break;
+      }
       default: event = { type: "UI", action: { type: "MANUAL", ops: [
         add(itemId), { type: "MOD", ref: { by: "last" }, modifier, enabled: true },
       ] } };
@@ -147,7 +152,7 @@ function runSequence(descriptors: Descriptor[]) {
 describe(`generated transaction evidence (seed ${PROPERTY_SEED})`, () => {
   it("verifies 1,000 generated sequences up to 50 events including invalid, stale, and duplicate events", () => {
     const fullLength: Descriptor[] = Array.from({ length: 43 }, (_, index) => ({
-      kind: index % 16, item: index % 3, qty: (index % 9) - 1, modifier: index % 3, flag: index % 2 === 0,
+      kind: index % 17, item: index % ITEMS.length, qty: (index % 9) - 1, modifier: index % MODIFIERS_IDS.length, flag: index % 2 === 0,
     }));
     fc.assert(fc.property(fc.array(descriptor, { minLength: 0, maxLength: 43 }), runSequence), {
       seed: PROPERTY_SEED,

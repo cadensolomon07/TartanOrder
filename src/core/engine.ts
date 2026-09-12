@@ -27,6 +27,8 @@ export type EngineState = {
   readonly history: readonly CartSnapshot[];
   readonly seenRequestIds: readonly string[];
   readonly pendingContext: PendingContext | null;
+  /** A spoken answer can resume the exact choice after input invalidates its visible buttons. */
+  readonly continuation: { pending: NonNullable<OrderView["pending"]>; requestId: string } | null;
   readonly lastOutcome: Outcome;
   readonly lastCode: string | null;
 };
@@ -76,6 +78,7 @@ export function createEngine(sessionId: string): EngineState {
     history: [],
     seenRequestIds: [],
     pendingContext: null,
+    continuation: null,
     lastOutcome: "applied",
     lastCode: null,
   };
@@ -93,6 +96,7 @@ function invalidate(state: EngineState): EngineState {
   return {
     ...state,
     pendingContext: null,
+    continuation: null,
     view: {
       ...state.view,
       revision: state.view.revision + 1,
@@ -325,9 +329,12 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
   const event = parsed.data;
   if (event.type === "INPUT_STARTED") {
     if (state.view.phase === "committed") return finish(state, event, "ignored", "SESSION_COMMITTED");
-    return finish(invalidate(state), event, "applied");
+    const continuation = state.view.pending && state.pendingContext
+      ? { pending: clone(state.view.pending), requestId: state.pendingContext.requestId }
+      : state.continuation;
+    return finish({ ...invalidate(state), continuation }, event, "applied");
   }
-  if (event.type === "UI") return reduceUi(state, event, event.action);
+  if (event.type === "UI") return reduceUi({ ...state, continuation: null }, event, event.action);
   const response = event.response;
   if (state.seenRequestIds.includes(response.requestId) || response.baseRevision !== state.view.revision || response.menuVersion !== MENU_VERSION) {
     return finish({ ...state, seenRequestIds: [...new Set([...state.seenRequestIds, response.requestId])] }, event, "ignored", "STALE_RESPONSE");
@@ -336,6 +343,18 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
   if (state.view.phase === "committed") return finish(admitted, event, "ignored", "SESSION_COMMITTED");
   if (response.result.kind === "reject") {
     return finish(admitted, event, "rejected", response.result.code);
+  }
+  if (response.result.kind === "resolve") {
+    const choiceId = response.result.choiceId;
+    const continuation = state.view.pending && state.pendingContext
+      ? { pending: state.view.pending, requestId: state.pendingContext.requestId }
+      : state.continuation;
+    const choice = continuation?.pending.id === response.result.pendingId
+      ? continuation.pending.choices.find((choice) => choice.id === choiceId)
+      : undefined;
+    if (!continuation || !choice) return finish(admitted, event, "rejected", "NO_PENDING");
+    // Use the original batch's ADD IDs, never model-authored replacement ops.
+    return applyBatch(invalidate(admitted), event, choice.ops, continuation.requestId);
   }
   const next = invalidate(admitted);
   if (response.result.kind === "clarify") {

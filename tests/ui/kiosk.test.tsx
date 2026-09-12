@@ -256,22 +256,48 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     expect((screen.getByTestId("review") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("remembers the operator's Local-only choice per browser and re-applies a stored 'off' on load", () => {
-    // Nothing stored: Local only stays on and the controller is not touched at mount.
-    const first = mount();
-    expect((screen.getByTestId("badge-parser").parentElement?.textContent ?? "")).toContain("local only");
-    expect(first.ctrl().calls.filter((c) => c.fn === "setLocalOnly")).toHaveLength(0);
-    fireEvent.click(screen.getByTestId("eng-toggle"));
-    fireEvent.click(screen.getByTestId("local-only")); // turn it off
-    expect(first.ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: false });
-    expect(window.localStorage.getItem("tartanorder.localOnly")).toBe("off");
-    cleanup();
-    // Next load in the same browser: the stored "off" is applied to the controller once.
-    const second = mount();
-    expect(second.ctrl().calls.filter((c) => c.fn === "setLocalOnly")).toEqual([{ fn: "setLocalOnly", value: false }]);
+  it("uses the controller mode and ignores a legacy saved Local-only preference", () => {
+    window.localStorage.setItem("tartanorder.localOnly", "on");
+    const { ctrl } = mount();
+    expect(screen.queryByText("local only")).toBeNull();
+    expect(ctrl().calls.filter((c) => c.fn === "setLocalOnly")).toHaveLength(0);
     fireEvent.click(screen.getByTestId("eng-toggle"));
     expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(false);
-    expect(screen.queryByText("local only")).toBeNull(); // badge gone: the cloud parser is allowed
+    fireEvent.click(screen.getByTestId("local-only"));
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: true });
+    expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText("local only")).toBeTruthy();
+    act(() => { ctrl().localOnly = false; ctrl().set({}); });
+    expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("shows all eleven priced menu cards grouped by category", () => {
+    mount();
+    for (const category of ["Mains", "Sides", "Drinks"]) expect(screen.getByRole("group", { name: category })).toBeTruthy();
+    expect(screen.getByTestId("menu-chicken_sandwich").textContent).toContain("$8.50");
+    expect(screen.getByTestId("menu-water").textContent).toContain("$1.50");
+    expect(screen.getAllByTestId(/^menu-/)).toHaveLength(11);
+  });
+
+  it("shows the accepted assistant reply as plain text and cancels it when typing starts", () => {
+    const { ctrl } = mount();
+    act(() => { ctrl().assistant = { id: "a1", text: "<b>Added fries.</b>" }; ctrl().set({}); });
+    expect(screen.getByTestId("assistant-response").textContent).toBe("<b>Added fries.</b>");
+    expect(document.querySelector("b")).toBeNull();
+    expect(screen.getByTestId("conversation-status").textContent).toBe("Responding");
+    fireEvent.change(screen.getByTestId("text-input"), { target: { value: "a" } });
+    expect(screen.getByTestId("conversation-status").textContent).toBe("Ready");
+    expect(screen.getByTestId("assistant-response").textContent).not.toContain("Added fries");
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled();
+  });
+
+  it("Read replies aloud can be disabled while visual replies remain", () => {
+    const { ctrl } = mount();
+    fireEvent.click(screen.getByLabelText("Read replies aloud"));
+    act(() => { ctrl().assistant = { id: "a1", text: "Added fries." }; ctrl().set({}); });
+    expect(screen.getByTestId("assistant-response").textContent).toBe("Added fries.");
+    expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
+    expect(screen.getByTestId("conversation-status").textContent).toBe("Ready");
   });
 
   it("a speech-service network error is explained (not blamed on the user's Wi-Fi), with next steps", () => {
@@ -295,9 +321,9 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     const { ctrl } = mount(editingThree);
     fireEvent.click(screen.getByTestId("eng-toggle"));
     expect(screen.getByTestId("eng-asr").textContent).toContain("—");
-    // Local only is on by default (A's controller default); unchecking turns it off.
-    expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(true);
+    // Online is the controller default; checking explicitly chooses local rules.
+    expect((screen.getByTestId("local-only") as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByTestId("local-only"));
-    expect(ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: false });
+    expect(ctrl().calls.at(-1)).toEqual({ fn: "setLocalOnly", value: true });
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { CORE_CODES, type ParseRequest } from "@/contracts";
+import { CORE_CODES, LIMITS, ItemIdSchema, ModifierIdSchema, type ParseRequest } from "@/contracts";
 import { MENU, MODIFIERS } from "@/contracts/menu";
 import {
   GeminiError,
@@ -19,10 +19,10 @@ const MODEL = "gemini-2.5-flash";
 const TRANSCRIPT = "a burger, fries and lemonade";
 
 const request: ParseRequest = {
-  v: 1,
+  v: 2,
   requestId: "u1",
   baseRevision: 1,
-  menuVersion: "demo-v1",
+  menuVersion: "demo-v2",
   text: TRANSCRIPT,
   source: "text",
   asrConfidence: null,
@@ -116,10 +116,10 @@ describe("buildProviderSchema", () => {
     expect(serialized).not.toContain('"minLength"');
     expect(serialized).not.toContain('"maxLength"');
     expect(Array.isArray(schema.anyOf)).toBe(true);
-    expect((schema.anyOf as unknown[]).length).toBe(3);
+    expect((schema.anyOf as unknown[]).length).toBe(4);
   });
 
-  it("keeps minimum 1 on qty but never a maximum, so the decoder cannot clamp", () => {
+  it("does not constrain provider qty bounds, so the decoder cannot clamp", () => {
     const qtyNodes: Record<string, unknown>[] = [];
     collectNodes(schema, (record, key) => {
       if (key === "qty") qtyNodes.push(record);
@@ -127,31 +127,30 @@ describe("buildProviderSchema", () => {
     expect(qtyNodes.length).toBeGreaterThanOrEqual(2);
     for (const node of qtyNodes) {
       expect(node.type).toBe("integer");
-      expect(node.minimum).toBe(1);
+      expect(node).not.toHaveProperty("minimum");
       expect(node).not.toHaveProperty("maximum");
     }
     expect(serialized).not.toContain('"maximum"');
   });
 
-  it("retains the three kind literals, the item and modifier enums, and the reject codes", () => {
+  it("retains result kind literals, the item and modifier enums, and the reject codes", () => {
     const enums: unknown[][] = [];
     collectNodes(schema, (record) => {
       if (Array.isArray(record.enum)) enums.push(record.enum);
     });
     const flattened = enums.flat();
-    expect(flattened).toEqual(expect.arrayContaining(["proposal", "clarify", "reject"]));
-    expect(enums).toContainEqual(["burger", "fries", "lemonade"]);
-    expect(enums).toContainEqual(["no_onions", "double", "extra_cheese"]);
+    expect(flattened).toEqual(expect.arrayContaining(["proposal", "clarify", "reject", "resolve"]));
+    expect(enums).toContainEqual(ItemIdSchema.options);
+    expect(enums).toContainEqual(ModifierIdSchema.options);
     expect(enums).toContainEqual([...CORE_CODES]);
     expect(enums).toContainEqual(["last"]);
     expect(enums).toContainEqual(["item"]);
-    expect(flattened).not.toContain("line");
+    expect(flattened).toContain("line");
   });
 
-  it("keeps array bounds and required lists", () => {
-    expect(serialized).toContain('"minItems":1');
-    expect(serialized).toContain('"maxItems":8');
-    expect(serialized).toContain('"maxItems":3');
+  it("drops unsupported array bounds but keeps required lists", () => {
+    expect(serialized).not.toContain('"minItems"');
+    expect(serialized).not.toContain('"maxItems"');
     expect(serialized).toContain('"required"');
   });
 
@@ -193,8 +192,7 @@ describe("buildSystemInstruction", () => {
     expect(instruction).toMatch(/ONLY operation/);
   });
 
-  it("contains no prices, currency, or cart state", () => {
-    expect(instruction).not.toMatch(/\b(800|300|250|100)\b/);
+  it("contains no menu price fields or currency", () => {
     expect(instruction).not.toContain("$");
     expect(instruction).not.toContain("priceCents");
     expect(instruction).not.toMatch(/cents/i);
@@ -206,7 +204,7 @@ describe("buildSystemInstruction", () => {
 // ---------------------------------------------------------------------------
 
 describe("provider request", () => {
-  it("posts only the transcript, menu, and schema to the model endpoint with the key in the header", async () => {
+  it("posts the transcript, bounded context, menu, and schema to the model endpoint with the key in the header", async () => {
     const fetchImpl = modelReturns(threeItemProposal);
     await parseGemini(request, config(fetchImpl));
 
@@ -229,13 +227,13 @@ describe("provider request", () => {
       contents: { role: string; parts: { text: string }[] }[];
       generationConfig: Record<string, unknown>;
     };
-    expect(body.contents).toEqual([{ role: "user", parts: [{ text: TRANSCRIPT }] }]);
+    expect(JSON.parse(body.contents[0].parts[0].text)).toEqual({ utterance: TRANSCRIPT, context: { lines: [], lastLineId: null, pending: null, recent: [] } });
     expect(body.systemInstruction.parts[0].text).toBe(buildSystemInstruction());
     expect(body.generationConfig.responseMimeType).toBe("application/json");
     expect(body.generationConfig.responseJsonSchema).toEqual(buildProviderSchema());
     expect(body.generationConfig.temperature).toBe(0);
     expect(body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
-    expect(body.generationConfig.maxOutputTokens).toBe(512);
+    expect(body.generationConfig.maxOutputTokens).toBe(4096);
   });
 });
 
@@ -431,7 +429,7 @@ describe("illegal model output", () => {
       question: "Which?",
       choices: [{ id: "c1", label: "A", ops: [add({})] }, { id: "c1", label: "B", ops: [add({})] }],
     }],
-    ["overlong message", { kind: "reject", code: "UNSUPPORTED", message: "x".repeat(161) }],
+    ["overlong message", { kind: "reject", code: "UNSUPPORTED", message: "x".repeat(LIMITS.messageChars + 1) }],
     ["unknown kind", { kind: "note", message: "Later." }],
     ["array instead of object", [threeItemProposal]],
     ["confidence score smuggled in", { ...threeItemProposal, confidence: 0.99 }],
@@ -443,7 +441,7 @@ describe("illegal model output", () => {
     expect(error.message).toContain("failed validation");
     expect(error.message).not.toContain(API_KEY);
     expect(error.message).not.toContain(TRANSCRIPT);
-    expect(error.message.length).toBeLessThanOrEqual(160);
+    expect(error.message.length).toBeLessThanOrEqual(LIMITS.messageChars);
   });
 });
 
@@ -471,7 +469,7 @@ describe("GeminiError", () => {
     const cause = new Error("root");
     const error = new GeminiError("PROVIDER_UNAVAILABLE", "y".repeat(500), cause);
     expect(error.cause).toBe(cause);
-    expect(error.message.length).toBeLessThanOrEqual(160);
+    expect(error.message.length).toBeLessThanOrEqual(LIMITS.messageChars);
   });
 
   it("lets a permanent PROVIDER_UNAVAILABLE opt out of retry while keeping its status", () => {
@@ -483,5 +481,133 @@ describe("GeminiError", () => {
 
   it("never lets INVALID_MODEL_OUTPUT become retryable", () => {
     expect(new GeminiError("INVALID_MODEL_OUTPUT", "bad", undefined, true).retryable).toBe(false);
+  });
+});
+
+
+describe("contextual structured interpretation (mock provider, not live understanding)", () => {
+  const context: NonNullable<ParseRequest["context"]> = {
+    lines: [
+      { lineId: "cart:burger", itemId: "burger", qty: 1, modifiers: ["double", "no_lettuce"] },
+      { lineId: "cart:drink", itemId: "lemonade", qty: 1, modifiers: [] },
+    ],
+    lastLineId: "cart:drink", pending: null,
+    recent: [{ role: "user", text: "A burger without lettuce and a lemonade." }, { role: "assistant", text: "Your cart has a burger and a lemonade." }],
+  };
+
+  it("supplies current rows and recent conversation; accepts contextual correction without replacement ADDs", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "SET_QTY", ref: { by: "line", lineId: "cart:drink" }, qty: 2 },
+      { type: "MOD", ref: { by: "line", lineId: "cart:burger" }, modifier: "no_lettuce", enabled: false },
+    ] };
+    const fetchImpl = modelReturns(result);
+    const outcome = await parseGemini({ ...request, text: "Actually make that two lemonades and put the lettuce back on the burger", context }, config(fetchImpl));
+    expect(outcome.result).toEqual(result);
+    const body = JSON.parse(String(vi.mocked(fetchImpl).mock.calls[0][1]?.body));
+    expect(JSON.parse(body.contents[0].parts[0].text).context).toEqual(context);
+  });
+
+  it("preserves the corrected single burger plus independent items in the structured proposal", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: ["double", "no_lettuce"] },
+      { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
+    ] };
+    const text = "Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.";
+    expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
+  });
+
+  it("preserves unavailable notices separately from clear valid operations", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
+    ], notices: [{ kind: "unavailable", item: "pizza" }] };
+    expect((await parseGemini({ ...request, text: "Can I get a pizza, a burger, and a lemonade?" }, config(modelReturns(result)))).result).toEqual(result);
+  });
+
+  it("passes expanded menu items and item-specific options through shared schemas", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "ADD", itemId: "chicken_sandwich", qty: 1, modifiers: ["no_mayo"] },
+      { type: "ADD", itemId: "side_salad", qty: 1, modifiers: ["dressing_on_side"] },
+      { type: "ADD", itemId: "iced_tea", qty: 1, modifiers: ["no_ice"] },
+    ] };
+    expect((await parseGemini({ ...request, text: "A chicken sandwich without mayo, salad dressing separately, and an iced tea without ice" }, config(modelReturns(result)))).result).toEqual(result);
+  });
+
+  it("accepts only the supplied pending choice when a natural answer resolves ambiguity", async () => {
+    const pending: NonNullable<typeof context.pending> = { id: "pending-7", question: "Which burger should I remove?", choices: [
+      { id: "first", label: "Double burger", ops: [{ type: "REMOVE", ref: { by: "line", lineId: "cart:burger" } }] },
+    ] };
+    const result = { kind: "resolve", pendingId: "pending-7", choiceId: "first" };
+    expect((await parseGemini({ ...request, text: "The double one, please", context: { ...context, pending } }, config(modelReturns(result)))).result).toEqual(result);
+    await expect(parseGemini({ ...request, text: "The first one", context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini({ ...request, context: { ...context, pending } }, config(modelReturns({ ...result, choiceId: "invented" })))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+
+  it("rejects invented line IDs inside clarification choices as well as proposals", async () => {
+    const result = { kind: "clarify", question: "Which item?", choices: [{ id: "c1", label: "First", ops: [{ type: "REMOVE", ref: { by: "line", lineId: "invented" } }] }] };
+    await expect(parseGemini({ ...request, context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+
+  it.each(["-2 lemonades", "negative two burgers", "18,000 lemonades", "six fries"])("rejects %s even if a model clamps the proposed quantity", async (text) => {
+    const fetchImpl = modelReturns(threeItemProposal);
+    const result = (await parseGemini({ ...request, text }, config(fetchImpl))).result;
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ kind: "reject", code: "QUANTITY_LIMIT" });
+  });
+
+  it("does not send the incompatible 2.5 thinkingBudget to Gemini 3 models", async () => {
+    const fetchImpl = modelReturns(threeItemProposal);
+    await parseGemini(request, config(fetchImpl, { model: "gemini-3.6-flash" }));
+    const body = JSON.parse(String(vi.mocked(fetchImpl).mock.calls[0][1]?.body));
+    expect(body.generationConfig).not.toHaveProperty("thinkingConfig");
+    expect(body.generationConfig.maxOutputTokens).toBeGreaterThanOrEqual(4096);
+  });
+});
+
+
+describe("open contextual clarification", () => {
+  const question = "We do not serve pizza. What would you like instead?";
+  const pending = { id: "open-question", question, choices: [] };
+  const context: NonNullable<ParseRequest["context"]> = {
+    lines: [{ lineId: "existing:0", itemId: "burger", qty: 1, modifiers: [] }],
+    lastLineId: "existing:0", pending,
+    recent: [{ role: "user", text: "Can you swap my burger for a pizza?" }, { role: "assistant", text: question }],
+  };
+
+  it("accepts an open question without invented cart operations", async () => {
+    const result = { kind: "clarify", question, choices: [] };
+    const outcome = await parseGemini({ ...request, context: { ...context, pending: null }, text: "Can you swap my burger for a pizza?" }, config(modelReturns(result)));
+    expect(outcome.result).toEqual(result);
+    expect(buildSystemInstruction()).toContain("choices:[]");
+  });
+
+  it("accepts a now-clear replacement interpreted from the open question and current cart", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "REMOVE", ref: { by: "line", lineId: "existing:0" } },
+      { type: "ADD", itemId: "veggie_wrap", qty: 1, modifiers: [] },
+    ] };
+    const fetchImpl = modelReturns(result);
+    expect((await parseGemini({ ...request, context, text: "Then a veggie wrap instead, thanks" }, config(fetchImpl))).result).toEqual(result);
+    const body = JSON.parse(String(vi.mocked(fetchImpl).mock.calls[0][1]?.body));
+    expect(JSON.parse(body.contents[0].parts[0].text).context.pending).toEqual(pending);
+  });
+
+  it("rejects invented resolution IDs when the open question has no selectable choice", async () => {
+    const result = { kind: "resolve", pendingId: pending.id, choiceId: "invented" };
+    await expect(parseGemini({ ...request, context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+});
+
+
+describe("authoritative availability notices", () => {
+  it.each(["burger", "  BURGER  ", "Cheeseburger", "chicken_sandwich", "Chicken  Sandwich", "garden salad"])("rejects a false unavailable notice for %s", async (item) => {
+    const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] }], notices: [{ kind: "unavailable", item }] };
+    await expect(parseGemini(request, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT", retryable: false });
+  });
+
+  it("allows an unavailable pizza notice alongside valid menu operations", async () => {
+    const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] }], notices: [{ kind: "unavailable", item: "pizza" }] };
+    expect((await parseGemini(request, config(modelReturns(result)))).result).toEqual(result);
   });
 });

@@ -62,3 +62,18 @@ function guardInjection(text: string): Rejection | null {
 export function guardTranscript(text: string): Rejection | null {
   return guardQuantities(text) ?? guardInjection(text);
 }
+
+/** Conservative post-model quantity validation; it never decides natural-language grammar. */
+export function guardExplicitQuantities(text: string): Rejection | null {
+  const tokens = quantityTokens(text);
+  for (let index = 0; index < tokens.length; index += 1) {
+    const reading = readNumber(tokens, index);
+    if (!reading) continue;
+    if (reading.form === "integer" && (reading.value < 1 || reading.value > LIMITS.quantity)) {
+      return reject("QUANTITY_LIMIT", MESSAGES.quantityLimit);
+    }
+    if (reading.form === "decimal") return reject("UNSUPPORTED", MESSAGES.quantityDecimal);
+    index += reading.length - 1;
+  }
+  return null;
+}

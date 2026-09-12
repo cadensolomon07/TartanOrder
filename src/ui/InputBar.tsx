@@ -1,5 +1,6 @@
 "use client";
 import { useRef, type KeyboardEvent } from "react";
+import { LIMITS } from "@/contracts";
 import styles from "./Kiosk.module.css";
 
 export type InputBarProps = {
@@ -75,7 +76,7 @@ export function InputBar(p: InputBarProps) {
           type="text"
           inputMode="text"
           autoComplete="off"
-          maxLength={500}
+          maxLength={LIMITS.transcriptChars}
           placeholder="Type your order"
           value={p.draft}
           disabled={p.voiceActive}

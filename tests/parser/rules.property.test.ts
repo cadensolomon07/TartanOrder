@@ -59,17 +59,17 @@ function toWords(n: number): string {
 }
 
 const validRequest = fc.record({
-  v: fc.constant(1 as const),
+  v: fc.constant(2 as const),
   requestId: fc.string({ minLength: 1, maxLength: 100 }).filter((id) => id.trim().length > 0),
   baseRevision: fc.nat({ max: 1_000_000 }),
-  menuVersion: fc.constant("demo-v1" as const),
+  menuVersion: fc.constant("demo-v2" as const),
   text: fc.string({ minLength: 1, maxLength: 500 }),
   source: fc.constantFrom("voice" as const, "text" as const, "fixture" as const),
   asrConfidence: fc.oneof(fc.constant(null), fc.double({ min: 0, max: 1, noNaN: true })),
 });
 
 function requestWith(text: string): ParseRequest {
-  return { v: 1, requestId: "p", baseRevision: 0, menuVersion: "demo-v1", text, source: "text", asrConfidence: null };
+  return { v: 2, requestId: "p", baseRevision: 0, menuVersion: "demo-v2", text, source: "text", asrConfidence: null };
 }
 
 describe("rules parser properties", () => {

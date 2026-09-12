@@ -105,22 +105,78 @@
 }
 
 /* menu buttons */
+.conversation {
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  background: var(--paper);
+  padding: 20px;
+  box-shadow: 0 4px 18px #221c1806;
+}
+.conversationHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.conversationStatus {
+  color: var(--red-dark);
+  font-size: 13px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.conversationStatus::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 7px;
+  background: var(--red);
+}
+.readReplies {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.readReplies input { accent-color: var(--red); }
+.assistantReply {
+  margin: 16px 0 20px;
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.menu { min-width: 0; }
+.menuCategory + .menuCategory { margin-top: 22px; }
+.categoryTitle {
+  margin: 12px 0 8px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .menuGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .menuBtn {
-  min-height: 72px;
-  border: 2px solid var(--red);
+  min-height: 132px;
+  padding: 15px;
+  border: 1px solid var(--rule);
   border-radius: 12px;
   background: var(--paper);
   color: var(--red-dark);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
   gap: 8px;
 }
 .menuBtn:hover:not(:disabled) {
@@ -131,6 +187,10 @@
   font-size: 24px;
   line-height: 1;
 }
+.menuItemHeading { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.menuDescription { color: var(--ink-soft); font-size: 13px; line-height: 1.4; font-weight: 400; }
+.menuPrice { margin-top: auto; font-size: 15px; font-weight: 750; }
+.menuBtn:hover:not(:disabled) .menuDescription { color: #fff; }
 
 /* input bar */
 .inputBar {
@@ -539,17 +599,22 @@
     gap: 16px;
   }
   .menuGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
   .menuBtn {
-    min-height: 60px;
-    padding: 8px 6px;
+    min-height: 130px;
+    padding: 12px;
     font-size: 17px;
   }
   .menuBtnPlus {
     display: none; /* the label alone reads fine on a phone; the + only crowds it */
   }
+  .left { display: contents; }
+  .conversation { order: 0; padding: 16px; }
+  .right { order: 1; }
+  .menu { order: 2; }
+  .assistantReply { font-size: 21px; }
   .header {
     padding: 12px 16px 10px;
   }

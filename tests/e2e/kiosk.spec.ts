@@ -16,10 +16,17 @@ const FAKE_SR = `
     r.onend && r.onend(); };
 `;
 
-async function open(page: Page) {
+async function open(page: Page, localOnly = true) {
   await page.addInitScript(FAKE_SR);
   await page.goto("/");
-  await expect(page.getByText("TartanOrder Demo Counter")).toBeVisible();
+  await expect(page.getByTestId("disclosure")).toBeVisible();
+  if (localOnly) await chooseLocalRules(page);
+}
+
+async function chooseLocalRules(page: Page) {
+  await page.getByTestId("eng-toggle").click();
+  await page.getByTestId("local-only").check();
+  await page.getByTestId("eng-toggle").click();
 }
 
 async function type(page: Page, text: string) {
@@ -46,7 +53,7 @@ test("modifier change via text and undo", async ({ page }) => {
 test("ambiguity between burger lines -> choose second -> undo", async ({ page }) => {
   await open(page);
   await type(page, "a burger, fries and lemonade");
-  await type(page, "add a burger"); // starter grammar: "add <item>", no "another" yet
+  await type(page, "add a burger");
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(4);
   await type(page, "remove the burger");
   await expect(page.getByTestId("clarify")).toBeVisible();
@@ -61,14 +68,14 @@ test("ambiguity between burger lines -> choose second -> undo", async ({ page })
 test("quantity over the limit is rejected, never clamped; cart unchanged", async ({ page }) => {
   await open(page);
   await type(page, "a burger, fries and lemonade");
-  // "6 lemonades" reaches the bootstrap grammar's quantity check (QUANTITY_LIMIT).
+  // The local rules parser rejects quantities beyond the cart limit.
   await type(page, "6 lemonades");
   await expect(page.getByTestId("notice")).toContainText(/1 to 5|quantit/i);
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(3);
   await expect(page.getByTestId("total")).toHaveText("$13.50");
 });
 
-test("an unsupported phrase (18,000 lemonades under the bootstrap grammar) is rejected; cart unchanged", async ({ page }) => {
+test("an extreme quantity is rejected; cart unchanged", async ({ page }) => {
   await open(page);
   await type(page, "a burger, fries and lemonade");
   await type(page, "18,000 lemonades"); // the comma splits it; C's grammar will report QUANTITY_LIMIT
@@ -149,6 +156,7 @@ const FAKE_SR_NETWORK_THEN_LOCAL = `
 test("cloud speech service unreachable -> same Talk press retried on-device, one submit (recognizer mocked)", async ({ page }) => {
   await page.addInitScript(FAKE_SR_NETWORK_THEN_LOCAL);
   await page.goto("/");
+  await chooseLocalRules(page);
   await page.getByTestId("talk").click();
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(2);
   await expect(page.getByTestId("total")).toHaveText("$11.00");
@@ -165,6 +173,7 @@ test("cloud speech service unreachable -> same Talk press retried on-device, one
 test("cloud speech service unreachable and no on-device support -> honest notice, typing works (recognizer mocked)", async ({ page }) => {
   await page.addInitScript(`window.SpeechRecognition = window.webkitSpeechRecognition = class { start(){ const s=this; setTimeout(() => { s.onerror && s.onerror({error:'network'}); s.onend && s.onend(); }, 20); } stop(){} abort(){} };`);
   await page.goto("/");
+  await chooseLocalRules(page);
   await page.getByTestId("talk").click();
   await expect(page.getByTestId("mic-notice")).toContainText(/speech service/i);
   await expect(page.getByTestId("mic-notice")).not.toContainText(/internet|wi-?fi/i);
@@ -177,49 +186,86 @@ test("denied mic -> typed recovery", async ({ page }) => {
   // Override BOTH names: modern Chromium exposes unprefixed SpeechRecognition too.
   await page.addInitScript(`window.SpeechRecognition = window.webkitSpeechRecognition = class { start(){ this.onerror && this.onerror({error:'not-allowed'}); this.onend && this.onend(); } stop(){} abort(){} };`);
   await page.goto("/");
+  await chooseLocalRules(page);
   await page.getByTestId("talk").click();
   await expect(page.getByTestId("mic-notice")).toContainText("blocked");
   await type(page, "lemonade");
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(1);
 });
 
-test("provider 503 -> visibly falls back to rules (network mocked)", async ({ page }) => {
-  await open(page);
+test("provider 503 -> visibly falls back to rules (HTTP response mocked)", async ({ page }) => {
+  await open(page, false);
   // Local only must be OFF for the client to go over HTTP at all.
   await page.getByTestId("eng-toggle").click();
   await page.getByTestId("local-only").uncheck();
   // Simulate an unavailable cloud provider at the HTTP boundary. The client
   // adapter must answer with rules mode and say so; the cart still updates.
-  let requested = false;
+  let requested = 0;
   await page.route("**/api/interpret", (route) => {
-    requested = true;
+    requested += 1;
+    const request = route.request().postDataJSON();
     return route.fulfill({
       status: 503,
       contentType: "application/json",
-      body: JSON.stringify({ v: 1, requestId: null, error: { code: "PROVIDER_UNAVAILABLE", message: "down", retryable: true } }),
+      body: JSON.stringify({ v: request.v, requestId: request.requestId, error: { code: "PROVIDER_UNAVAILABLE", message: "down", retryable: true } }),
     });
   });
   await type(page, "fries");
-  await expect(page.getByTestId("badge-parser")).toContainText(/rules|gemini/);
-  // The bootstrap client parses locally even with Local only off, so the route
-  // is never hit; the assertion below is only meaningful once C's client lands.
-  test.skip(!requested, "client never called /api/interpret (bootstrap client parses locally); re-enable with C's HTTP client");
+  await expect(page.getByTestId("badge-parser")).toContainText("rules");
+  expect(requested).toBe(1);
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(1);
   await expect(page.getByTestId("badge-parser")).toContainText("rules");
   await expect(page.getByTestId("notice")).toContainText(/local rules|unavailable/i);
 });
 
-test("Local only is on by default and the parser badge shows the real mode", async ({ page }) => {
-  await open(page);
+test("online is the default even with a legacy saved Local-only preference", async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("tartanorder.localOnly", "on"));
+  await open(page, false);
   await page.getByTestId("eng-toggle").click();
-  await expect(page.getByTestId("local-only")).toBeChecked();
-  await expect(page.getByTestId("badge-parser")).toContainText("none"); // nothing parsed yet
+  await expect(page.getByTestId("local-only")).not.toBeChecked();
+  await expect(page.getByTestId("badge-parser")).toContainText("none");
+  // Explicit local selection permits the deterministic offline grammar.
+  await page.getByTestId("local-only").check();
   await type(page, "fries");
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(1);
   await expect(page.getByTestId("badge-parser")).toContainText("rules");
-  // Turning Local only off is a mode change: A's controller invalidates review and says so.
-  await page.getByTestId("local-only").uncheck();
-  await expect(page.getByTestId("notice")).toBeVisible();
+  await page.reload();
+  await page.getByTestId("eng-toggle").click();
+  await expect(page.getByTestId("local-only")).not.toBeChecked();
+});
+
+test("MOCKED Gemini HTTP reply is applied and shown through the ordinary controller", async ({ page }) => {
+  await open(page, false);
+  let requestCount = 0;
+  await page.route("**/api/interpret", (route) => {
+    requestCount += 1;
+    const request = route.request().postDataJSON();
+    expect(request.context.lines).toEqual([]);
+    return route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        v: request.v, menuVersion: request.menuVersion, requestId: request.requestId,
+        baseRevision: request.baseRevision, parser: "gemini", fallbackReason: null,
+        result: { kind: "proposal", ops: [
+          { type: "ADD", itemId: "burger", qty: 1, modifiers: ["no_lettuce"] },
+          { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+          { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
+        ] },
+      }),
+    });
+  });
+  await type(page, "I’ll take a burger, fries and a lemonade. Actually, no lettuce on the burger.");
+  await expect(page.getByTestId("total")).toHaveText("$13.50");
+  await expect(page.getByTestId("cart")).toContainText("No lettuce");
+  await expect(page.getByTestId("badge-parser")).toContainText("gemini");
+  await expect(page.getByTestId("assistant-response")).toContainText(/burger/i);
+  await expect(page.getByTestId("assistant-response")).toContainText(/no lettuce/i);
+  expect(requestCount).toBe(1);
+  await page.getByTestId("review").click();
+  await expect(page.getByTestId("review")).toContainText("No lettuce");
+  await expect(page.getByTestId("ticket")).toHaveCount(0);
+  await page.getByTestId("confirm").click();
+  await expect(page.getByTestId("ticket")).toContainText("No lettuce");
 });
 
 test("reset returns to an empty cart in under five seconds", async ({ page }) => {

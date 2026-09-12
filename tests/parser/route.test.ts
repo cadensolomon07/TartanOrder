@@ -132,12 +132,12 @@ describe("POST /api/interpret: admission", () => {
     expect(body.requestId).toBe("u1");
   });
 
-  it("rejects a 4097-byte body with 413 when no content-length is declared", async () => {
+  it("rejects a over-limit byte body with 413 when no content-length is declared", async () => {
     const res = await post(bodyOfBytes(LIMITS.requestBytes + 1));
     await expectApiError(res, 413, "INPUT_TOO_LARGE", false);
   });
 
-  it("rejects a 4097-byte body with 413 even when content-length lies", async () => {
+  it("rejects a over-limit byte body with 413 even when content-length lies", async () => {
     const res = await post(bodyOfBytes(LIMITS.requestBytes + 1), { headers: { "content-length": "10" } });
     await expectApiError(res, 413, "INPUT_TOO_LARGE", false);
   });
@@ -147,23 +147,23 @@ describe("POST /api/interpret: admission", () => {
     await expectApiError(res, 413, "INPUT_TOO_LARGE", false);
   });
 
-  it("lets exactly 4096 bytes through the byte gate (then fails the 500-char schema bound with 400)", async () => {
+  it("lets exactly the permitted request bytes through the byte gate (then fails the transcript schema bound with 400)", async () => {
     const res = await post(bodyOfBytes(LIMITS.requestBytes));
     await expectApiError(res, 400, "INVALID_REQUEST", false);
   });
 
-  it("rejects a 501-character transcript with 400 (schema bound, not 413)", async () => {
+  it("rejects a over-limit transcript with 400 (schema bound, not 413)", async () => {
     const res = await postJson({ ...FIXTURE_REQUEST, text: "a".repeat(LIMITS.transcriptChars + 1) });
     await expectApiError(res, 400, "INVALID_REQUEST", false);
   });
 
-  it("rejects v:2 with 400", async () => {
-    const res = await postJson({ ...FIXTURE_REQUEST, v: 2 });
+  it("rejects v:1 with 400", async () => {
+    const res = await postJson({ ...FIXTURE_REQUEST, v: 1 });
     await expectApiError(res, 400, "INVALID_REQUEST", false);
   });
 
   it("rejects a foreign menu version with 409 before the strict schema", async () => {
-    const res = await postJson({ ...FIXTURE_REQUEST, menuVersion: "demo-v2", extra: true });
+    const res = await postJson({ ...FIXTURE_REQUEST, menuVersion: "demo-v0", extra: true });
     const body = await expectApiError(res, 409, "MENU_VERSION_MISMATCH", false);
     expect(body.requestId).toBe("u1");
   });
@@ -199,7 +199,7 @@ describe("POST /api/interpret: admission", () => {
 });
 
 describe("POST /api/interpret: one deadline bounds the whole body-read and parse lifecycle", () => {
-  it("answers 504 PARSE_TIMEOUT exactly at the 5 s deadline when a body is held open, and cancels the reader", async () => {
+  it("answers 504 PARSE_TIMEOUT exactly at the 15 s deadline when a body is held open, and cancels the reader", async () => {
     vi.useFakeTimers();
     const cancel = vi.fn();
     const partial = new TextEncoder().encode(JSON.stringify(FIXTURE_REQUEST).slice(0, 24));
@@ -263,8 +263,8 @@ describe("POST /api/interpret: rules mode", () => {
     expect(parsed.data.result.ops).toEqual(FIXTURE_RESPONSE.result.ops);
   });
 
-  it("stays in rules mode for any PARSER_MODE other than gemini and never calls the provider", async () => {
-    vi.stubEnv("PARSER_MODE", "fixture");
+  it("honors explicit rules mode even when a key is configured", async () => {
+    vi.stubEnv("PARSER_MODE", "rules");
     vi.stubEnv("GEMINI_API_KEY", KEY);
     const res = await postJson(FIXTURE_REQUEST);
     expect(res.status).toBe(200);
@@ -322,9 +322,9 @@ describe("POST /api/interpret: gemini mode", () => {
     const [req, config] = vi.mocked(parseGemini).mock.calls[0];
     expect(req).toEqual(FIXTURE_REQUEST);
     expect(config.apiKey).toBe(KEY);
-    expect(config.model).toBe("gemini-2.5-flash");
+    expect(config.model).toBe("gemini-3.6-flash");
     expect(config.timeoutMs).toBeGreaterThan(0);
-    expect(config.timeoutMs).toBeLessThanOrEqual(4500);
+    expect(config.timeoutMs).toBeLessThanOrEqual(14000);
     expect(config.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -392,7 +392,7 @@ describe("POST /api/interpret: gemini mode", () => {
     await expectApiError(res, 502, "INVALID_MODEL_OUTPUT", false);
   });
 
-  it("answers 504 PARSE_TIMEOUT at the 5 s server deadline even if the adapter ignores its signal", async () => {
+  it("answers 504 PARSE_TIMEOUT at the 15 s server deadline even if the adapter ignores its signal", async () => {
     vi.useFakeTimers();
     const provider = providerCalled();
     provider.hang(() => new Promise<GeminiOutcome>(() => undefined));
@@ -405,7 +405,7 @@ describe("POST /api/interpret: gemini mode", () => {
     expect((await provider.config).signal?.aborted).toBe(true);
   });
 
-  it("charges a slow body against the same 5 s deadline as the provider call", async () => {
+  it("charges a slow body against the same 15 s deadline as the provider call", async () => {
     vi.useFakeTimers();
     const provider = providerCalled();
     provider.hang(() => new Promise<GeminiOutcome>(() => undefined));
@@ -452,19 +452,25 @@ describe("POST /api/interpret: gemini mode", () => {
     expect(info).not.toHaveBeenCalled();
   });
 
-  it("lets the rules quantity guard reject 18,000 lemonades before any model call", async () => {
-    vi.mocked(parseGemini).mockResolvedValue(outcome(geminiProposal));
-    const res = await postJson({ ...FIXTURE_REQUEST, text: "18,000 lemonades" });
+  it("sends unsupported grammar and quantity requests to Gemini without a pre-parser bypass", async () => {
+    const rejected: ParseResult = { kind: "reject", code: "QUANTITY_LIMIT", message: "Choose 1 to 5 of each item." };
+    vi.mocked(parseGemini).mockResolvedValue(outcome(rejected));
+    const res = await postJson({ ...FIXTURE_REQUEST, text: "I'd appreciate 18,000 lemonades, please" });
     expect(res.status).toBe(200);
-    const body: unknown = await res.json();
-    const parsed = ParseResponseSchema.safeParse(body);
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) throw new Error("unreachable");
-    expect(parsed.data.parser).toBe("rules");
-    expect(parsed.data.fallbackReason).toBeNull();
-    expect(parsed.data.result).toMatchObject({ kind: "reject", code: "QUANTITY_LIMIT" });
-    expect(parseGemini).not.toHaveBeenCalled();
+    const body = ParseResponseSchema.parse(await res.json());
+    expect(body.parser).toBe("gemini");
+    expect(body.fallbackReason).toBeNull();
+    expect(body.result).toEqual(rejected);
+    expect(parseGemini).toHaveBeenCalledTimes(1);
     expect(loggedLine()).toMatchObject({ mode: "gemini", outcome: "reject", code: "QUANTITY_LIMIT" });
-    expect(JSON.stringify(loggedLine())).not.toContain("18,000");
+  });
+
+  it("passes bounded cart and conversation context intact to Gemini", async () => {
+    vi.mocked(parseGemini).mockResolvedValue(outcome(geminiProposal));
+    const context = { lines: [{ lineId: "earlier:0", itemId: "burger", qty: 1, modifiers: ["no_lettuce"] }], lastLineId: "earlier:0", pending: null, recent: [{ role: "user", text: "One burger without lettuce." }] };
+    const res = await postJson({ ...FIXTURE_REQUEST, text: "Put the lettuce back, please", context });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(parseGemini).mock.calls[0][0].context).toEqual(context);
+    expect(JSON.stringify(loggedLine())).not.toContain("Put the lettuce");
   });
 });

@@ -2,10 +2,13 @@
 // simulated receipt through the finished kiosk (typed input, no voice).
 import { test, expect } from "@playwright/test";
 test("real local rules reach a reviewed simulated receipt", async ({ page }) => {
-  // Local only is on by default: the whole journey must complete with no API traffic.
+  // Select Local only explicitly: the journey must complete with no API traffic.
   const apiHits: string[] = [];
   page.on("request", (r) => { if (r.url().includes("/api/")) apiHits.push(r.url()); });
   await page.goto("/");
+  await page.getByTestId("eng-toggle").click();
+  await page.getByTestId("local-only").check();
+  await page.getByTestId("eng-toggle").click();
   await expect(page.getByTestId("disclosure")).toHaveText("TartanOrder Demo Counter · Seeded menu · No real purchase.");
   await page.getByTestId("text-input").fill("a burger, fries and lemonade");
   await page.getByTestId("submit").click();

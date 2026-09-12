@@ -3,7 +3,7 @@
 export type ParserMode = "rules" | "gemini";
 
 export type ParserModeReport = {
-  /** What `PARSER_MODE` asks for. Anything other than "gemini" means rules. */
+  /** What `PARSER_MODE` asks for. An explicit mode wins; a configured key otherwise selects Gemini. */
   readonly configured: ParserMode;
   /** Whether a non-empty `GEMINI_API_KEY` is present. Never the key itself. */
   readonly keyPresent: boolean;
@@ -19,7 +19,7 @@ export type EnvLike = Readonly<Record<string, string | undefined>>;
 
 /** Pure given `env`; the health route can call `resolveParserMode().effective`. */
 export function resolveParserMode(env: EnvLike = process.env): ParserModeReport {
-  const configured: ParserMode = env.PARSER_MODE === "gemini" ? "gemini" : "rules";
   const keyPresent = (env.GEMINI_API_KEY ?? "").trim().length > 0;
+  const configured: ParserMode = env.PARSER_MODE === "rules" ? "rules" : env.PARSER_MODE === "gemini" || keyPresent ? "gemini" : "rules";
   return { configured, keyPresent, effective: configured === "gemini" && keyPresent ? "gemini" : "rules" };
 }

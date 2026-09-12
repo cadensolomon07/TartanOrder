@@ -12,7 +12,7 @@ function qtyWord(n: number): string {
 export function reviewToSpeech(review: Review): string {
   const parts = review.lines.map((line) => {
     const name = ITEM_LABEL[line.itemId].toLowerCase();
-    const plural = line.qty === 1 ? name : name === "fries" ? "fries" : `${name}s`;
+    const plural = line.qty === 1 ? name : name === "fries" || name === "onion rings" ? name : name === "chicken sandwich" ? "chicken sandwiches" : `${name}s`;
     const mods = line.modifiers.map((m) => MODIFIER_LABEL[m].toLowerCase());
     const modText = mods.length ? ` with ${mods.join(" and ")}` : "";
     return `${qtyWord(line.qty)} ${plural}${modText}`;

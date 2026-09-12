@@ -29,7 +29,7 @@ function harness() {
 }
 
 function proposal(request: ParseRequest, ops: Op[] = [burger]): ParseResponse {
-  return { v: 1, requestId: request.requestId, baseRevision: request.baseRevision, menuVersion: "demo-v1", parser: "rules", fallbackReason: null, result: { kind: "proposal", ops } };
+  return { v: 2, requestId: request.requestId, baseRevision: request.baseRevision, menuVersion: "demo-v2", parser: "rules", fallbackReason: null, result: { kind: "proposal", ops } };
 }
 
 function seedReview(controller: ReturnType<typeof harness>) {
@@ -104,8 +104,8 @@ describe("controller capture and review gates", () => {
     const submission = controller.getSnapshot().submit("  fries  ", "voice", 0.62);
     expect(controller.calls).toHaveLength(1);
     const call = controller.calls[0];
-    expect(call.request).toMatchObject({ v: 1, menuVersion: "demo-v1", text: "fries", source: "voice", asrConfidence: 0.62, baseRevision: inputRevision + 1 });
-    expect(call.options.localOnly).toBe(true);
+    expect(call.request).toMatchObject({ v: 2, menuVersion: "demo-v2", text: "fries", source: "voice", asrConfidence: 0.62, baseRevision: inputRevision + 1 });
+    expect(call.options.localOnly).toBe(false);
     expect(call.options.signal?.aborted).toBe(false);
     expect(controller.getSnapshot().busy).toBe(true);
     expect(controller.getSnapshot().state.review).toBeNull();
@@ -233,7 +233,7 @@ describe("controller request cancellation and admission", () => {
     const valid = proposal(call.request);
     const raw = mismatch === "requestId" ? { ...valid, requestId: "someone-else" }
       : mismatch === "revision" ? { ...valid, baseRevision: valid.baseRevision + 1 }
-      : mismatch === "menu" ? { ...valid, menuVersion: "demo-v2" }
+      : mismatch === "menu" ? { ...valid, menuVersion: "demo-v999" }
       : { ...valid, result: { kind: "proposal", ops: [{ ...burger, priceCents: 1 }] } };
     call.deferred.resolve(raw as ParseResponse);
     await submission;
@@ -280,8 +280,8 @@ describe("controller request cancellation and admission", () => {
     const controller = harness();
     const first = controller.getSnapshot().submit("burger", "text", null);
     const firstCall = controller.calls[0];
-    controller.getSnapshot().setLocalOnly(false);
-    expect(firstCall.options.localOnly).toBe(true);
+    controller.getSnapshot().setLocalOnly(true);
+    expect(firstCall.options.localOnly).toBe(false);
     expect(firstCall.options.signal?.aborted).toBe(true);
     expect(controller.getSnapshot().busy).toBe(false);
     const afterSwitch = controller.getSnapshot();
@@ -292,11 +292,11 @@ describe("controller request cancellation and admission", () => {
 
     const second = controller.getSnapshot().submit("fries", "text", null);
     const secondCall = controller.calls[1];
-    expect(secondCall.options.localOnly).toBe(false);
-    controller.getSnapshot().setLocalOnly(false);
+    expect(secondCall.options.localOnly).toBe(true);
+    controller.getSnapshot().setLocalOnly(true);
     expect(secondCall.options.signal?.aborted).toBe(false);
     expect(controller.getSnapshot().busy).toBe(true);
-    controller.getSnapshot().setLocalOnly(true);
+    controller.getSnapshot().setLocalOnly(false);
     expect(secondCall.options.signal?.aborted).toBe(true);
     secondCall.deferred.resolve(proposal(secondCall.request, [fries]));
     await second;
@@ -307,11 +307,11 @@ describe("controller request cancellation and admission", () => {
   it("mode changes invalidate existing review while preserving unfinished capture", () => {
     const controller = harness();
     const review = seedReview(controller);
-    controller.getSnapshot().setLocalOnly(false);
+    controller.getSnapshot().setLocalOnly(true);
     expect(controller.getSnapshot().state.review).toBeNull();
     expect(controller.getSnapshot().state.revision).toBe(review.revision + 1);
     controller.getSnapshot().startInput();
-    controller.getSnapshot().setLocalOnly(true);
+    controller.getSnapshot().setLocalOnly(false);
     expect(controller.getSnapshot().busy).toBe(true);
     expect(controller.getSnapshot().state.review).toBeNull();
     controller.getSnapshot().endInput();
@@ -326,22 +326,23 @@ describe("controller request cancellation and admission", () => {
     expect(controller.getSnapshot().busy).toBe(false);
     expect(controller.getSnapshot().state.lines).toEqual([]);
     expect(controller.interpret).toHaveBeenCalledTimes(1);
-    expect(controller.getSnapshot().notice).toBe(kind === "abort" ? null : "Parsing is unavailable. Try Local only or use the menu buttons.");
+    expect(controller.getSnapshot().notice).toBe(kind === "abort" ? null : "Understanding is unavailable. Choose Local only for simple typed orders, or use the menu.");
   });
 
-  it("preserves a parser rejection message and truthful fallback mode", async () => {
+  it("formats rejected edits from the engine code and labels fallback truthfully", async () => {
     const controller = harness();
     const rejected = controller.getSnapshot().submit("pizza", "text", null);
-    controller.calls[0].deferred.resolve({ ...proposal(controller.calls[0].request), result: { kind: "reject", code: "OFF_MENU", message: "Pizza is not on this menu." } });
+    controller.calls[0].deferred.resolve({ ...proposal(controller.calls[0].request), result: { kind: "reject", code: "OFF_MENU", message: "I added pizza successfully." } });
     await rejected;
-    expect(controller.getSnapshot().notice).toBe("Pizza is not on this menu.");
+    expect(controller.getSnapshot().notice).toMatch(/isn.t on our demo menu/i);
+    expect(controller.getSnapshot().assistant?.text).not.toMatch(/added pizza/i);
     expect(controller.getSnapshot().parser).toBe("rules");
     expect(controller.getSnapshot().state.lines).toEqual([]);
     const fallback = controller.getSnapshot().submit("burger", "text", null);
     controller.calls[1].deferred.resolve({ ...proposal(controller.calls[1].request), fallbackReason: "PROVIDER_UNAVAILABLE" });
     await fallback;
     expect(controller.getSnapshot().parser).toBe("rules");
-    expect(controller.getSnapshot().notice).toBe("Using local rules (PROVIDER_UNAVAILABLE).");
+    expect(controller.getSnapshot().notice).toMatch(/^Using local rules \(PROVIDER_UNAVAILABLE\)/);
     expect(controller.getSnapshot().state.totalCents).toBe(800);
   });
 });
@@ -375,7 +376,7 @@ describe("controller commit, reset and replay", () => {
     }
     controller.getSnapshot().startInput();
     await controller.getSnapshot().submit("fries", "text", null);
-    controller.getSnapshot().setLocalOnly(false);
+    controller.getSnapshot().setLocalOnly(true);
     expect(controller.getSnapshot().state.receipt).toEqual(receipt);
     expect(controller.getSnapshot().busy).toBe(false);
     expect(controller.interpret).not.toHaveBeenCalled();

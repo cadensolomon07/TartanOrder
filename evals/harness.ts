@@ -94,6 +94,7 @@ function buildRequest(evalCase: EvalCase, state: EngineState): ParseRequest {
     text: evalCase.transcript,
     source: SOURCE[evalCase.source],
     asrConfidence: evalCase.asrConfidence,
+    context: { lines: getView(state).lines, lastLineId: state.view.lastLineId, pending: state.view.pending, recent: [] },
   };
 }
 

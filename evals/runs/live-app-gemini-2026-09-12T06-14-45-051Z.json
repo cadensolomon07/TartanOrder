@@ -1,0 +1,3653 @@
+{
+  "kind": "live-http-gemini-controller-acceptance",
+  "recordedAt": "2026-09-12T06:15:35.445Z",
+  "appOrigin": "http://127.0.0.1:3150",
+  "apiVersion": 2,
+  "menuVersion": "demo-v2",
+  "evidence": {
+    "transport": "Real HTTP requests through the application interpret client; no injected model responses.",
+    "requiredMode": "Every request must return HTTP 200, parser=gemini and fallbackReason=null.",
+    "engine": "Real local controller and deterministic engine apply each server interpretation.",
+    "voice": "Typed synthetic utterances only. No human microphone or browser speech trial.",
+    "retries": "None; scenarios execute sequentially.",
+    "timings": "Observed request/controller timings for these cases only; not a latency benchmark.",
+    "providerBoundary": "The server-reported mode is asserted; provider credentials and direct provider traffic remain server-side."
+  },
+  "passed": 9,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "long-order-and-cross-turn-correction",
+      "actions": [
+        {
+          "afterStep": 2,
+          "action": {
+            "type": "REVIEW"
+          }
+        },
+        {
+          "afterStep": 2,
+          "action": {
+            "type": "CONFIRM",
+            "reviewId": "53wimj:review:4",
+            "revision": 4
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 3349,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": [
+                        "double",
+                        "no_lettuce"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "fries",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "lemonade",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "double",
+                    "no_lettuce"
+                  ]
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "lemonade",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ]
+            }
+          },
+          "elapsedMs": 3351,
+          "state": {
+            "sessionId": "live-long-order-and-cross-turn-correction",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "double",
+                  "no_lettuce"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:2",
+                "itemId": "lemonade",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:2",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1600,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "double",
+                            "no_lettuce"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "fries",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "lemonade",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 burger (double, no lettuce), 1 fries and 1 lemonade. Is there anything else I can get you?"
+        },
+        {
+          "text": "Actually make that two lemonades and put the lettuce back on the burger",
+          "request": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "text": "Actually make that two lemonades and put the lettuce back on the burger",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "r1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "double",
+                    "no_lettuce"
+                  ]
+                },
+                {
+                  "lineId": "r1:1",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "lineId": "r1:2",
+                  "itemId": "lemonade",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "lastLineId": "r1:2",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "user",
+                  "text": "Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce."
+                },
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger (double, no lettuce), 1 fries and 1 lemonade. Is there anything else I can get you?"
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 4380,
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "SET_QTY",
+                      "ref": {
+                        "by": "line",
+                        "lineId": "r1:2"
+                      },
+                      "qty": 2
+                    },
+                    {
+                      "type": "MOD",
+                      "ref": {
+                        "by": "line",
+                        "lineId": "r1:0"
+                      },
+                      "modifier": "no_lettuce",
+                      "enabled": false
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "SET_QTY",
+                  "ref": {
+                    "by": "line",
+                    "lineId": "r1:2"
+                  },
+                  "qty": 2
+                },
+                {
+                  "type": "MOD",
+                  "ref": {
+                    "by": "line",
+                    "lineId": "r1:0"
+                  },
+                  "modifier": "no_lettuce",
+                  "enabled": false
+                }
+              ]
+            }
+          },
+          "elapsedMs": 4381,
+          "state": {
+            "sessionId": "live-long-order-and-cross-turn-correction",
+            "revision": 4,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "double"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:2",
+                "itemId": "lemonade",
+                "qty": 2,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:0",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1850,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "double",
+                            "no_lettuce"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "fries",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "lemonade",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 4,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r2",
+                    "baseRevision": 3,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "SET_QTY",
+                          "ref": {
+                            "by": "line",
+                            "lineId": "r1:2"
+                          },
+                          "qty": 2
+                        },
+                        {
+                          "type": "MOD",
+                          "ref": {
+                            "by": "line",
+                            "lineId": "r1:0"
+                          },
+                          "modifier": "no_lettuce",
+                          "enabled": false
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "Updated to 1 burger (double) and 2 lemonade. Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-long-order-and-cross-turn-correction",
+        "revision": 4,
+        "phase": "committed",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": [
+              "double"
+            ]
+          },
+          {
+            "lineId": "r1:1",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "lineId": "r1:2",
+            "itemId": "lemonade",
+            "qty": 2,
+            "modifiers": []
+          }
+        ],
+        "lastLineId": "r1:0",
+        "pending": null,
+        "review": {
+          "id": "53wimj:review:4",
+          "revision": 4,
+          "lines": [
+            {
+              "lineId": "r1:0",
+              "itemId": "burger",
+              "qty": 1,
+              "modifiers": [
+                "double"
+              ]
+            },
+            {
+              "lineId": "r1:1",
+              "itemId": "fries",
+              "qty": 1,
+              "modifiers": []
+            },
+            {
+              "lineId": "r1:2",
+              "itemId": "lemonade",
+              "qty": 2,
+              "modifiers": []
+            }
+          ],
+          "totalCents": 1850
+        },
+        "receipt": {
+          "id": "53wimj:receipt:4",
+          "reviewId": "53wimj:review:4",
+          "lines": [
+            {
+              "lineId": "r1:0",
+              "itemId": "burger",
+              "qty": 1,
+              "modifiers": [
+                "double"
+              ]
+            },
+            {
+              "lineId": "r1:1",
+              "itemId": "fries",
+              "qty": 1,
+              "modifiers": []
+            },
+            {
+              "lineId": "r1:2",
+              "itemId": "lemonade",
+              "qty": 2,
+              "modifiers": []
+            }
+          ],
+          "totalCents": 1850,
+          "simulated": true
+        },
+        "totalCents": 1850,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": [
+                        "double",
+                        "no_lettuce"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "fries",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "lemonade",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 3,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 4,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "SET_QTY",
+                      "ref": {
+                        "by": "line",
+                        "lineId": "r1:2"
+                      },
+                      "qty": 2
+                    },
+                    {
+                      "type": "MOD",
+                      "ref": {
+                        "by": "line",
+                        "lineId": "r1:0"
+                      },
+                      "modifier": "no_lettuce",
+                      "enabled": false
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 5,
+            "event": {
+              "type": "UI",
+              "action": {
+                "type": "REVIEW"
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 6,
+            "event": {
+              "type": "UI",
+              "action": {
+                "type": "CONFIRM",
+                "reviewId": "53wimj:review:4",
+                "revision": 4
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "mixed-available-and-unavailable",
+      "actions": [],
+      "steps": [
+        {
+          "text": "Can I get a pizza, a burger, and a lemonade?",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "Can I get a pizza, a burger, and a lemonade?",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 3909,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "lemonade",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ],
+                  "notices": [
+                    {
+                      "kind": "unavailable",
+                      "item": "pizza"
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "lemonade",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "notices": [
+                {
+                  "kind": "unavailable",
+                  "item": "pizza"
+                }
+              ]
+            }
+          },
+          "elapsedMs": 3910,
+          "state": {
+            "sessionId": "live-mixed-available-and-unavailable",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "lemonade",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1050,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "lemonade",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ],
+                      "notices": [
+                        {
+                          "kind": "unavailable",
+                          "item": "pizza"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 burger and 1 lemonade. We don't sell pizza. Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-mixed-available-and-unavailable",
+        "revision": 2,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "lineId": "r1:1",
+            "itemId": "lemonade",
+            "qty": 1,
+            "modifiers": []
+          }
+        ],
+        "lastLineId": "r1:1",
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 1050,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "lemonade",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ],
+                  "notices": [
+                    {
+                      "kind": "unavailable",
+                      "item": "pizza"
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "ambiguous-reference-and-natural-resolution",
+      "actions": [],
+      "steps": [
+        {
+          "text": "I'd like one burger with no onions and a separate burger with extra cheese.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "I'd like one burger with no onions and a separate burger with extra cheese.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 3691,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_onions"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": [
+                        "extra_cheese"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "no_onions"
+                  ]
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "extra_cheese"
+                  ]
+                }
+              ]
+            }
+          },
+          "elapsedMs": 3692,
+          "state": {
+            "sessionId": "live-ambiguous-reference-and-natural-resolution",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "no_onions"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "extra_cheese"
+                ]
+              }
+            ],
+            "lastLineId": "r1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1700,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "no_onions"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "extra_cheese"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 burger (no onions) and 1 burger (extra cheese). Is there anything else I can get you?"
+        },
+        {
+          "text": "Remove the burger.",
+          "request": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "text": "Remove the burger.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "r1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "no_onions"
+                  ]
+                },
+                {
+                  "lineId": "r1:1",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "extra_cheese"
+                  ]
+                }
+              ],
+              "lastLineId": "r1:1",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "user",
+                  "text": "I'd like one burger with no onions and a separate burger with extra cheese."
+                },
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger (no onions) and 1 burger (extra cheese). Is there anything else I can get you?"
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 6533,
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "REMOVE",
+                      "ref": {
+                        "by": "item",
+                        "itemId": "burger"
+                      }
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "REMOVE",
+                  "ref": {
+                    "by": "item",
+                    "itemId": "burger"
+                  }
+                }
+              ]
+            }
+          },
+          "elapsedMs": 6535,
+          "state": {
+            "sessionId": "live-ambiguous-reference-and-natural-resolution",
+            "revision": 4,
+            "phase": "clarifying",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "no_onions"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "extra_cheese"
+                ]
+              }
+            ],
+            "lastLineId": "r1:1",
+            "pending": {
+              "id": "c8adz:pending:4",
+              "question": "Which burger line did you mean?",
+              "choices": [
+                {
+                  "id": "option-1",
+                  "label": "Burger 1, quantity 1, No onions",
+                  "ops": [
+                    {
+                      "type": "REMOVE",
+                      "ref": {
+                        "by": "line",
+                        "lineId": "r1:0"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "option-2",
+                  "label": "Burger 2, quantity 1, Extra cheese",
+                  "ops": [
+                    {
+                      "type": "REMOVE",
+                      "ref": {
+                        "by": "line",
+                        "lineId": "r1:1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "review": null,
+            "receipt": null,
+            "totalCents": 1700,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "no_onions"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "extra_cheese"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 4,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r2",
+                    "baseRevision": 3,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "REMOVE",
+                          "ref": {
+                            "by": "item",
+                            "itemId": "burger"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "clarify",
+                "code": "AMBIGUOUS_REFERENCE"
+              }
+            ]
+          },
+          "assistant": "Which burger line did you mean?"
+        },
+        {
+          "text": "The second one.",
+          "request": {
+            "v": 2,
+            "requestId": "r3",
+            "baseRevision": 5,
+            "menuVersion": "demo-v2",
+            "text": "The second one.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "r1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "no_onions"
+                  ]
+                },
+                {
+                  "lineId": "r1:1",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": [
+                    "extra_cheese"
+                  ]
+                }
+              ],
+              "lastLineId": "r1:1",
+              "pending": {
+                "id": "c8adz:pending:4",
+                "question": "Which burger line did you mean?",
+                "choices": [
+                  {
+                    "id": "option-1",
+                    "label": "Burger 1, quantity 1, No onions",
+                    "ops": [
+                      {
+                        "type": "REMOVE",
+                        "ref": {
+                          "by": "line",
+                          "lineId": "r1:0"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "option-2",
+                    "label": "Burger 2, quantity 1, Extra cheese",
+                    "ops": [
+                      {
+                        "type": "REMOVE",
+                        "ref": {
+                          "by": "line",
+                          "lineId": "r1:1"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              "recent": [
+                {
+                  "role": "user",
+                  "text": "I'd like one burger with no onions and a separate burger with extra cheese."
+                },
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger (no onions) and 1 burger (extra cheese). Is there anything else I can get you?"
+                },
+                {
+                  "role": "user",
+                  "text": "Remove the burger."
+                },
+                {
+                  "role": "assistant",
+                  "text": "Which burger line did you mean?"
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 1941,
+              "response": {
+                "v": 2,
+                "requestId": "r3",
+                "baseRevision": 5,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "resolve",
+                  "pendingId": "c8adz:pending:4",
+                  "choiceId": "option-2"
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r3",
+            "baseRevision": 5,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "resolve",
+              "pendingId": "c8adz:pending:4",
+              "choiceId": "option-2"
+            }
+          },
+          "elapsedMs": 1943,
+          "state": {
+            "sessionId": "live-ambiguous-reference-and-natural-resolution",
+            "revision": 6,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": [
+                  "no_onions"
+                ]
+              }
+            ],
+            "lastLineId": null,
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 800,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "no_onions"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": [
+                            "extra_cheese"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 4,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r2",
+                    "baseRevision": 3,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "REMOVE",
+                          "ref": {
+                            "by": "item",
+                            "itemId": "burger"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "clarify",
+                "code": "AMBIGUOUS_REFERENCE"
+              },
+              {
+                "seq": 5,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 6,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r3",
+                    "baseRevision": 5,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "resolve",
+                      "pendingId": "c8adz:pending:4",
+                      "choiceId": "option-2"
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I removed 1 burger (extra cheese). Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-ambiguous-reference-and-natural-resolution",
+        "revision": 6,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": [
+              "no_onions"
+            ]
+          }
+        ],
+        "lastLineId": null,
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 800,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_onions"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": [
+                        "extra_cheese"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 3,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 4,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "REMOVE",
+                      "ref": {
+                        "by": "item",
+                        "itemId": "burger"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "clarify",
+            "code": "AMBIGUOUS_REFERENCE"
+          },
+          {
+            "seq": 5,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 6,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r3",
+                "baseRevision": 5,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "resolve",
+                  "pendingId": "c8adz:pending:4",
+                  "choiceId": "option-2"
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "expanded-menu-options",
+      "actions": [],
+      "steps": [
+        {
+          "text": "A chicken sandwich without mayo, a grilled cheese with extra cheese, and a side salad with dressing on the side, please.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "A chicken sandwich without mayo, a grilled cheese with extra cheese, and a side salad with dressing on the side, please.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 3495,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "chicken_sandwich",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_mayo"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "grilled_cheese",
+                      "qty": 1,
+                      "modifiers": [
+                        "extra_cheese"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "side_salad",
+                      "qty": 1,
+                      "modifiers": [
+                        "dressing_on_side"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "chicken_sandwich",
+                  "qty": 1,
+                  "modifiers": [
+                    "no_mayo"
+                  ]
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "grilled_cheese",
+                  "qty": 1,
+                  "modifiers": [
+                    "extra_cheese"
+                  ]
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "side_salad",
+                  "qty": 1,
+                  "modifiers": [
+                    "dressing_on_side"
+                  ]
+                }
+              ]
+            }
+          },
+          "elapsedMs": 3496,
+          "state": {
+            "sessionId": "live-expanded-menu-options",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "chicken_sandwich",
+                "qty": 1,
+                "modifiers": [
+                  "no_mayo"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "grilled_cheese",
+                "qty": 1,
+                "modifiers": [
+                  "extra_cheese"
+                ]
+              },
+              {
+                "lineId": "r1:2",
+                "itemId": "side_salad",
+                "qty": 1,
+                "modifiers": [
+                  "dressing_on_side"
+                ]
+              }
+            ],
+            "lastLineId": "r1:2",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 2000,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "chicken_sandwich",
+                          "qty": 1,
+                          "modifiers": [
+                            "no_mayo"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "grilled_cheese",
+                          "qty": 1,
+                          "modifiers": [
+                            "extra_cheese"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "side_salad",
+                          "qty": 1,
+                          "modifiers": [
+                            "dressing_on_side"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 chicken sandwich (no mayo), 1 grilled cheese (extra cheese) and 1 side salad (dressing on the side). Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-expanded-menu-options",
+        "revision": 2,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "chicken_sandwich",
+            "qty": 1,
+            "modifiers": [
+              "no_mayo"
+            ]
+          },
+          {
+            "lineId": "r1:1",
+            "itemId": "grilled_cheese",
+            "qty": 1,
+            "modifiers": [
+              "extra_cheese"
+            ]
+          },
+          {
+            "lineId": "r1:2",
+            "itemId": "side_salad",
+            "qty": 1,
+            "modifiers": [
+              "dressing_on_side"
+            ]
+          }
+        ],
+        "lastLineId": "r1:2",
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 2000,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "chicken_sandwich",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_mayo"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "grilled_cheese",
+                      "qty": 1,
+                      "modifiers": [
+                        "extra_cheese"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "side_salad",
+                      "qty": 1,
+                      "modifiers": [
+                        "dressing_on_side"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "invalid-quantities-and-options",
+      "actions": [
+        {
+          "afterStep": 0,
+          "action": {
+            "type": "MANUAL",
+            "ops": [
+              {
+                "type": "ADD",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "type": "ADD",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "Set the burger quantity to negative two.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 2,
+            "menuVersion": "demo-v2",
+            "text": "Set the burger quantity to negative two.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "live-invalid-quantities-and-options:ui:1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "lineId": "live-invalid-quantities-and-options:ui:1:1",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger and 1 fries. Is there anything else I can get you?"
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 1927,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 2,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "QUANTITY_LIMIT",
+                  "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 2,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "reject",
+              "code": "QUANTITY_LIMIT",
+              "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+            }
+          },
+          "elapsedMs": 1927,
+          "state": {
+            "sessionId": "live-invalid-quantities-and-options",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "live-invalid-quantities-and-options:ui:1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "live-invalid-quantities-and-options:ui:1:1",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1100,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "UI",
+                  "action": {
+                    "type": "MANUAL",
+                    "ops": [
+                      {
+                        "type": "ADD",
+                        "itemId": "burger",
+                        "qty": 1,
+                        "modifiers": []
+                      },
+                      {
+                        "type": "ADD",
+                        "itemId": "fries",
+                        "qty": 1,
+                        "modifiers": []
+                      }
+                    ]
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 2,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "QUANTITY_LIMIT",
+                      "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "QUANTITY_LIMIT"
+              }
+            ]
+          },
+          "assistant": "Choose a quantity from 1 to 5."
+        },
+        {
+          "text": "Make it eighteen thousand burgers.",
+          "request": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "text": "Make it eighteen thousand burgers.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "live-invalid-quantities-and-options:ui:1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "lineId": "live-invalid-quantities-and-options:ui:1:1",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger and 1 fries. Is there anything else I can get you?"
+                },
+                {
+                  "role": "user",
+                  "text": "Set the burger quantity to negative two."
+                },
+                {
+                  "role": "assistant",
+                  "text": "Choose a quantity from 1 to 5."
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 1736,
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "QUANTITY_LIMIT",
+                  "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "reject",
+              "code": "QUANTITY_LIMIT",
+              "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+            }
+          },
+          "elapsedMs": 1737,
+          "state": {
+            "sessionId": "live-invalid-quantities-and-options",
+            "revision": 3,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "live-invalid-quantities-and-options:ui:1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "live-invalid-quantities-and-options:ui:1:1",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1100,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "UI",
+                  "action": {
+                    "type": "MANUAL",
+                    "ops": [
+                      {
+                        "type": "ADD",
+                        "itemId": "burger",
+                        "qty": 1,
+                        "modifiers": []
+                      },
+                      {
+                        "type": "ADD",
+                        "itemId": "fries",
+                        "qty": 1,
+                        "modifiers": []
+                      }
+                    ]
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 2,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "QUANTITY_LIMIT",
+                      "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "QUANTITY_LIMIT"
+              },
+              {
+                "seq": 4,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 5,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r2",
+                    "baseRevision": 3,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "QUANTITY_LIMIT",
+                      "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "QUANTITY_LIMIT"
+              }
+            ]
+          },
+          "assistant": "Choose a quantity from 1 to 5."
+        },
+        {
+          "text": "Make the fries a double.",
+          "request": {
+            "v": 2,
+            "requestId": "r3",
+            "baseRevision": 4,
+            "menuVersion": "demo-v2",
+            "text": "Make the fries a double.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "live-invalid-quantities-and-options:ui:1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "lineId": "live-invalid-quantities-and-options:ui:1:1",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger and 1 fries. Is there anything else I can get you?"
+                },
+                {
+                  "role": "user",
+                  "text": "Set the burger quantity to negative two."
+                },
+                {
+                  "role": "assistant",
+                  "text": "Choose a quantity from 1 to 5."
+                },
+                {
+                  "role": "user",
+                  "text": "Make it eighteen thousand burgers."
+                },
+                {
+                  "role": "assistant",
+                  "text": "Choose a quantity from 1 to 5."
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 2176,
+              "response": {
+                "v": 2,
+                "requestId": "r3",
+                "baseRevision": 4,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "INVALID_MODIFIER",
+                  "message": "Double is not a valid option for fries."
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r3",
+            "baseRevision": 4,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "reject",
+              "code": "INVALID_MODIFIER",
+              "message": "Double is not a valid option for fries."
+            }
+          },
+          "elapsedMs": 2176,
+          "state": {
+            "sessionId": "live-invalid-quantities-and-options",
+            "revision": 4,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "live-invalid-quantities-and-options:ui:1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "live-invalid-quantities-and-options:ui:1:1",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1100,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "UI",
+                  "action": {
+                    "type": "MANUAL",
+                    "ops": [
+                      {
+                        "type": "ADD",
+                        "itemId": "burger",
+                        "qty": 1,
+                        "modifiers": []
+                      },
+                      {
+                        "type": "ADD",
+                        "itemId": "fries",
+                        "qty": 1,
+                        "modifiers": []
+                      }
+                    ]
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 2,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "QUANTITY_LIMIT",
+                      "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "QUANTITY_LIMIT"
+              },
+              {
+                "seq": 4,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 5,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r2",
+                    "baseRevision": 3,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "QUANTITY_LIMIT",
+                      "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "QUANTITY_LIMIT"
+              },
+              {
+                "seq": 6,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 7,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r3",
+                    "baseRevision": 4,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "INVALID_MODIFIER",
+                      "message": "Double is not a valid option for fries."
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "INVALID_MODIFIER"
+              }
+            ]
+          },
+          "assistant": "That option is not available for that item. Your cart was not changed."
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-invalid-quantities-and-options",
+        "revision": 4,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "live-invalid-quantities-and-options:ui:1:0",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "lineId": "live-invalid-quantities-and-options:ui:1:1",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          }
+        ],
+        "lastLineId": "live-invalid-quantities-and-options:ui:1:1",
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 1100,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "UI",
+              "action": {
+                "type": "MANUAL",
+                "ops": [
+                  {
+                    "type": "ADD",
+                    "itemId": "burger",
+                    "qty": 1,
+                    "modifiers": []
+                  },
+                  {
+                    "type": "ADD",
+                    "itemId": "fries",
+                    "qty": 1,
+                    "modifiers": []
+                  }
+                ]
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 3,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 2,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "QUANTITY_LIMIT",
+                  "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                }
+              }
+            },
+            "outcome": "rejected",
+            "code": "QUANTITY_LIMIT"
+          },
+          {
+            "seq": 4,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 5,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "QUANTITY_LIMIT",
+                  "message": "Quantities must be between 1 and 5 per item; quantities are never rounded."
+                }
+              }
+            },
+            "outcome": "rejected",
+            "code": "QUANTITY_LIMIT"
+          },
+          {
+            "seq": 6,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 7,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r3",
+                "baseRevision": 4,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "INVALID_MODIFIER",
+                  "message": "Double is not a valid option for fries."
+                }
+              }
+            },
+            "outcome": "rejected",
+            "code": "INVALID_MODIFIER"
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "conditional-unavailable-replacement",
+      "actions": [
+        {
+          "afterStep": 0,
+          "action": {
+            "type": "MANUAL",
+            "ops": [
+              {
+                "type": "ADD",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              }
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "Could you replace my burger with pizza, or maybe something similar if you don't have it?",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 2,
+            "menuVersion": "demo-v2",
+            "text": "Could you replace my burger with pizza, or maybe something similar if you don't have it?",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "live-conditional-unavailable-replacement:ui:1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "lastLineId": "live-conditional-unavailable-replacement:ui:1:0",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger. Is there anything else I can get you?"
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 5385,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 2,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "clarify",
+                  "question": "We don't have pizza. What would you like to replace your burger with?",
+                  "choices": []
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 2,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "clarify",
+              "question": "We don't have pizza. What would you like to replace your burger with?",
+              "choices": []
+            }
+          },
+          "elapsedMs": 5386,
+          "state": {
+            "sessionId": "live-conditional-unavailable-replacement",
+            "revision": 3,
+            "phase": "clarifying",
+            "lines": [
+              {
+                "lineId": "live-conditional-unavailable-replacement:ui:1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "live-conditional-unavailable-replacement:ui:1:0",
+            "pending": {
+              "id": "1lkjphg:pending:3",
+              "question": "We don't have pizza. What would you like to replace your burger with?",
+              "choices": []
+            },
+            "review": null,
+            "receipt": null,
+            "totalCents": 800,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "UI",
+                  "action": {
+                    "type": "MANUAL",
+                    "ops": [
+                      {
+                        "type": "ADD",
+                        "itemId": "burger",
+                        "qty": 1,
+                        "modifiers": []
+                      }
+                    ]
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 2,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "clarify",
+                      "question": "We don't have pizza. What would you like to replace your burger with?",
+                      "choices": []
+                    }
+                  }
+                },
+                "outcome": "clarify",
+                "code": "AMBIGUOUS_REFERENCE"
+              }
+            ]
+          },
+          "assistant": "We don't have pizza. What would you like to replace your burger with?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-conditional-unavailable-replacement",
+        "revision": 3,
+        "phase": "clarifying",
+        "lines": [
+          {
+            "lineId": "live-conditional-unavailable-replacement:ui:1:0",
+            "itemId": "burger",
+            "qty": 1,
+            "modifiers": []
+          }
+        ],
+        "lastLineId": "live-conditional-unavailable-replacement:ui:1:0",
+        "pending": {
+          "id": "1lkjphg:pending:3",
+          "question": "We don't have pizza. What would you like to replace your burger with?",
+          "choices": []
+        },
+        "review": null,
+        "receipt": null,
+        "totalCents": 800,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "UI",
+              "action": {
+                "type": "MANUAL",
+                "ops": [
+                  {
+                    "type": "ADD",
+                    "itemId": "burger",
+                    "qty": 1,
+                    "modifiers": []
+                  }
+                ]
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 3,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 2,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "clarify",
+                  "question": "We don't have pizza. What would you like to replace your burger with?",
+                  "choices": []
+                }
+              }
+            },
+            "outcome": "clarify",
+            "code": "AMBIGUOUS_REFERENCE"
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "drink-replacement-keeps-no-ice",
+      "actions": [],
+      "steps": [
+        {
+          "text": "Could you do a chicken sandwich—hold the mayo—plus a tea with no ice? Actually, make the tea a lemonade, still without ice.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "Could you do a chicken sandwich—hold the mayo—plus a tea with no ice? Actually, make the tea a lemonade, still without ice.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 4313,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "chicken_sandwich",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_mayo"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "lemonade",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_ice"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "chicken_sandwich",
+                  "qty": 1,
+                  "modifiers": [
+                    "no_mayo"
+                  ]
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "lemonade",
+                  "qty": 1,
+                  "modifiers": [
+                    "no_ice"
+                  ]
+                }
+              ]
+            }
+          },
+          "elapsedMs": 4313,
+          "state": {
+            "sessionId": "live-drink-replacement-keeps-no-ice",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "chicken_sandwich",
+                "qty": 1,
+                "modifiers": [
+                  "no_mayo"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "lemonade",
+                "qty": 1,
+                "modifiers": [
+                  "no_ice"
+                ]
+              }
+            ],
+            "lastLineId": "r1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1100,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "chicken_sandwich",
+                          "qty": 1,
+                          "modifiers": [
+                            "no_mayo"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "lemonade",
+                          "qty": 1,
+                          "modifiers": [
+                            "no_ice"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 chicken sandwich (no mayo) and 1 lemonade (no ice). Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-drink-replacement-keeps-no-ice",
+        "revision": 2,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "chicken_sandwich",
+            "qty": 1,
+            "modifiers": [
+              "no_mayo"
+            ]
+          },
+          {
+            "lineId": "r1:1",
+            "itemId": "lemonade",
+            "qty": 1,
+            "modifiers": [
+              "no_ice"
+            ]
+          }
+        ],
+        "lastLineId": "r1:1",
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 1100,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "chicken_sandwich",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_mayo"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "lemonade",
+                      "qty": 1,
+                      "modifiers": [
+                        "no_ice"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "restore-wrap-lettuce-within-turn",
+      "actions": [],
+      "steps": [
+        {
+          "text": "I'll take a veggie wrap without lettuce and onion rings. On second thought, leave the lettuce in the wrap; keep the rings.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "I'll take a veggie wrap without lettuce and onion rings. On second thought, leave the lettuce in the wrap; keep the rings.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 3195,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "veggie_wrap",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "onion_rings",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "veggie_wrap",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "onion_rings",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ]
+            }
+          },
+          "elapsedMs": 3196,
+          "state": {
+            "sessionId": "live-restore-wrap-lettuce-within-turn",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "veggie_wrap",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "onion_rings",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1100,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "veggie_wrap",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "onion_rings",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 veggie wrap and 1 onion rings. Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-restore-wrap-lettuce-within-turn",
+        "revision": 2,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "veggie_wrap",
+            "qty": 1,
+            "modifiers": []
+          },
+          {
+            "lineId": "r1:1",
+            "itemId": "onion_rings",
+            "qty": 1,
+            "modifiers": []
+          }
+        ],
+        "lastLineId": "r1:1",
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 1100,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "veggie_wrap",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "onion_rings",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "cheese-option-and-bottled-water-correction",
+      "actions": [],
+      "steps": [
+        {
+          "text": "A grilled cheese and a cola, please. Sorry, make the grilled cheese extra cheesy and change the cola to bottled water.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "A grilled cheese and a cola, please. Sorry, make the grilled cheese extra cheesy and change the cola to bottled water.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 4322,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "grilled_cheese",
+                      "qty": 1,
+                      "modifiers": [
+                        "extra_cheese"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "water",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "grilled_cheese",
+                  "qty": 1,
+                  "modifiers": [
+                    "extra_cheese"
+                  ]
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "water",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ]
+            }
+          },
+          "elapsedMs": 4323,
+          "state": {
+            "sessionId": "live-cheese-option-and-bottled-water-correction",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "grilled_cheese",
+                "qty": 1,
+                "modifiers": [
+                  "extra_cheese"
+                ]
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "water",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:1",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 900,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "grilled_cheese",
+                          "qty": 1,
+                          "modifiers": [
+                            "extra_cheese"
+                          ]
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "water",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 grilled cheese (extra cheese) and 1 water. Is there anything else I can get you?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-cheese-option-and-bottled-water-correction",
+        "revision": 2,
+        "phase": "editing",
+        "lines": [
+          {
+            "lineId": "r1:0",
+            "itemId": "grilled_cheese",
+            "qty": 1,
+            "modifiers": [
+              "extra_cheese"
+            ]
+          },
+          {
+            "lineId": "r1:1",
+            "itemId": "water",
+            "qty": 1,
+            "modifiers": []
+          }
+        ],
+        "lastLineId": "r1:1",
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 900,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "grilled_cheese",
+                      "qty": 1,
+                      "modifiers": [
+                        "extra_cheese"
+                      ]
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "water",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    }
+  ]
+}

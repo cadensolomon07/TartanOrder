@@ -27,7 +27,7 @@ type Expectation = z.infer<typeof ExpectationSchema>;
 const ROWS = z.array(RowSchema).parse(canonical);
 
 function request(text: string, overrides: Partial<ParseRequest> = {}): ParseRequest {
-  return { v: 1, requestId: "t1", baseRevision: 0, menuVersion: "demo-v1", text, source: "text", asrConfidence: null, ...overrides };
+  return { v: 2, requestId: "t1", baseRevision: 0, menuVersion: "demo-v2", text, source: "text", asrConfidence: null, ...overrides };
 }
 
 function run(text: string): ParseResponse {
@@ -81,12 +81,12 @@ describe("envelope", () => {
   it("echoes requestId, baseRevision and menuVersion with parser rules and no fallback", () => {
     const response = parseRules(request("a burger", { requestId: "echo-42", baseRevision: 17 }));
     expect(response).toMatchObject({
-      v: 1, requestId: "echo-42", baseRevision: 17, menuVersion: "demo-v1", parser: "rules", fallbackReason: null,
+      v: 2, requestId: "echo-42", baseRevision: 17, menuVersion: "demo-v2", parser: "rules", fallbackReason: null,
     });
   });
 
   it("throws on an invalid request instead of guessing", () => {
-    expect(() => parseRules({ ...request("a burger"), v: 2 } as unknown as ParseRequest)).toThrow();
+    expect(() => parseRules({ ...request("a burger"), v: 1 } as unknown as ParseRequest)).toThrow();
     expect(() => parseRules({ ...request("a burger"), extra: true } as unknown as ParseRequest)).toThrow();
   });
 
@@ -395,7 +395,7 @@ describe("references and modifications", () => {
   it("modifies by pronoun, by item and standalone", () => {
     expect(opsOf(run("make that a double"))).toEqual([{ type: "MOD", ref: { by: "last" }, modifier: "double", enabled: true }]);
     expect(opsOf(run("make it double"))).toEqual([{ type: "MOD", ref: { by: "last" }, modifier: "double", enabled: true }]);
-    expect(opsOf(run("extra cheese"))).toEqual([{ type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "extra_cheese", enabled: true }]);
+    expect(opsOf(run("extra cheese"))).toEqual([{ type: "MOD", ref: { by: "last" }, modifier: "extra_cheese", enabled: true }]);
     expect(opsOf(run("with onions"))).toEqual([{ type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "no_onions", enabled: false }]);
     expect(opsOf(run("onions back"))).toEqual([{ type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "no_onions", enabled: false }]);
     expect(opsOf(run("no onions on the burger"))).toEqual([{ type: "MOD", ref: { by: "item", itemId: "burger" }, modifier: "no_onions", enabled: true }]);
@@ -505,7 +505,7 @@ describe("fail closed", () => {
     for (const text of ["a pizza", "two tacos", "3 milkshakes", "pizza", "a large pepperoni pizza", "a pizza with cheese"]) {
       expect(rejectionOf(run(text)).code).toBe("OFF_MENU");
     }
-    expect(rejectionOf(run("a pizza")).message).toMatch(/Burger, Fries and Lemonade/);
+    expect(rejectionOf(run("a pizza")).message).toMatch(/demo menu/);
   });
 
   it("requires undo to be alone", () => {

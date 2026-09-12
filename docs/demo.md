@@ -1,68 +1,50 @@
-# TartanOrder — judging demo (2:40)
+# TartanOrder demo · about 2 minutes 45 seconds
 
-Slot: 3 minutes total including setup. Shorten by dropping step 7 (18,000 lemonades) and the spoken read-back if the verified slot is shorter. Never drop correction → clarification → confirmation.
+Open https://tartan-order.vercel.app in Google Chrome. The menu is a seeded demonstration; every ticket is simulated. Keep a prebuilt local production tab ready using [the runbook](runbook.md). Do not overwrite an existing `.env.local`.
 
-## Before the slot
-- Laptop on wall power, Chrome, deployed URL open in one tab, local production build (`npm run build && npm start`) in a second tab, `public/demo/recording/` open in a third.
-- Mic check (`/demo/mic-check.html`) passed within the last hour on **this** laptop. `speechSynthesis` voice tested once (press Review on a throwaway order).
-- Engineering panel closed. Local only is ON by default (A's controller); leave it on until C's HTTP client and a verified key are integrated.
-- Say the mode aloud at the start: "Live cloud parser" / "Live local rules" / "Recorded".
+Online is the default. **Local only** in the engineering panel deliberately skips HTTP and selects the simpler local rules parser. Old saved browser preferences do not change the default. The parser badge reports the last response's actual mode; `none` means no response yet. A badge or mocked test alone is not proof of a real Gemini call. Check the integration report for real-provider evidence on the release being shown.
 
-## Script
+## Before presenting
 
-| t | Who | Says / does | What the audience sees |
-|---|---|---|---|
-| 0:00 | Lead | "Ordering at a busy campus counter fails at the correction, not the first sentence. TartanOrder takes the order, takes the correction, and refuses to guess. Seeded menu, no purchase is sent." | Kiosk, empty cart, badges show parser + input mode |
-| 0:15 | B | Press Talk. "A burger, fries and lemonade." Stop. | Transcript shows heard text; three lines flash in; total $13.50 |
-| 0:30 | B | Talk. "Make the burger a double." | Burger line flashes, shows Double; total $16.00 |
-| 0:40 | B | Talk. "Add a burger." (starter grammar has no "another" until C lands) | Fourth line; labels become Burger (line 1) / Burger (line 2) |
-| 0:50 | B | Talk. "Remove the burger." | Clarify panel: "Which burger line did you mean?" with two choices (Burger 1 / Burger 2). Cart unchanged. |
-| 1:00 | Lead | Turn to audience: "First or second?" Tap the answer. (If nobody answers in 3 s, A picks.) | Only that line disappears |
-| 1:10 | B | Press Undo. | Line returns; total restored |
-| 1:15 | B | Type "18,000 lemonades", Submit. Say "same parser, typed input." | Notice: rejected; cart unchanged. (Starter grammar rejects it as unsupported; C's grammar reports the quantity limit.) |
-| 1:25 | Lead | "It never clamps, never guesses, never partially applies." | — |
-| 1:30 | B | Press Review order. | Full review, every line and modifier, total; read-back plays |
-| 1:45 | B | Press Confirm simulated order. | Ticket with id and "Simulated · no real purchase" |
-| 1:55 | Lead | Open engineering panel. | Audit: input started → parse → applied / clarify / rejected; parser mode; ASR confidence marked diagnostic |
-| 2:10 | Lead | "The model can only propose typed menu edits. Our engine validates the whole batch or nothing, resolves one ambiguity per utterance with an explicit line reference, and binds confirmation to the reviewed revision so a stale confirm can't fire. Voice is push-to-talk, one final result per utterance, TTS is cancelled before the mic opens." | — |
-| 2:25 | C | Measured results on the release SHA only (see Metrics). "Next real step: vendor/POS integration and user testing." | — |
-| 2:40 | Lead | "Questions?" Press New order. | Empty cart in under a second |
+- Use the exact deployed revision that passed the release checks. Run the human microphone trial below on this laptop, browser and network.
+- Check that **Read replies aloud** works at a comfortable volume. It can be switched off; the complete response and review remain visible.
+- Close the engineering panel for the customer demonstration. Know how to open it and select **Local only** if the provider fails.
+- Say the current mode aloud: “Gemini with browser speech recognition,” “typed Gemini,” “local rules,” or “recorded local rules.” Announce any switch.
 
-## Fallback ladder (announce the switch; never present a fallback as live)
-1. Gemini fails or is slow → flip Local only in the engineering panel. Say "switching to the local rules parser". The parser badge changes visibly.
-2. Mic denied or misheard → type the same line. Say "typing this one". The UI shows "Microphone access was blocked. Type your order instead." on its own.
-3. Internet fails → switch to the local production build tab, Local only on. Verified: full typed flow completes with **zero** `/api/` requests (harness prod build, 2026-09-11).
-4. App fails → play the recording from `test-results/demo-recording/` (generate it before the demo; see `public/demo/README.md`). Every frame carries a black "RECORDED DEMO — not live" banner. Say it is a recording.
+## Live script
 
-## Metrics to state (fill the blanks at H12 from real trials on the release SHA)
+| Time | Action and words | Expected result |
+|---|---|---|
+| 0:00 | “This campus counter understands corrections and asks before it guesses. This is our demo menu; nothing is purchased.” | Empty cart, eleven menu items in mains, sides and drinks. |
+| 0:12 | Talk: “Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.” Press **Stop — I’m done**. | One double burger with no lettuce, one fries, one lemonade. Three lines, **$16.00**. The complete heard text and an accurate response appear. |
+| 0:42 | Talk: “Actually make that two lemonades and put the lettuce back on the burger.” Stop. | Same three lines; burger stays double, No lettuce disappears, lemonade quantity becomes two. **$18.50**. |
+| 1:05 | Add another burger from the menu, then Talk: “Remove the burger.” Stop. | A specific choice appears; neither burger disappears yet. Answer “the second one” or tap the second choice. |
+| 1:25 | Press **Undo**. “That change is reversible.” | The selected burger returns. |
+| 1:35 | **New order**, then type: “Can I get a pizza, a burger, and a lemonade?” | Burger and lemonade, **$10.50**. The reply explains pizza is unavailable. No pizza line. |
+| 2:00 | Press **Review order**. Let the snapshot read-back finish. | Every item, quantity, modifier and total are visible. No ticket exists yet. |
+| 2:20 | Press **Confirm simulated order**. | One simulated ticket matching the reviewed snapshot. |
+| 2:30 | “Gemini proposes menu edits. The application checks the whole accepted batch, owns prices and undo, and requires this explicit confirmation.” | Optionally open the audit panel, then finish. |
 
-Measured by B on branch `work/b-kiosk` against **A's real controller, engine and bootstrap rules parser** (2026-09-11 ~23:40, Node 22.23.2, macOS 26.6.2):
-- Vitest: 120/120 in the repo — A's 92 + B's 28 (fake controller; browser voice **mocked** — not a microphone test).
-- Playwright (A's config, fresh production server): **14 passed, 1 skipped**. The skipped flow (provider 503 → labelled rules fallback) checks at runtime whether `/api/interpret` was called and skips because the bootstrap client parses locally; it runs for real once C's HTTP client lands.
-- Zero `/api/` requests during the typed → receipt journey with Local only on (asserted in `tests/e2e/starter.spec.ts`).
-- Real recognizer, denied microphone (Claude desktop's embedded Chromium blocks the mic): genuine `not-allowed` handled — notice shown, busy cleared, Talk re-enabled.
-- Reset to empty cart: < 1 s in e2e.
+Provider timing varies. If the slot is tight, drop the second fresh order; preserve correction, ambiguity and explicit confirmation.
 
-Still to measure (needs a human on the demo laptop — see the protocol below):
-- Mic trials: __/10 phrases captured correctly in quiet, __/5 in room noise, median __ ms to final. Paste the raw `mic-check.html` log into `docs/evaluation.md` for C. **Do not correct transcripts.**
-- Duplicate final results observed: __ (guarded by once-per-utterance in `useSpeech`).
-- Ten full kiosk flows completed on the integrated build: __/10 without a stuck state.
-- Five nearby users: time to complete, number of corrections, one-line comment each. Convenience sample; say so.
+## Human microphone trial — still required
 
-## Real microphone test protocol (H0.5 verdict; a human must do this)
+Automated recognition and speech-output tests use mocks. They do **not** establish microphone accuracy, audible playback, or a successful spoken Gemini journey. On the final deployment, do these five short checks and report the actual heard text without correcting it:
 
-Automated tests mock the recognizer. This is the only way to learn how the demo laptop actually hears.
+1. **Long request:** allow microphone access, speak the exact long sentence above at normal speed, then press Stop. Check that the entire correction appears in Heard and that exactly one double/no-lettuce burger remains. One capture should create one parse response. Note the response's parser mode.
+2. **Across turns:** speak the two-lemonades/lettuce-restored correction. Check **$18.50** and the same three cart lines. The assistant must describe the actual change.
+3. **Clarification:** add another burger, ask to remove the burger, then answer the follow-up naturally. Check that only the selected line is removed. Undo should restore it.
+4. **Cancel and Stop:** begin a request and cancel it; its later words must never reach the cart. Start another request, speak a full sentence and press Stop once. It must submit once or show a recoverable failure, never reopen the microphone. Also start a capture, press New order, and verify the fresh cart remains empty.
+5. **Speech and review:** review an order, then press Talk while its read-back is playing. Read-back must stop before recording. Confirm must disappear as soon as input starts. Cancel, review again, and explicitly confirm. No self-echo may appear in Heard.
 
-1. In a terminal: `npm run dev` in the repo (branch `work/b-kiosk`), then open **http://localhost:3000 in Google Chrome** (not Safari, not an embedded browser, not Brave/Vivaldi/plain Chromium — those lack Google's speech keys). Chrome's cloud recognizer talks to Google's speech service; Chrome 139+ can instead recognise **on-device** after a one-time language-pack download, which the kiosk offers automatically when the cloud path fails ("Speech service unreachable…") and from the engineering panel.
-2. Click **Talk**. Chrome asks for microphone permission once — click **Allow**. The badge shows `listening`; the strip shows "Listening… say your order".
-3. Say, at normal speed: **"a burger, fries and lemonade"**. Stop speaking; click **Stop — I'm done** (or wait — Chrome finalizes on silence).
-   Expected: strip shows `Heard: "a burger fries and lemonade"` (punctuation may differ), three lines, **$13.50**, badge `input: voice`, `parser: rules`.
-4. Talk → **"make the burger a double"** → Burger shows *Double*, total **$16.00**.
-5. Talk → **"remove the burger"** → applied (single burger) or, after adding a second burger via the **+ Burger** button, the "Which burger line did you mean?" choice — cart unchanged until you pick.
-6. Click **Review order**: the read-back plays through the speakers (menu-generated text of the snapshot). While it is speaking, click **Talk** — read-back must stop before the mic opens (nothing of it may appear as `Heard:`).
-7. Click **Talk**, say nothing for ~5 s → "Didn't catch anything" and Talk is available again (empty capture releases the lock).
-8. Click **Talk**, then **Cancel** → "Voice capture cancelled." and the cart is unchanged.
-9. Open the engineering panel and read the **ASR confidence** row after a voice utterance (diagnostic only).
-10. Then run `public/demo/mic-check.html` for the 10-phrase / 5-in-noise log and paste it raw (uncorrected) into the handoff for C.
+Record browser/OS, release SHA, quiet or noisy room, raw transcript, actual parser mode, expected/actual cart, duplicate submissions, time from Stop to reply, and whether the reply was audible. Repeat the long request once with nearby conversation. Report failures honestly; switch to typing if capture is unreliable. `/demo/mic-check.html` is an optional raw browser diagnostic, separate from this kiosk trial.
 
-Record: Chrome version (chrome://version), macOS version, how many of the phrases were heard verbatim, any duplicate `Heard:` for a single utterance, and time from Stop to cart update.
+## Recovery during the demo
+
+- **Speech failed or denied:** type the same request. Typed input uses the same online interpretation path.
+- **Gemini/network unavailable:** select **Local only** and announce the switch. Use simple requests such as “a burger, fries and lemonade,” then menu controls for complex corrections. The rules parser has narrower language support.
+- **Input stuck:** use the capture's **Cancel**, a typed draft's **Discard**, or the parsing row's **Cancel**. They release different input stages. A cancelled review stays cancelled; review again after input ends.
+- **Site unavailable:** use the already running local production tab with Local only selected. An existing loaded page supports local typed ordering without HTTP; reloading the hosted site while offline is not guaranteed.
+- **Presentation fallback:** generate and inspect the [real typed Gemini backup](../public/demo/README.md#real-typed-gemini-backup-explicit-opt-in) after live acceptance. Its named output is `test-results/demo-recording/tartanorder-gemini.webm`; the workflow alone is not an existing recording. Keep “RECORDED DEMO — not live” visible and say it is recorded. A separate clearly labelled local-rules recording is also available. Existing screenshots may show older revisions.
+
+Orders live in memory. Export the audit before reload or New order if evidence is needed. An export is a record for inspection, not a live-cart recovery file. See [runbook.md](runbook.md) for production recovery and rollback.

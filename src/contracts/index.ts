@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const API_VERSION = 1 as const;
-export const MENU_VERSION = "demo-v1" as const;
+export const API_VERSION = 2 as const;
+export const MENU_VERSION = "demo-v2" as const;
 
 export const LIMITS = {
   lines: 5,
@@ -9,13 +9,13 @@ export const LIMITS = {
   quantity: 5,
   operations: 8,
   choices: 3,
-  requestBytes: 4096,
-  transcriptChars: 500,
+  requestBytes: 32768,
+  transcriptChars: 1500,
   idChars: 100,
   labelChars: 100,
-  messageChars: 160,
-  serverTimeoutMs: 5000,
-  clientTimeoutMs: 6000,
+  messageChars: 300,
+  serverTimeoutMs: 15000,
+  clientTimeoutMs: 17000,
 } as const;
 
 export const CORE_CODES = [
@@ -35,8 +35,13 @@ export const HttpCodeSchema = z.enum(HTTP_CODES);
 export type CoreCode = z.infer<typeof CoreCodeSchema>;
 export type HttpCode = z.infer<typeof HttpCodeSchema>;
 
-export const ItemIdSchema = z.enum(["burger", "fries", "lemonade"]);
-export const ModifierIdSchema = z.enum(["no_onions", "double", "extra_cheese"]);
+export const ItemIdSchema = z.enum([
+  "burger", "chicken_sandwich", "veggie_wrap", "grilled_cheese",
+  "fries", "onion_rings", "side_salad", "lemonade", "iced_tea", "cola", "water",
+]);
+export const ModifierIdSchema = z.enum([
+  "no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice",
+]);
 export type ItemId = z.infer<typeof ItemIdSchema>;
 export type ModifierId = z.infer<typeof ModifierIdSchema>;
 
@@ -50,7 +55,7 @@ export const LabelSchema = z.string().min(1).max(LIMITS.labelChars);
 const CodeSchema = z.enum([...CORE_CODES, ...HTTP_CODES]);
 const CentsSchema = z.number().int().nonnegative();
 
-export const ModifiersSchema = z.array(ModifierIdSchema).max(3).superRefine((modifiers, ctx) => {
+export const ModifiersSchema = z.array(ModifierIdSchema).max(ModifierIdSchema.options.length).superRefine((modifiers, ctx) => {
   if (new Set(modifiers).size !== modifiers.length) {
     ctx.addIssue({ code: "custom", message: "A modifier may occur only once per unit." });
   }
@@ -61,7 +66,9 @@ const ItemRefSchema = z.strictObject({ by: z.literal("item"), itemId: ItemIdSche
 const LineRefSchema = z.strictObject({ by: z.literal("line"), lineId: IdSchema });
 
 export const RefSchema = z.discriminatedUnion("by", [LastRefSchema, ItemRefSchema, LineRefSchema]);
-export const ModelRefSchema = z.discriminatedUnion("by", [LastRefSchema, ItemRefSchema]);
+// V2 sends bounded cart context. The server validates model line references
+// against that context before the engine resolves and validates the whole batch.
+export const ModelRefSchema = z.discriminatedUnion("by", [LastRefSchema, ItemRefSchema, LineRefSchema]);
 export type Ref = z.infer<typeof RefSchema>;
 
 const AddOpSchema = z.strictObject({
@@ -97,31 +104,72 @@ export const ModelOpsSchema = z.array(ModelOpSchema).min(1).max(LIMITS.operation
 
 export const ChoiceSchema = z.strictObject({ id: IdSchema, label: LabelSchema, ops: OpsSchema });
 export type Choice = z.infer<typeof ChoiceSchema>;
-export const ChoicesSchema = z.array(ChoiceSchema).min(1).max(LIMITS.choices).superRefine((choices, ctx) => {
+// An open question may have no prescribed edits. Any offered choice must still
+// contain a nonempty valid batch; a later natural answer supplies the intent.
+export const ChoicesSchema = z.array(ChoiceSchema).max(LIMITS.choices).superRefine((choices, ctx) => {
   if (new Set(choices.map((choice) => choice.id)).size !== choices.length) {
     ctx.addIssue({ code: "custom", message: "Choice IDs must be unique." });
   }
 });
 const ModelChoiceSchema = z.strictObject({ id: IdSchema, label: LabelSchema, ops: ModelOpsSchema });
-const ModelChoicesSchema = z.array(ModelChoiceSchema).min(1).max(LIMITS.choices).superRefine((choices, ctx) => {
+const ModelChoicesSchema = z.array(ModelChoiceSchema).max(LIMITS.choices).superRefine((choices, ctx) => {
   if (new Set(choices.map((choice) => choice.id)).size !== choices.length) {
     ctx.addIssue({ code: "custom", message: "Choice IDs must be unique." });
   }
 });
 
+export const PendingSchema = z.strictObject({ id: IdSchema, question: MessageSchema, choices: ChoicesSchema });
+export type Pending = z.infer<typeof PendingSchema>;
+
+export const UnavailableNoticeSchema = z.strictObject({
+  kind: z.literal("unavailable"), item: z.string().min(1).max(60),
+});
+export type UnavailableNotice = z.infer<typeof UnavailableNoticeSchema>;
+const NoticesSchema = z.array(UnavailableNoticeSchema).max(5).optional();
+const ResolveResultSchema = z.strictObject({ kind: z.literal("resolve"), pendingId: IdSchema, choiceId: IdSchema });
+
 export const ParseResultSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("proposal"), ops: OpsSchema }),
+  z.strictObject({ kind: z.literal("proposal"), ops: OpsSchema, notices: NoticesSchema }),
   z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ChoicesSchema }),
   z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema }),
+  ResolveResultSchema,
 ]);
 export type ParseResult = z.infer<typeof ParseResultSchema>;
 
-// This is the model-facing schema. Models cannot name internal cart line IDs.
+// Models may reference current context lines and resolve an existing pending
+// choice. Context membership is a server/engine semantic check, not a JSON shape.
 export const ModelParseResultSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("proposal"), ops: ModelOpsSchema }),
+  z.strictObject({ kind: z.literal("proposal"), ops: ModelOpsSchema, notices: NoticesSchema }),
   z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ModelChoicesSchema }),
   z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema }),
+  ResolveResultSchema,
 ]);
+export type ModelParseResult = z.infer<typeof ModelParseResultSchema>;
+
+export const LineSchema = z.strictObject({
+  lineId: IdSchema, itemId: ItemIdSchema, qty: QuantitySchema, modifiers: ModifiersSchema,
+});
+export type Line = z.infer<typeof LineSchema>;
+export const LinesSchema = z.array(LineSchema).max(LIMITS.lines).superRefine((lines, ctx) => {
+  if (lines.reduce((sum, line) => sum + line.qty, 0) > LIMITS.totalUnits) {
+    ctx.addIssue({ code: "custom", message: "The cart may contain at most 10 units." });
+  }
+  if (new Set(lines.map((line) => line.lineId)).size !== lines.length) {
+    ctx.addIssue({ code: "custom", message: "Cart line IDs must be unique." });
+  }
+});
+
+export const ConversationTurnSchema = z.strictObject({
+  role: z.enum(["user", "assistant"]), text: z.string().min(1).max(1000),
+});
+export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
+export const OrderContextSchema = z.strictObject({
+  lines: LinesSchema,
+  lastLineId: IdSchema.nullable(),
+  pending: PendingSchema.nullable(),
+  recent: z.array(ConversationTurnSchema).max(8),
+});
+export type OrderContext = z.infer<typeof OrderContextSchema>;
 
 export const ParseRequestSchema = z.strictObject({
   v: z.literal(API_VERSION),
@@ -131,6 +179,7 @@ export const ParseRequestSchema = z.strictObject({
   text: z.string().min(1).max(LIMITS.transcriptChars),
   source: z.enum(["voice", "text", "fixture"]),
   asrConfidence: z.number().min(0).max(1).nullable(),
+  context: OrderContextSchema.optional(),
 });
 export type ParseRequest = z.infer<typeof ParseRequestSchema>;
 
@@ -151,19 +200,6 @@ export const ApiErrorSchema = z.strictObject({
   error: z.strictObject({ code: HttpCodeSchema, message: MessageSchema, retryable: z.boolean() }),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
-
-export const LineSchema = z.strictObject({
-  lineId: IdSchema, itemId: ItemIdSchema, qty: QuantitySchema, modifiers: ModifiersSchema,
-});
-export type Line = z.infer<typeof LineSchema>;
-export const LinesSchema = z.array(LineSchema).max(LIMITS.lines).superRefine((lines, ctx) => {
-  if (lines.reduce((sum, line) => sum + line.qty, 0) > LIMITS.totalUnits) {
-    ctx.addIssue({ code: "custom", message: "The cart may contain at most 10 units." });
-  }
-  if (new Set(lines.map((line) => line.lineId)).size !== lines.length) {
-    ctx.addIssue({ code: "custom", message: "Cart line IDs must be unique." });
-  }
-});
 
 export const ReviewSchema = z.strictObject({
   id: IdSchema, revision: RevisionSchema, lines: LinesSchema.min(1), totalCents: CentsSchema,
@@ -205,7 +241,7 @@ export const OrderViewSchema = z.strictObject({
   phase: z.enum(["editing", "clarifying", "reviewing", "committed"]),
   lines: LinesSchema,
   lastLineId: IdSchema.nullable(),
-  pending: z.strictObject({ id: IdSchema, question: MessageSchema, choices: ChoicesSchema }).nullable(),
+  pending: PendingSchema.nullable(),
   review: ReviewSchema.nullable(),
   receipt: ReceiptSchema.nullable(),
   totalCents: CentsSchema,
@@ -226,8 +262,10 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 export type OrderController = {
   state: OrderView;
   busy: boolean;
+  localOnly: boolean;
   parser: "none" | "gemini" | "rules" | "fixture";
   notice: string | null;
+  assistant: { id: string; text: string } | null;
   startInput(): void;
   endInput(): void;
   submit(text: string, source: ParseRequest["source"], asrConfidence: number | null): Promise<void>;

@@ -17,6 +17,11 @@ describe("resolveParserMode", () => {
     expect(report).toEqual({ configured: "gemini", keyPresent: true, effective: "gemini" });
   });
 
+  it("defaults online to Gemini when a key is configured, while honoring explicit local rules", () => {
+    expect(resolveParserMode({ GEMINI_API_KEY: "k" }).effective).toBe("gemini");
+    expect(resolveParserMode({ PARSER_MODE: "rules", GEMINI_API_KEY: "k" }).effective).toBe("rules");
+  });
+
   it("never exposes the key value", () => {
     const serialized = JSON.stringify(resolveParserMode({ PARSER_MODE: "gemini", GEMINI_API_KEY: "super-secret" }));
     expect(serialized).not.toContain("super-secret");

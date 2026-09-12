@@ -36,7 +36,10 @@ async function say(page: Page, text: string) {
 test("recorded demo + screenshots", async ({ page }) => {
   mkdirSync(SHOTS, { recursive: true });
   await page.goto("/");
-  await expect(page.getByText("TartanOrder Demo Counter")).toBeVisible();
+  await expect(page.getByTestId("disclosure")).toBeVisible();
+  await page.getByTestId("eng-toggle").click();
+  await page.getByTestId("local-only").check();
+  await page.getByTestId("eng-toggle").click();
   await banner(page);
   await page.screenshot({ path: `${SHOTS}/01-empty-1280.png` });
   await beat(page);
@@ -96,7 +99,10 @@ test("recorded demo + screenshots", async ({ page }) => {
   // Narrow layout shots (no video pacing needed).
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByText("TartanOrder Demo Counter")).toBeVisible();
+  await expect(page.getByTestId("disclosure")).toBeVisible();
+  await page.getByTestId("eng-toggle").click();
+  await page.getByTestId("local-only").check();
+  await page.getByTestId("eng-toggle").click();
   await banner(page);
   await page.screenshot({ path: `${SHOTS}/10-empty-390.png`, fullPage: true });
   await say(page, "a burger, fries and lemonade");

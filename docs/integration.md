@@ -1,4 +1,49 @@
-# Integration — V1 shared starter
+# Integration — conversational V2 release
+
+The September 12 end-to-end goal supersedes the earlier ownership restrictions, V1 freeze and rules-only deployment plan. A now integrates and fixes the complete app. The former integration heartbeat is paused. The V1 notes below are historical evidence, not current implementation instructions or blockers.
+
+## Current implementation
+
+- One Next.js app and the existing GitHub/Vercel project remain. The page composes `useOrderController()` and `Kiosk({controller})`; no second app, database, purchase or POS dispatch was added.
+- Shared strict schemas now export `API_VERSION=2`, `MENU_VERSION='demo-v2'`, bounded current-cart/recent-turn/pending context, unavailable-item notices and pending-choice resolution. Eleven authoritative menu items include burger double/no lettuce. Pizza remains unavailable. All consumers changed together. V1 audit files are intentionally rejected by V2 replay.
+- Online is the default; Gemini interprets the whole utterance before any language guard. The verified local model is `gemini-3.6-flash`. A real `gemini-2.5-flash` generation request was unavailable for this credential; model-list presence was not treated as proof. The key remains server-only in ignored local configuration and protected Vercel settings.
+- The engine validates every accepted operation atomically and owns line IDs, quantities, modifiers, prices, totals, references, undo, revision/dedup checks, review and simulated receipt. Unavailable independent items are notices; conditional replacements clarify. Spoken answers resolve recorded pending choices and revalidate their original batches.
+- The controller supplies bounded context and generates successful change descriptions only from accepted before/after cart snapshots. Local rules fallback is explicitly labelled. It never silently supplies fixture results.
+- Browser speech accumulates complete final chunks until Stop/end, submits once, ignores partial/cancelled results and cannot reopen a fallback recognizer after Stop. Draft/capture/parse input blocks review and confirmation. Actual human microphone success remains unverified.
+
+Current exports remain in `src/contracts/index.ts`, `src/contracts/menu.ts`, `src/core/engine.ts`, `src/controller/useOrderController.ts`, `src/parser/client.ts`, `src/parser/rules.ts` and `src/ui/Kiosk.tsx`. Replay is a detached, read-only reconstruction from exported recorded events; it performs no recognition, HTTP or live-cart action.
+
+## Final teammate reconciliation
+
+Before release, main was confirmed at `13bb1fe`; PRs #1, #3 and #4 and B's PR #2 were already integrated and were not applied twice. B's remaining provider compatibility adjustment from `fc73c8c` was incorporated into the new shared implementation. C's newly published `work/c-gemini` (`b30e5b9` / implementation `36d40b7`) was inspected separately: its provider compatibility changes were already covered, its actual-client HTTP evaluation helper was retained with four transport regressions, and five original evidence files were preserved with [historical context](../evals/runs/HISTORICAL-C-36d40b7.md). The old pre-model grammar guard was not reinstated because it conflicts with the current conversational goal. The previous typed-draft and Stop fallback blockers are fixed in this V2 candidate.
+
+## Release checks — September 12, 2026
+
+Fresh `npm ci` completed with zero reported vulnerabilities. Typecheck, lint, production build, **472 default unit/contract/property tests** and **19/19 Playwright checks** passed. Four additional evaluation transport regressions also passed after C’s helper was incorporated; relevant evaluation checks, typecheck and focused lint passed. Eighteen opt-in checks were skipped by the default unit command; no browser test was skipped. The mocked HTTP 503 fallback test observed the actual client request and honest rules recovery. The engine property test ran **1,000 generated sequences of up to 50 events, seed 20260912**, including invalid/stale events. Mocked speech and TTS tests are not human microphone evidence.
+
+The opt-in local real-HTTP Gemini acceptance run passed **nine scenarios**, including the exact long request, across-turn correction, mixed pizza subset, natural clarification answer, new menu/options, invalid quantities/pairings, conditional unavailable requests, and previously unused phrasings. The complete recorded evidence is [the live acceptance JSON](../evals/runs/live-app-gemini-2026-09-12T06-14-45-051Z.json). Every request had HTTP 200, Gemini mode and no fallback; actual native provider calls were independently observed. This small typed run is not a general accuracy or voice benchmark.
+
+A fresh local production browser also completed a **$13.50 local-rules simulated receipt with browser networking disabled**, zero interpret requests and zero page errors. This V2 check used browser offline emulation; the physical Wi-Fi-off trial in the historical V1 notes is a separate earlier result.
+
+Runnable checks:
+
+```sh
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+# Explicit real-provider usage against a configured running server:
+LIVE_APP_URL=http://localhost:3000 npm run test:gemini
+```
+
+Deployment of this V2 candidate is pending at this checkpoint; the public alias still serves the previously verified V1 typed starter. The production verification, release SHA and backup recording will be recorded here after publication. Human microphone trial instructions are in [demo.md](demo.md); recovery and setup are in [runbook.md](runbook.md).
+
+---
+
+## Historical V1 integration record
 
 Repository: https://github.com/cadensolomon07/TartanOrder. The original ClearSky00 URL redirects here after a repository transfer. One Next.js App Router app in the repository root. Node 22.23.2, npm, React, TypeScript, ordinary CSS, Zod, Vitest, fast-check, Playwright; Vercel is the only deployment target.
 

@@ -1,10 +1,11 @@
 "use client";
 // Push-to-talk wrapper around the browser's built-in speech recognition.
-// Guarantees: at most ONE onFinal per capture, interim text is display-only,
+// Guarantees: at most ONE complete onFinal per capture, interim text is display-only,
 // TTS is cancelled before the mic opens, and every handler is bound to the
 // recognition object it was installed on — an event from an aborted or
 // superseded object is dropped, so a stale callback can never end, fail or
-// submit a newer capture. No continuous listening, no barge-in, no offline promise.
+// submit a newer capture. Listening lasts only for an explicit Talk capture;
+// recognition is never restarted after Stop/end. No offline promise.
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cancelSpeech } from "./tts";
@@ -136,6 +137,9 @@ export async function onDeviceAvailability(lang: string): Promise<OnDeviceStatus
 export const INSTALL_TIMEOUT_MS = 90_000;
 // How long the cloud->on-device hand-over may wait for the availability probe.
 export const HANDOVER_TIMEOUT_MS = 4_000;
+// Stop allows final recognition results to arrive, but cannot hold the input
+// lock forever. A missing end event fails the capture rather than submitting a prefix.
+export const STOP_TIMEOUT_MS = 5_000;
 
 // Drop every handler so a lingering object can never call back into the hook.
 function detach(r: RecognitionLike | null) {
@@ -170,6 +174,10 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
   // "settled" means the current capture has already produced its one outcome
   // (final text OR a failure). Anything arriving afterwards is ignored.
   const settledRef = useRef(true);
+  const genRef = useRef(0);
+  const stoppedRef = useRef(false);
+  const engineRef = useRef<SpeechEngine>("cloud");
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onFinalRef = useRef(onFinal);
   const onFailRef = useRef(onFail);
   useEffect(() => {
@@ -180,6 +188,10 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
   const settle = useCallback((outcome: () => void) => {
     if (settledRef.current) return;
     settledRef.current = true;
+    if (stopTimerRef.current !== null) clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = null;
+    detach(recRef.current);
+    recRef.current = null;
     setListening(false);
     setActive(false);
     setInterim("");
@@ -241,12 +253,6 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
     return final;
   }, [lang, updateOnDevice, ensureOnDevice]);
 
-  // Each Talk press is one generation; async continuations from an older
-  // generation (or after abort) do nothing.
-  const genRef = useRef(0);
-  // The user pressed Stop for the current capture (their utterance is complete).
-  const stoppedRef = useRef(false);
-
   // Open one recognition object for the current capture. `tried` records the
   // engines already attempted in this capture so a failure can retry the
   // other engine exactly once without a second Talk press. The retry goes
@@ -254,32 +260,51 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
   const openRef = useRef<(Ctor: RecognitionCtor, mode: SpeechEngine, tried: Set<SpeechEngine>) => boolean>(() => false);
   const open = useCallback(
     (Ctor: RecognitionCtor, mode: SpeechEngine, tried: Set<SpeechEngine>): boolean => {
+      cancelSpeech();
       const r = new Ctor();
-      const isCurrent = () => recRef.current === r;
+      const generation = genRef.current;
+      const isCurrent = () => recRef.current === r && genRef.current === generation;
+      // Web Speech's result list is cumulative. Indexing final chunks avoids
+      // duplicating them when a later event repeats earlier results.
+      const finalChunks = new Map<number, { text: string; confidence: number | null }>();
+      let unfinishedText = "";
+      let heardSpeech = false;
+      const finalParts = () => [...finalChunks.entries()].sort(([a], [b]) => a - b).map(([, chunk]) => chunk).filter((chunk) => chunk.text);
       recRef.current = r;
       tried.add(mode);
+      engineRef.current = mode;
       setEngine(mode);
       r.lang = lang;
       r.interimResults = true;
-      r.continuous = false;
+      r.continuous = true;
       r.maxAlternatives = 1;
       if ("processLocally" in r || mode === "on-device") r.processLocally = mode === "on-device";
 
       r.onstart = () => {
-        if (isCurrent()) setListening(true);
+        if (isCurrent() && !settledRef.current && !stoppedRef.current) setListening(true);
       };
       r.onresult = (e) => {
         if (!isCurrent() || settledRef.current) return;
-        const last = e.results[e.results.length - 1];
-        if (!last) return;
-        if (!last.isFinal) {
-          setInterim(last[0].transcript);
-          return;
+        const interimParts: string[] = [];
+        for (let index = 0; index < e.results.length; index += 1) {
+          const result = e.results[index];
+          const alternative = result?.[0];
+          if (!alternative) continue;
+          const text = alternative.transcript.trim();
+          if (result.isFinal) {
+            const confidence = alternative.confidence;
+            finalChunks.set(index, {
+              text,
+              confidence: typeof confidence === "number" && Number.isFinite(confidence) && confidence >= 0 && confidence <= 1 ? confidence : null,
+            });
+          } else if (text) {
+            interimParts.push(text);
+          }
         }
-        const text = last[0].transcript.trim();
-        const c = last[0].confidence;
-        const conf = typeof c === "number" && Number.isFinite(c) && c > 0 ? c : null;
-        settle(() => (text ? onFinalRef.current(text, conf) : onFailRef.current("empty", { engine: mode, onDevice: onDeviceRef.current, isBrave: detectBrave() })));
+        unfinishedText = interimParts.join(" ");
+        const display = [...finalParts().map((chunk) => chunk.text), unfinishedText].filter(Boolean).join(" ");
+        heardSpeech ||= display.length > 0;
+        setInterim(display);
       };
       // Drop this object without settling the capture, so another engine can
       // take over the same Talk press.
@@ -292,6 +317,12 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
       r.onerror = (e) => {
         if (!isCurrent() || settledRef.current) return; // a settled capture never re-opens anything
         const failure = mapError(e.error);
+        // Once any words were heard, restarting would lose the beginning of the
+        // utterance. Ask for a retry rather than submit or recapture only its tail.
+        if (heardSpeech) {
+          fail(failure, mode);
+          return;
+        }
         // Cloud service unreachable (keyless Chromium, blocked endpoint, Brave):
         // find out — only now — whether on-device recognition exists. If its
         // pack is installed, retry this same capture on-device; if it is
@@ -328,7 +359,7 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
           // The browser said the pack was there and now says it is not.
           updateOnDevice("downloadable");
           // On-device was the first engine of this capture: fall back to cloud once.
-          if (!tried.has("cloud")) {
+          if (!stoppedRef.current && !tried.has("cloud")) {
             supersede();
             if (openRef.current(Ctor, "cloud", tried)) return;
           }
@@ -340,10 +371,22 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
         fail(mode === "on-device" && tried.has("cloud") && engineFailed ? "network" : failure, mode);
       };
       r.onend = () => {
-        if (!isCurrent()) return;
-        // Ended with no final result and no error => nothing captured.
-        fail("empty", mode);
-        recRef.current = null;
+        if (!isCurrent() || settledRef.current) return;
+        const parts = finalParts();
+        // An unfinished trailing segment means the complete request was not
+        // recognized. Never send the finalized prefix as though it were complete.
+        if (unfinishedText) {
+          fail("error", mode);
+          return;
+        }
+        const text = parts.map((chunk) => chunk.text).join(" ");
+        if (!text) {
+          fail("empty", mode);
+          return;
+        }
+        // Multiple chunks have no single measured confidence. Do not invent an average.
+        const confidence = parts.length === 1 ? parts[0].confidence : null;
+        settle(() => onFinalRef.current(text, confidence));
       };
       try {
         r.start();
@@ -390,9 +433,22 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
 
   // User is done talking: let the engine emit its final result, then end.
   const stop = useCallback(() => {
+    if (settledRef.current || stoppedRef.current) return;
     stoppedRef.current = true;
-    if (recRef.current) {
-      recRef.current.stop();
+    const r = recRef.current;
+    if (r) {
+      const generation = genRef.current;
+      stopTimerRef.current = setTimeout(() => {
+        if (settledRef.current || generation !== genRef.current || recRef.current !== r) return;
+        fail("error", engineRef.current);
+        try { r.abort(); } catch { /* Already stopped. */ }
+      }, STOP_TIMEOUT_MS);
+      try {
+        r.stop();
+      } catch {
+        fail("error", engineRef.current);
+        try { r.abort(); } catch { /* Already stopped. */ }
+      }
       return;
     }
     // No object but not settled: an engine hand-over is in progress. The user
@@ -406,6 +462,8 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
     const r = recRef.current;
     genRef.current += 1; // pending engine hand-overs belong to an old generation now
     settledRef.current = true;
+    if (stopTimerRef.current !== null) clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = null;
     recRef.current = null;
     detach(r);
     setListening(false);

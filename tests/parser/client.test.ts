@@ -12,10 +12,10 @@ import { parseRules } from "../../src/parser/rules";
 vi.mock("@/parser/rules", () => ({
   parseRules: vi.fn(
     (req: ParseRequest): ParseResponse => ({
-      v: 1,
+      v: 2,
       requestId: req.requestId,
       baseRevision: req.baseRevision,
-      menuVersion: "demo-v1",
+      menuVersion: "demo-v2",
       parser: "rules",
       fallbackReason: null,
       result: { kind: "proposal", ops: [{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }] },
@@ -24,20 +24,20 @@ vi.mock("@/parser/rules", () => ({
 }));
 
 const request: ParseRequest = {
-  v: 1,
+  v: 2,
   requestId: "r7",
   baseRevision: 3,
-  menuVersion: "demo-v1",
+  menuVersion: "demo-v2",
   text: "a burger and fries",
   source: "text",
   asrConfidence: null,
 };
 
 const geminiResponse: ParseResponse = {
-  v: 1,
+  v: 2,
   requestId: "r7",
   baseRevision: 3,
-  menuVersion: "demo-v1",
+  menuVersion: "demo-v2",
   parser: "gemini",
   fallbackReason: null,
   result: {
@@ -50,7 +50,7 @@ const geminiResponse: ParseResponse = {
 };
 
 function apiError(code: ApiError["error"]["code"], retryable: boolean, requestId: string | null = "r7"): ApiError {
-  return ApiErrorSchema.parse({ v: 1, requestId, error: { code, message: `Server said ${code}.`, retryable } });
+  return ApiErrorSchema.parse({ v: 2, requestId, error: { code, message: `Server said ${code}.`, retryable } });
 }
 
 function respondingWith(status: number, body: unknown, raw = false): ReturnType<typeof vi.fn<typeof fetch>> {

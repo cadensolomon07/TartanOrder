@@ -2,7 +2,7 @@
 // MOCKED speech engine. This is not a real microphone test.
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useSpeech, INSTALL_TIMEOUT_MS, HANDOVER_TIMEOUT_MS } from "@/voice/useSpeech";
+import { useSpeech, INSTALL_TIMEOUT_MS, HANDOVER_TIMEOUT_MS, STOP_TIMEOUT_MS } from "@/voice/useSpeech";
 
 type Handler = ((e: unknown) => void) | null;
 class FakeRecognition {
@@ -22,13 +22,16 @@ class FakeRecognition {
   onresult: Handler = null;
   onerror: Handler = null;
   onend: (() => void) | null = null;
-  started = false; aborted = false;
+  started = false; aborted = false; stopCalls = 0;
   constructor() { FakeRecognition.instances.push(this); }
   start() { this.started = true; this.onstart?.(); }
-  stop() { this.onend?.(); }
+  stop() { this.stopCalls += 1; if (!FakeRecognition.asyncEnd) this.onend?.(); }
   abort() { this.aborted = true; if (!FakeRecognition.asyncEnd) this.onend?.(); }
   emit(transcript: string, isFinal: boolean, confidence = 0.9) {
     this.onresult?.({ resultIndex: 0, results: [{ isFinal, 0: { transcript, confidence } }] });
+  }
+  emitChunks(chunks: { text: string; final: boolean; confidence?: number }[], resultIndex = 0) {
+    this.onresult?.({ resultIndex, results: chunks.map((chunk) => ({ isFinal: chunk.final, 0: { transcript: chunk.text, confidence: chunk.confidence ?? 0.9 } })) });
   }
 }
 
@@ -53,11 +56,65 @@ describe("useSpeech (mocked engine)", () => {
     const rec = FakeRecognition.instances[0];
     act(() => { rec.emit("a burger", false); });
     expect(result.current.interim).toBe("a burger");
-    act(() => { rec.emit("a burger and fries", true, 0.87); rec.emit("a burger and fries", true, 0.87); rec.onend?.(); });
+    act(() => { rec.emit("a burger and fries", true, 0.87); rec.emit("a burger and fries", true, 0.87); });
+    expect(onFinal).not.toHaveBeenCalled();
+    expect(result.current.active).toBe(true);
+    act(() => { rec.onend?.(); });
     expect(onFinal).toHaveBeenCalledTimes(1);
     expect(onFinal).toHaveBeenCalledWith("a burger and fries", 0.87);
     expect(onFail).not.toHaveBeenCalled();
     expect(result.current.listening).toBe(false);
+  });
+
+  it("accumulates every final chunk and submits the complete utterance once after Stop and end", () => {
+    FakeRecognition.asyncEnd = true;
+    const onFinal = vi.fn(); const onFail = vi.fn();
+    const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
+    act(() => result.current.start());
+    const rec = FakeRecognition.instances[0];
+    expect(rec.continuous).toBe(true);
+    const first = { text: "Hi I would like to order a burger", final: true, confidence: 0.9 };
+    const second = { text: "and um also some fries and a lemonade too", final: true, confidence: 0.8 };
+    const third = { text: "actually wait can you make it a double burger with no lettuce", final: true, confidence: 0.7 };
+    act(() => rec.emitChunks([first, { text: "and um also", final: false }]));
+    act(() => rec.emitChunks([first, second, { text: "actually wait", final: false }], 1));
+    expect(onFinal).not.toHaveBeenCalled();
+    expect(result.current.interim).toBe(`${first.text} ${second.text} actually wait`);
+    act(() => { result.current.stop(); result.current.stop(); });
+    expect(rec.stopCalls).toBe(1);
+    expect(result.current.active).toBe(true);
+    act(() => { rec.emitChunks([first, second, third], 2); rec.emitChunks([first, second, third], 2); });
+    expect(onFinal).not.toHaveBeenCalled();
+    const queuedEnd = rec.onend;
+    act(() => { queuedEnd?.(); queuedEnd?.(); });
+    expect(onFinal).toHaveBeenCalledExactlyOnceWith(`${first.text} ${second.text} ${third.text}`, null);
+    expect(onFail).not.toHaveBeenCalled();
+    expect(result.current.active).toBe(false);
+  });
+
+  it("natural end submits all finalized chunks without including stale interim hypotheses", () => {
+    const onFinal = vi.fn(); const onFail = vi.fn();
+    const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
+    act(() => result.current.start());
+    const rec = FakeRecognition.instances[0];
+    act(() => rec.emitChunks([{ text: "a burger", final: true }, { text: "and lemon", final: false }]));
+    act(() => rec.emitChunks([{ text: "a burger", final: true }, { text: "and lemonade", final: true }], 1));
+    act(() => rec.onend?.());
+    expect(onFinal).toHaveBeenCalledExactlyOnceWith("a burger and lemonade", null);
+    expect(onFail).not.toHaveBeenCalled();
+  });
+
+  it("does not submit a finalized prefix when recognition ends with an unfinished trailing segment", () => {
+    const onFinal = vi.fn(); const onFail = vi.fn();
+    const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
+    act(() => result.current.start());
+    const rec = FakeRecognition.instances[0];
+    act(() => rec.emitChunks([{ text: "a burger", final: true }, { text: "actually replace", final: false }]));
+    act(() => rec.onend?.());
+    expect(onFinal).not.toHaveBeenCalled();
+    expect(onFail).toHaveBeenCalledTimes(1);
+    expect(onFail.mock.calls[0][0]).toBe("error");
+    expect(result.current.active).toBe(false);
   });
 
   it("reports empty capture once when recognition ends with no result", () => {
@@ -93,9 +150,12 @@ describe("useSpeech (mocked engine)", () => {
   });
 
   it("cancels text-to-speech before opening the mic", () => {
+    const start = vi.spyOn(FakeRecognition.prototype, "start");
     const { result } = renderHook(() => useSpeech({ onFinal: vi.fn(), onFail: vi.fn() }));
     act(() => result.current.start());
-    expect((window.speechSynthesis.cancel as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+    const cancel = window.speechSynthesis.cancel as unknown as ReturnType<typeof vi.fn>;
+    expect(cancel.mock.invocationCallOrder[0]).toBeLessThan(start.mock.invocationCallOrder[0]);
+    start.mockRestore();
   });
 
   it("events from an aborted instance cannot fail, end or submit the NEXT capture", () => {
@@ -104,12 +164,17 @@ describe("useSpeech (mocked engine)", () => {
     const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
     act(() => result.current.start());
     const r1 = FakeRecognition.instances[0];
+    act(() => r1.emit("cancelled prefix", true));
+    const queued = { error: r1.onerror, end: r1.onend, result: r1.onresult, start: r1.onstart };
     act(() => result.current.abort());          // user cancelled; r1's end event is still in flight
     act(() => { expect(result.current.start()).toBe(true); }); // new capture r2
     const r2 = FakeRecognition.instances[1];
     expect(r2).not.toBe(r1);
     // r1's late events arrive now.
-    act(() => { r1.onerror?.({ error: "aborted" }); r1.onend?.(); r1.emit("late words from r1", true); r1.onstart?.(); });
+    act(() => {
+      queued.error?.({ error: "aborted" }); queued.end?.(); queued.start?.();
+      queued.result?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: "late words from r1", confidence: 0.9 } }] });
+    });
     expect(onFail).not.toHaveBeenCalled();
     expect(onFinal).not.toHaveBeenCalled();
     expect(result.current.active).toBe(true);   // r2 is still the live capture
@@ -289,6 +354,64 @@ describe("useSpeech (mocked engine)", () => {
     expect(onFinal).toHaveBeenCalledTimes(2);
   });
 
+  it("Stop on an on-device capture prevents a delayed language error from reopening cloud recognition", async () => {
+    FakeRecognition.available = async () => "available";
+    const onFinal = vi.fn(); const onFail = vi.fn();
+    const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
+    act(() => result.current.start());
+    await act(async () => FakeRecognition.instances[0].onerror?.({ error: "network" }));
+    act(() => { FakeRecognition.instances[1].emit("lemonade", true); FakeRecognition.instances[1].onend?.(); });
+    act(() => result.current.start());
+    const rec = FakeRecognition.instances[2];
+    expect(rec.processLocally).toBe(true);
+    FakeRecognition.asyncEnd = true;
+    const queuedResult = rec.onresult;
+    act(() => result.current.stop());
+    act(() => rec.onerror?.({ error: "language-not-supported" }));
+    act(() => queuedResult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: "fries", confidence: 0.9 } }] }));
+    expect(FakeRecognition.instances).toHaveLength(3);
+    expect(onFinal).toHaveBeenCalledExactlyOnceWith("lemonade", 0.9);
+    expect(onFail).toHaveBeenCalledTimes(1);
+    expect(result.current.active).toBe(false);
+  });
+
+  it("a service error after speech began fails the whole capture rather than restarting with a partial order", async () => {
+    FakeRecognition.available = async () => "available";
+    const onFinal = vi.fn(); const onFail = vi.fn();
+    const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
+    act(() => result.current.start());
+    const rec = FakeRecognition.instances[0];
+    act(() => rec.emit("a burger", true));
+    await act(async () => rec.onerror?.({ error: "network" }));
+    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(onFinal).not.toHaveBeenCalled();
+    expect(onFail.mock.calls[0][0]).toBe("network");
+    expect(result.current.active).toBe(false);
+  });
+
+  it("a stalled Stop releases capture without submitting a prefix and ignores late completion", async () => {
+    vi.useFakeTimers();
+    FakeRecognition.asyncEnd = true;
+    const onFinal = vi.fn(); const onFail = vi.fn();
+    const { result, unmount } = renderHook(() => useSpeech({ onFinal, onFail }));
+    try {
+      act(() => result.current.start());
+      const rec = FakeRecognition.instances[0];
+      act(() => rec.emit("a burger", true));
+      const queuedEnd = rec.onend;
+      act(() => result.current.stop());
+      await act(async () => vi.advanceTimersByTimeAsync(STOP_TIMEOUT_MS));
+      act(() => queuedEnd?.());
+      expect(onFinal).not.toHaveBeenCalled();
+      expect(onFail.mock.calls[0][0]).toBe("error");
+      expect(rec.aborted).toBe(true);
+      expect(result.current.active).toBe(false);
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("Stop pressed DURING the engine hand-over settles the capture at once: no ghost mic, one failure", async () => {
     let resolveAvail: (s: string) => void = () => {};
     FakeRecognition.available = () => new Promise<string>((res) => { resolveAvail = res; });
@@ -334,7 +457,7 @@ describe("useSpeech (mocked engine)", () => {
     const { result } = renderHook(() => useSpeech({ onFinal, onFail }));
     act(() => result.current.start());
     const r1 = FakeRecognition.instances[0];
-    act(() => { r1.emit("a burger", true, 0.9); }); // settled by a final result
+    act(() => { r1.emit("a burger", true, 0.9); r1.onend?.(); }); // settled by end, never a chunk
     act(() => { r1.onerror?.({ error: "language-not-supported" }); r1.onend?.(); });
     expect(FakeRecognition.instances).toHaveLength(1);
     expect(onFinal).toHaveBeenCalledTimes(1);
