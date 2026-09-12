@@ -113,6 +113,50 @@ test("mocked voice: final result applies exactly once", async ({ page }) => {
   await expect(page.getByTestId("badge-input")).toContainText("voice");
 });
 
+// MOCKED recognizer: the cloud path fails with "network" (what keyless Chromium
+// builds and blocked networks produce); the on-device pack reports "available".
+const FAKE_SR_NETWORK_THEN_LOCAL = `
+  class FakeSR {
+    constructor(){ window.__sr = this; this.processLocally = false; }
+    start(){ const self = this; setTimeout(() => {
+      if (!self.processLocally) { self.onerror && self.onerror({ error: 'network' }); self.onend && self.onend(); return; }
+      self.onstart && self.onstart();
+      setTimeout(() => { self.onresult && self.onresult({ resultIndex:0, results:[{ isFinal:true, 0:{ transcript:'a burger and fries', confidence:0.9 } }] }); self.onend && self.onend(); }, 150);
+    }, 30); }
+    stop(){} abort(){}
+    static available(){ return Promise.resolve('available'); }
+    static install(){ return Promise.resolve(true); }
+  }
+  window.SpeechRecognition = window.webkitSpeechRecognition = FakeSR;
+`;
+
+test("cloud speech service unreachable -> same Talk press retried on-device, one submit (recognizer mocked)", async ({ page }) => {
+  await page.addInitScript(FAKE_SR_NETWORK_THEN_LOCAL);
+  await page.goto("/");
+  await page.getByTestId("talk").click();
+  await expect(page.getByTestId("cart").locator("li")).toHaveCount(2);
+  await expect(page.getByTestId("total")).toHaveText("$11.00");
+  await expect(page.getByTestId("badge-input")).toContainText("voice (on-device)");
+  await expect(page.getByTestId("mic-notice")).toHaveCount(0); // no failure shown: the retry succeeded
+  await page.getByTestId("eng-toggle").click();
+  await expect(page.getByTestId("eng-voice")).toContainText("on-device");
+  await expect(page.getByTestId("eng-voice")).toContainText("pack: available");
+  // Exactly one utterance reached the controller.
+  const rows = page.getByTestId("audit").locator("li");
+  await expect(rows.filter({ hasText: /parse rules → proposal — applied/ })).toHaveCount(1);
+});
+
+test("cloud speech service unreachable and no on-device support -> honest notice, typing works (recognizer mocked)", async ({ page }) => {
+  await page.addInitScript(`window.SpeechRecognition = window.webkitSpeechRecognition = class { start(){ const s=this; setTimeout(() => { s.onerror && s.onerror({error:'network'}); s.onend && s.onend(); }, 20); } stop(){} abort(){} };`);
+  await page.goto("/");
+  await page.getByTestId("talk").click();
+  await expect(page.getByTestId("mic-notice")).toContainText(/speech service/i);
+  await expect(page.getByTestId("mic-notice")).not.toContainText(/internet|wi-?fi/i);
+  await expect(page.getByTestId("badge-busy")).toHaveCount(0); // lock released
+  await type(page, "lemonade");
+  await expect(page.getByTestId("cart").locator("li")).toHaveCount(1);
+});
+
 test("denied mic -> typed recovery", async ({ page }) => {
   // Override BOTH names: modern Chromium exposes unprefixed SpeechRecognition too.
   await page.addInitScript(`window.SpeechRecognition = window.webkitSpeechRecognition = class { start(){ this.onerror && this.onerror({error:'not-allowed'}); this.onend && this.onend(); } stop(){} abort(){} };`);

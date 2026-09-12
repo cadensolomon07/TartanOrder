@@ -4,19 +4,23 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { useState } from "react";
-import { Kiosk } from "@/ui/Kiosk";
+import { Kiosk, micFailureMessage } from "@/ui/Kiosk";
 import { makeFake, type FakeController } from "./fakeController";
 import { editingThree, clarifyingBurgers, reviewingThree, committedThree } from "./fixtures";
 import type { OrderView } from "@/contracts";
 
 class FakeRecognition {
   static last: FakeRecognition | null = null;
-  lang = ""; interimResults = false; continuous = false; maxAlternatives = 1;
+  static instances: FakeRecognition[] = [];
+  // Chrome 139+ on-device API; tests set these per scenario (absent by default).
+  static available?: () => Promise<string>;
+  static install?: () => Promise<boolean>;
+  lang = ""; interimResults = false; continuous = false; maxAlternatives = 1; processLocally = false;
   onstart: (() => void) | null = null;
   onresult: ((e: unknown) => void) | null = null;
   onerror: ((e: unknown) => void) | null = null;
   onend: (() => void) | null = null;
-  constructor() { FakeRecognition.last = this; }
+  constructor() { FakeRecognition.last = this; FakeRecognition.instances.push(this); }
   start() { this.onstart?.(); }
   stop() { this.onend?.(); }
   abort() { this.onend?.(); }
@@ -40,6 +44,9 @@ function mount(initial: Partial<OrderView> = {}) {
 afterEach(cleanup);
 
 beforeEach(() => {
+  FakeRecognition.instances = [];
+  delete (FakeRecognition as { available?: unknown }).available;
+  delete (FakeRecognition as { install?: unknown }).install;
   (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition = FakeRecognition;
   (window as unknown as { speechSynthesis: unknown }).speechSynthesis = { cancel: vi.fn(), speak: vi.fn() };
   (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = class { constructor(public text: string) {} lang = ""; rate = 1; };
@@ -205,6 +212,56 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     fireEvent.click(screen.getByTestId("new-order"));
     expect(ctrl().calls.at(-1)).toEqual({ fn: "reset" });
     expect(screen.getByTestId("cart-empty")).toBeTruthy();
+  });
+
+  it("cloud network error with the on-device pack installed: one startInput, busy stays, then exactly one submit", async () => {
+    FakeRecognition.available = async () => "available";
+    FakeRecognition.install = async () => true;
+    const { ctrl } = mount(reviewingThree);
+    fireEvent.click(screen.getByTestId("talk"));
+    const r1 = FakeRecognition.instances[0];
+    await act(async () => { r1.onerror?.({ error: "network" }); r1.onend?.(); });
+    // Hand-over in progress: the capture is still open on A's side.
+    expect(ctrl().calls.filter((c) => c.fn === "startInput")).toHaveLength(1);
+    expect(ctrl().calls.filter((c) => c.fn === "endInput")).toHaveLength(0);
+    expect(ctrl().busy).toBe(true);
+    expect(screen.queryByTestId("confirm")).toBeNull(); // review was invalidated by startInput
+    expect(screen.queryByTestId("mic-notice")).toBeNull(); // no failure shown
+    const r2 = FakeRecognition.instances[1];
+    expect(r2.processLocally).toBe(true);
+    act(() => { r2.final("make the burger a double", 0.9); r2.onend?.(); });
+    expect(ctrl().calls.filter((c) => c.fn === "submit")).toEqual([{ fn: "submit", text: "make the burger a double", source: "voice", asrConfidence: 0.9 }]);
+    expect(ctrl().calls.filter((c) => c.fn === "endInput")).toHaveLength(0); // submit ends capture on A's side
+    expect(screen.getByTestId("badge-input").textContent).toContain("voice (on-device)");
+  });
+
+  it("cloud network error with the pack only downloadable: exactly one endInput, honest notice, no submit", async () => {
+    FakeRecognition.available = async () => "downloadable";
+    FakeRecognition.install = () => new Promise(() => {}); // never resolves (keyless Chromium hang)
+    const { ctrl } = mount(editingThree);
+    fireEvent.click(screen.getByTestId("talk"));
+    const r1 = FakeRecognition.instances[0];
+    await act(async () => { r1.onerror?.({ error: "network" }); r1.onend?.(); });
+    expect(ctrl().calls.filter((c) => c.fn === "startInput")).toHaveLength(1);
+    expect(ctrl().calls.filter((c) => c.fn === "endInput")).toHaveLength(1);
+    expect(ctrl().calls.filter((c) => c.fn === "submit")).toHaveLength(0);
+    expect(ctrl().busy).toBe(false);
+    expect(FakeRecognition.instances).toHaveLength(1);
+    const notice = screen.getByTestId("mic-notice").textContent ?? "";
+    expect(notice).toMatch(/speech service unreachable/i);
+    expect(notice).not.toMatch(/internet|wi-?fi/i);
+    // The user is not trapped: Talk is back and typing works.
+    expect(screen.getByTestId("talk")).toBeTruthy();
+    expect((screen.getByTestId("review") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("a speech-service network error is explained (not blamed on the user's Wi-Fi), with next steps", () => {
+    expect(micFailureMessage("network", { isBrave: true, onDevice: "unknown" })).toMatch(/Brave/);
+    expect(micFailureMessage("network", { isBrave: false, onDevice: "downloadable" })).toMatch(/on-device/i);
+    expect(micFailureMessage("network", { isBrave: false, onDevice: "unsupported" })).toMatch(/Chrome 139/);
+    for (const s of ["unknown", "unsupported", "unavailable", "downloadable", "downloading", "available"] as const) {
+      expect(micFailureMessage("network", { isBrave: false, onDevice: s })).not.toMatch(/internet|wifi|wi-fi/i);
+    }
   });
 
   it("model text is rendered as plain text, not HTML", () => {

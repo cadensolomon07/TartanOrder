@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Op, OrderController, UiAction } from "@/contracts";
-import { useSpeech, type SpeechFailure } from "@/voice/useSpeech";
+import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useTtsAvailable } from "@/voice/tts";
 import styles from "./Kiosk.module.css";
 import { Cart } from "./Cart";
@@ -30,11 +30,31 @@ const MIC_MESSAGES: Record<SpeechFailure, string> = {
   unsupported: "Voice isn’t available here. Type your order instead.",
   "not-allowed": "Microphone access was blocked. Type your order instead.",
   "no-speech": "Didn’t catch anything. Try again, or type it.",
-  network: "Voice needs an internet connection. Type your order instead.",
+  // Filled in at runtime by micFailureMessage(): the cause is usually NOT the user's connection.
+  network: "The browser’s speech service couldn’t be reached. Type your order instead.",
   aborted: "Voice capture cancelled.",
   empty: "Didn’t catch anything. Try again, or type it.",
   error: "Voice didn’t work that time. Try again, or type it.",
 };
+
+// A `network` error almost never means the user's Wi-Fi is down: Chrome's cloud
+// recognizer lives on Google's servers, which keyless Chromium builds (Brave,
+// Vivaldi, plain Chromium) cannot use and some networks block. Say so, and say
+// what will happen next.
+export function micFailureMessage(reason: SpeechFailure, ctx: Pick<FailureContext, "isBrave" | "onDevice">): string {
+  if (reason !== "network") return MIC_MESSAGES[reason];
+  if (ctx.isBrave) return "Brave can’t reach a speech service. Open this page in Google Chrome, or type your order.";
+  switch (ctx.onDevice) {
+    case "downloading":
+      return "Speech service unreachable — downloading on-device recognition (one-time; if it never finishes here, use Google Chrome). Meanwhile, type your order.";
+    case "downloadable":
+      return "Speech service unreachable. Press Talk again to download on-device recognition (one-time), or type your order.";
+    case "available":
+      return "Speech service unreachable and on-device recognition failed too. Type your order.";
+    default:
+      return "This browser can’t reach its speech service and has no on-device recognition (Google Chrome 139+ does). Type your order, or use Chrome.";
+  }
+}
 
 export function Kiosk({ controller, replay }: KioskProps) {
   const { state, busy, parser, notice } = controller;
@@ -61,11 +81,26 @@ export function Kiosk({ controller, replay }: KioskProps) {
       // One final result -> exactly one submit. submit ends capture on A's side.
       void controller.submit(text, "voice", conf);
     },
-    onFail: (reason) => {
+    onFail: (reason, ctx) => {
       controller.endInput(); // release the input lock; review is NOT restored
-      setMicNotice(MIC_MESSAGES[reason]);
+      setMicNotice(micFailureMessage(reason, ctx));
     },
   });
+
+  const downloadOnDevice = useCallback(() => {
+    setMicNotice("Downloading on-device speech recognition (one-time)…");
+    void speech.installOnDevice().then((s) => {
+      setMicNotice(
+        s === "available"
+          ? "On-device speech is ready. Press Talk."
+          : s === "unsupported"
+            ? "This browser has no on-device speech recognition (Google Chrome 139+ does)."
+            : s === "downloadable"
+              ? "The download didn’t finish. Try again, use Google Chrome, or type your order."
+              : "On-device speech could not be installed here. Type your order instead.",
+      );
+    });
+  }, [speech]);
 
   const talk = useCallback(() => {
     // Idempotent: a second press during the mic-permission gap must not
@@ -207,7 +242,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
             parser: {parser}
           </span>
           <span className={styles.badge} data-testid="badge-input">
-            input: {inputMode}
+            input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
           </span>
           {localOnly && <span className={styles.badge}>local only</span>}
           {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
@@ -333,6 +368,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
           lastAsrConfidence={lastConf}
           localOnly={localOnly}
           onLocalOnly={setLocalOnly}
+          voiceEngine={speech.supported ? speech.engine : "none"}
+          onDevice={speech.onDevice}
+          isBrave={speech.isBrave}
+          onDownloadOnDevice={downloadOnDevice}
           replay={replay}
         />
       </footer>

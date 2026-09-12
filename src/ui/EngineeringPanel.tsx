@@ -10,6 +10,10 @@ export type EngineeringProps = {
   lastAsrConfidence: number | null;
   localOnly: boolean;
   onLocalOnly: (v: boolean) => void;
+  voiceEngine: "cloud" | "on-device" | "none";
+  onDevice: "unknown" | "unsupported" | "unavailable" | "downloadable" | "downloading" | "available";
+  isBrave: boolean;
+  onDownloadOnDevice: () => void;
   replay?: React.ReactNode;
 };
 
@@ -64,6 +68,14 @@ export function EngineeringPanel(p: EngineeringProps) {
             <dd data-testid="eng-parser">{p.controller.parser}</dd>
             <dt>Input mode</dt>
             <dd>{p.inputMode}</dd>
+            <dt>Voice engine</dt>
+            <dd data-testid="eng-voice">
+              {p.voiceEngine}
+              <span className={styles.muted}>
+                {" "}· on-device pack: {p.onDevice}
+                {p.isBrave ? " · Brave detected (no cloud speech backend)" : ""}
+              </span>
+            </dd>
             <dt>Phase</dt>
             <dd>{state.phase}</dd>
             <dt>Session</dt>
@@ -93,6 +105,17 @@ export function EngineeringPanel(p: EngineeringProps) {
             />
             Local only (skip the network parser)
           </label>
+          {(p.onDevice === "downloadable" || p.onDevice === "downloading" || p.onDevice === "unknown") && p.voiceEngine !== "none" && (
+            <button
+              type="button"
+              className={styles.secondaryBtn}
+              data-testid="install-on-device"
+              disabled={p.onDevice === "downloading"}
+              onClick={p.onDownloadOnDevice}
+            >
+              {p.onDevice === "downloading" ? "Downloading on-device speech…" : "Download on-device speech (Chrome 139+, one-time)"}
+            </button>
+          )}
           <h3 className={styles.engH3}>Recent audit ({recent.length} of {state.audit.length})</h3>
           <ol className={styles.auditList} data-testid="audit">
             {recent.map((e) => (

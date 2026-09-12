@@ -53,7 +53,7 @@ Still to measure (needs a human on the demo laptop — see the protocol below):
 
 Automated tests mock the recognizer. This is the only way to learn how the demo laptop actually hears.
 
-1. In a terminal: `npm run dev` in the repo (branch `work/b-kiosk`), then open **http://localhost:3000 in Google Chrome** (not Safari, not an embedded browser — the Web Speech API is Chrome/Edge only and needs internet for Google's recognizer).
+1. In a terminal: `npm run dev` in the repo (branch `work/b-kiosk`), then open **http://localhost:3000 in Google Chrome** (not Safari, not an embedded browser, not Brave/Vivaldi/plain Chromium — those lack Google's speech keys). Chrome's cloud recognizer talks to Google's speech service; Chrome 139+ can instead recognise **on-device** after a one-time language-pack download, which the kiosk offers automatically when the cloud path fails ("Speech service unreachable…") and from the engineering panel.
 2. Click **Talk**. Chrome asks for microphone permission once — click **Allow**. The badge shows `listening`; the strip shows "Listening… say your order".
 3. Say, at normal speed: **"a burger, fries and lemonade"**. Stop speaking; click **Stop — I'm done** (or wait — Chrome finalizes on silence).
    Expected: strip shows `Heard: "a burger fries and lemonade"` (punctuation may differ), three lines, **$13.50**, badge `input: voice`, `parser: rules`.
