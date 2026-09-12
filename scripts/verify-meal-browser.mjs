@@ -151,7 +151,7 @@ try {
   await checkpoint('allergy-kept-and-food-blocked', async () => {
     await expect(page.getByTestId('requirements-panel').getByRole('button', { name: 'Allergy: sesame ×', exact: true })).toBeVisible();
     await expect(page.getByTestId('cart-empty')).toBeVisible();
-    await expect(page.getByTestId('requirements-message')).toContainText(/sesame/i);
+    await expect(page.locator('[data-testid="requirements-decision"]:visible, [data-testid="requirements-message"]:visible').first()).toContainText(/sesame/i);
     await expect(page.getByTestId('staff-summary')).toBeVisible();
     await page.getByTestId('staff-summary').locator('summary').click();
     await expect(page.getByTestId('staff-summary')).toContainText('No staff member has been contacted');

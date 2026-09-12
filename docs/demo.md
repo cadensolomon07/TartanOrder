@@ -4,6 +4,10 @@ This prototype creates simulated orders only: no payment, purchase or restaurant
 
 **Choose the verified build:** this milestone is API 2 / `cmu-meal-2026-09-12`. Before demonstrating https://tartan-order.vercel.app, verify that its `/api/health` reports this menu version and consult [the release handoff](integration.md) for the executed public result. Use the prebuilt local production page at http://127.0.0.1:3000 as the fallback. Do not present an older public page as this milestone.
 
+## Finding the controls in the new kiosk
+
+On desktop, **Your food requirements** sits above the menu cards; the accepted cart and active requirement summary are on the right. Category buttons and **Order from** are on the left. On a phone these sections stack, and the cart's **Edit requirements** link jumps to the controls. A pending decision appears first in the requirements panel. The microphone icon visibly changes to **Stop — I’m done** while listening; **Submit** also accepts dietary declarations and corrections.
+
 ## Two-to-three-minute meal and dietary demonstration
 
 1. Select **Demo Counter · fictional recipes** under Order from. Explain: “These recipes and prices are fictional; the campus menu snapshots remain separate.” Keep Local only off for Gemini and show the actual parser badge. Type, or use Talk followed by **Stop — I’m done**: **“I have twelve dollars. Get me a main, a side, and a drink. Keep the fries and lemonade.”** Expect Grilled Cheese + Fries + Lemonade, **$12.00**, with the budget, required parts and locked items visible.

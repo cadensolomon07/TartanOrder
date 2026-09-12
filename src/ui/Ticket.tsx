@@ -4,7 +4,7 @@ import type { Receipt, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { useCatalog } from "./CatalogContext";
 import { formatCents, itemLabel, modifierLabel } from "./labels";
-import { totalCents } from "@/core/engine";
+import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
 
 /** A short, stable display number derived from the receipt id (the full id stays visible below). */
@@ -22,19 +22,16 @@ export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewO
   useEffect(() => {
     heading.current?.focus();
   }, []);
-  const pickup = wait?.status === "known" && wait.estimateMinutes !== null
-    ? `Ready in about ${wait.estimateMinutes} min`
-    : "Preparation time is shown at the counter";
   return (
     <section className={styles.ticket} data-testid="ticket">
       <div className={styles.ticketHero}>
         <span className={styles.ticketCheck} aria-hidden="true">✓</span>
         <div>
           <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}>
-            Order placed
+            Simulated receipt
           </h2>
           <p className={styles.ticketNumber}>#{ticketNumber(receipt.id)}</p>
-          <p className={styles.ticketPickup}>{pickup}</p>
+          <p className={styles.ticketPickup}>No purchase or kitchen dispatch</p>
         </div>
         <span className={styles.simTag}>Simulated · no real purchase</span>
       </div>
@@ -52,12 +49,12 @@ export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewO
               )}
               <WaitEstimate wait={wait} lineId={l.lineId} />
             </span>
-            <span className={styles.sumPrice}>{formatCents(totalCents([l], menu.catalog))}</span>
+            <span className={styles.sumPrice}><LinePrice line={l} /></span>
           </li>
         ))}
       </ul>
       <div className={styles.reviewTotal}>
-        <span>Total</span>
+        <span>Menu subtotal</span>
         <span>{formatCents(receipt.totalCents)}</span>
       </div>
       <WaitEstimate wait={wait} />

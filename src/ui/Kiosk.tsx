@@ -324,9 +324,6 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const venue = locationId === "demo"
     ? { name: "Demo Counter", location: "Seeded menu · sample prices" }
     : menu.location(locationId) ?? { name: menu.locationName(locationId), location: "" };
-  const waitLabel = state.wait?.status === "known" && state.wait.estimateMinutes !== null
-    ? `~${state.wait.estimateMinutes} min wait`
-    : state.lines.length === 0 ? "Wait shown after you add items" : "Wait unavailable";
   const stepIndex = phase === "committed" ? 3 : phase === "reviewing" ? 2 : 1;
   const itemCount = state.lines.reduce((n, l) => n + l.qty, 0);
   const firstItem = locationId === "demo" ? null : menu.itemsForLocation(locationId)[0] ?? null;
@@ -336,14 +333,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const hint = locationId === "demo"
     ? undefined
     : firstItem ? "Include the item’s name and size." : "You can still edit items already in your cart.";
-  // The assistant speaks in the order rail: its reply while ordering, the exact review
-  // snapshot while reviewing, and the pickup line once the order is placed.
+  // The order rail shows the accepted reply, exact review, or simulated receipt.
   const speechText = phase === "committed"
-    ? `Your order is in. ${state.wait?.status === "known" && state.wait.estimateMinutes !== null ? `Pick up at ${venue.name} in about ${state.wait.estimateMinutes} minutes.` : `Pick up at ${venue.name}.`}`
+    ? "Your simulated receipt is ready. Nothing was purchased or sent to a dining location."
     : phase === "reviewing" && state.review
       ? reviewToSpeech(state.review, menu)
       : assistant?.text || (state.lines.length ? "Anything else? Say another item, or review your order." : "What sounds good? Say or type your order, or tap an item.");
-  const STEPS: readonly [string, number][] = [["Menu", 1], ["Review", 2], ["Pick up", 3]];
+  const STEPS: readonly [string, number][] = [["Menu", 1], ["Review", 2], ["Receipt", 3]];
 
   return (
     <div className={styles.kiosk} data-testid="kiosk" data-phase={phase}>
@@ -354,7 +350,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
         </div>
         <div className={styles.venue}>
           <div className={styles.venueName}>{venue.name}</div>
-          <div className={styles.venueMeta}>{[venue.location, waitLabel].filter(Boolean).join(" · ")}</div>
+          <div className={styles.venueMeta}>{venue.location}</div>
         </div>
         <ol className={styles.steps} aria-label="Order progress">
           {STEPS.map(([label, n]) => (
@@ -410,8 +406,8 @@ export function Kiosk({ controller, replay }: KioskProps) {
               <h2 className={styles.panelTitle}>Order total</h2>
               <div className={styles.totals}>
                 <span>Items</span><span>{state.receipt.lines.reduce((n, l) => n + l.qty, 0)}</span>
-                <span>Tax</span><span>not applied</span>
-                <span className={styles.totalRow}>Total</span><span className={styles.totalRow}>{formatCents(state.receipt.totalCents)}</span>
+                <span>Tax and fees</span><span>not calculated</span>
+                <span className={styles.totalRow}>Menu subtotal</span><span className={styles.totalRow}>{formatCents(state.receipt.totalCents)}</span>
               </div>
               <p className={styles.muted}>Listed menu prices only. Nothing was sent to a dining location.</p>
             </section>
@@ -467,8 +463,8 @@ export function Kiosk({ controller, replay }: KioskProps) {
                 <div className={styles.cartFooter}>
                   <div className={styles.totals}>
                     <span>Items</span><span>{itemCount}</span>
-                    <span>Tax</span><span>not applied</span>
-                    <span className={styles.totalRow}>Total</span>
+                    <span>Tax and fees</span><span>not calculated</span>
+                    <span className={styles.totalRow}>Menu subtotal</span>
                     <span className={styles.totalRow} data-testid="total">{formatCents(state.totalCents)}</span>
                   </div>
                   <div className={styles.cartActions}>

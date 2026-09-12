@@ -48,3 +48,55 @@ test('manual meal and dietary controls produce an offline reviewed receipt witho
  await expect(page.getByTestId('meal-remaining')).toContainText('$0.00');await page.getByTestId('review').click();await page.getByTestId('confirm').click();
  await expect(page.getByTestId('ticket')).toContainText('$12.00');expect(requests).toEqual([]);
 });
+
+test('manual category and dietary filters keep excluded reasons readable without silently accepting a conflict', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', request => { if (request.url().includes('/api/interpret')) requests.push(request.url()); });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openDemo(page);
+  const categories = page.getByRole('navigation', { name: 'Menu categories' });
+  await categories.getByRole('button', { name: 'Sides', exact: true }).click();
+  await expect(categories.getByRole('button', { name: 'Sides', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('menu-fries').click();
+  await expect(page.getByTestId('total')).toHaveText('$3.00');
+  const originalLineId = await page.getByTestId('cart').locator('li').getAttribute('data-line-id');
+
+  await page.getByTestId('dietary-preference').selectOption('vegan');
+  await expect(page.getByTestId('menu-match-count')).toContainText('2 choices match');
+  await expect(page.getByTestId('menu-fries')).toBeVisible();
+  await expect(page.getByTestId('menu-side_salad')).toBeVisible();
+  await expect(page.getByTestId('menu-burger')).toHaveCount(0);
+  await expect(page.getByTestId('menu-lemonade')).toHaveCount(0);
+  const excluded = page.getByTestId('excluded-menu');
+  await expect(excluded.locator('summary')).toHaveText('Inspect 1 conflicting or unverified choices');
+  await excluded.locator('summary').click();
+  const reason = page.getByTestId('compatibility-onion_rings');
+  await expect(reason).toBeVisible();
+  await expect(reason).toContainText('Wheat and milk batter conflicts with your vegan preference.');
+  // The redesigned cards must show the complete explanation on a narrow screen,
+  // rather than retaining it only as hidden or line-clamped DOM text.
+  expect(await reason.evaluate(element => ({
+    verticallyClipped: element.scrollHeight > element.clientHeight + 1,
+    horizontallyClipped: element.scrollWidth > element.clientWidth + 1,
+  }))).toEqual({ verticallyClipped: false, horizontallyClipped: false });
+
+  await page.getByTestId('menu-onion_rings').click();
+  await expect(page.getByTestId('requirements-decision')).toBeVisible();
+  await expect(page.getByTestId('requirement-choice-allow_preference')).toBeVisible();
+  await expect(page.getByTestId('dietary-preference')).toHaveValue('vegan');
+  await expect(page.getByTestId('cart').locator('li')).toHaveCount(1);
+  await expect(page.getByTestId('cart').locator('li')).toHaveAttribute('data-line-id', originalLineId!);
+  await expect(page.getByTestId('cart')).not.toContainText('Onion Rings');
+  await expect(page.getByTestId('total')).toHaveText('$3.00');
+  await expect(page.getByTestId('review')).toBeDisabled();
+  await expect(page.getByTestId('confirm')).toHaveCount(0);
+
+  await page.getByTestId('requirement-choice-keep').click();
+  await expect(page.getByTestId('requirements-decision')).toHaveCount(0);
+  await expect(page.getByTestId('dietary-preference')).toHaveValue('vegan');
+  await expect(page.getByTestId('cart').locator('li')).toHaveAttribute('data-line-id', originalLineId!);
+  await expect(page.getByTestId('total')).toHaveText('$3.00');
+  await expect(page.getByTestId('menu-match-count')).toContainText('2 choices match');
+  await expect(page.getByTestId('review')).toBeEnabled();
+  expect(requests).toEqual([]);
+});
