@@ -1,0 +1,559 @@
+/* TartanOrder kiosk. Scoped module; no global rules. */
+
+.kiosk {
+  --red: #c41230;
+  --red-dark: #8f0c22;
+  --cream: #faf6ee;
+  --paper: #fffdf8;
+  --ink: #221c18;
+  --ink-soft: #5c544d;
+  --rule: #d9cfc1;
+  --flash: #ffe9d6;
+  --focus: #1d4ed8;
+
+  min-height: 100dvh;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+}
+
+.kiosk :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* A's globals.css already sets button { font: inherit } at element specificity.
+   Do NOT repeat it here: `.kiosk button` (0,1,1) would outrank every
+   single-class size rule below (.menuBtn, .talkBtn, .chip, ...). */
+.kiosk button {
+  cursor: pointer;
+}
+.kiosk button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* header */
+.header {
+  padding: 16px 24px 12px;
+  border-bottom: 4px solid var(--red);
+  background: var(--paper);
+}
+.brand {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--red);
+}
+.subBrand {
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+.badges {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.badge {
+  font-size: 13px;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--ink-soft);
+}
+.badgeWarn {
+  border-color: #b8860b;
+  color: #7a5600;
+}
+.badgeBusy {
+  border-color: var(--red);
+  color: var(--red-dark);
+}
+
+.notice {
+  margin: 12px 24px 0;
+  padding: 10px 14px;
+  border-left: 4px solid var(--red);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 16px;
+}
+
+/* layout */
+.main {
+  flex: 1;
+  max-width: none; /* A's global main rule caps width; the kiosk is full-bleed */
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  padding: 20px 24px;
+  align-items: start;
+}
+.left,
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* menu buttons */
+.menuGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.menuBtn {
+  min-height: 72px;
+  border: 2px solid var(--red);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--red-dark);
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.menuBtn:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+.menuBtnPlus {
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* input bar */
+.inputBar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.transcript {
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 1px dashed var(--rule);
+  border-radius: 10px;
+  font-size: 17px;
+}
+.listeningDot::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulse 1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .listeningDot::before {
+    animation: none;
+  }
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.inputRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.textInput {
+  flex: 1 1 220px;
+  min-height: 56px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 19px;
+  border: 2px solid var(--rule);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+}
+.textInput:focus {
+  border-color: var(--red);
+}
+.voiceRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* buttons */
+.primaryBtn,
+.secondaryBtn,
+.talkBtn {
+  min-height: 56px;
+  padding: 0 20px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.primaryBtn {
+  background: var(--red);
+  color: #fff;
+  border: 2px solid var(--red);
+}
+.primaryBtn:hover:not(:disabled) {
+  background: var(--red-dark);
+}
+.secondaryBtn {
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--rule);
+}
+.talkBtn {
+  background: var(--ink);
+  color: #fff;
+  border: 2px solid var(--ink);
+  min-width: 140px;
+}
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--red-dark);
+  text-decoration: underline;
+  font-size: 16px;
+  padding: 8px 0;
+}
+
+/* cart (ticket) */
+.cartPanel {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 16px 18px;
+  position: relative;
+}
+.cartPanel::after {
+  /* perforated ticket edge */
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 0;
+  border-bottom: 2px dashed var(--rule);
+}
+.panelTitle:focus {
+  outline: none; /* programmatic focus target; the visible ring stays on interactive controls */
+}
+.panelTitle {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.emptyCart {
+  padding: 18px 0;
+}
+.emptyCart p {
+  margin: 0 0 4px;
+}
+.muted {
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+.cartList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cartRow {
+  padding: 12px 10px;
+  border-top: 1px solid var(--rule);
+  border-radius: 8px;
+  transition: background-color 600ms ease;
+}
+.rowChanged {
+  background: var(--flash);
+}
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qtyBadge {
+  min-width: 42px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 18px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+}
+.rowTitle {
+  font-size: 19px;
+  font-weight: 600;
+}
+.lastTag {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.rowMods {
+  margin: 4px 0 0 52px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+.rowControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.smallBtn {
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 2px solid var(--rule);
+  background: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.removeBtn {
+  margin-left: auto;
+  color: var(--red-dark);
+  border-color: var(--red);
+}
+.chip {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 2px solid var(--rule);
+  background: #fff;
+  font-size: 15px;
+  color: var(--ink);
+}
+.chipOn {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.cartFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid var(--ink);
+}
+.total {
+  font-size: 20px;
+}
+.total strong {
+  font-size: 24px;
+}
+.cartActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* clarify */
+.clarify {
+  background: var(--paper);
+  border: 3px solid var(--red);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.clarifyQuestion {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.choiceBtn {
+  min-height: 60px;
+  text-align: left;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 2px solid var(--ink);
+  background: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.choiceBtn:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+/* review & ticket */
+.review,
+.ticket {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.reviewList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.reviewRow {
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 19px;
+}
+.reviewTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 22px;
+  font-weight: 700;
+  padding-top: 12px;
+  border-top: 2px solid var(--ink);
+  margin-top: 4px;
+}
+.reviewActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 8px;
+}
+.ticketHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ticketId {
+  color: var(--ink-soft);
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.simTag {
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fff3cd;
+  color: #6b4d00;
+  border: 1px solid #e0c266;
+}
+
+/* footer + engineering */
+.footer {
+  padding: 8px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.eng {
+  border-top: 1px solid var(--rule);
+  padding-top: 8px;
+}
+.engToggle {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 6px 0;
+  text-decoration: underline;
+}
+.engBody {
+  font-size: 14px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.engGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0;
+}
+.engGrid dt {
+  color: var(--ink-soft);
+}
+.engGrid dd {
+  margin: 0;
+  word-break: break-all;
+}
+.engH3 {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.auditList {
+  margin: 0;
+  padding-left: 0;
+  list-style: none; /* rows already carry their #seq */
+  max-height: 220px;
+  overflow: auto;
+  font-size: 13px;
+}
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.switchRow input {
+  width: 22px;
+  height: 22px;
+}
+.replayBox {
+  border: 1px dashed var(--rule);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Narrow layout. Kept at the END of the file: these share specificity with the
+   base rules above, so source order is what makes them win. */
+@media (max-width: 860px) {
+  .main {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+  .menuGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .menuBtn {
+    min-height: 60px;
+    padding: 8px 6px;
+    font-size: 17px;
+  }
+  .menuBtnPlus {
+    display: none; /* the label alone reads fine on a phone; the + only crowds it */
+  }
+  .header {
+    padding: 12px 16px 10px;
+  }
+  .brand {
+    font-size: 22px;
+  }
+}
