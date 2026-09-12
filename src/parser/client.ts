@@ -14,8 +14,10 @@ import { parseRules } from "./rules";
 
 /**
  * Non-fallback failure of `interpret`: malformed input, menu-version mismatch, oversize
- * request, or a 200 body that fails the shared contract. Never thrown for transient
- * provider trouble — those paths fall back to `parseRules` with a `fallbackReason`.
+ * request, a 200 body that fails the shared contract, or a structured error on a fallback
+ * status whose code or requestId does not belong to this request (fail closed). Never
+ * thrown for genuine transient provider trouble — those paths fall back to `parseRules`
+ * with a `fallbackReason`.
  */
 export class InterpretError extends Error {
   readonly code: HttpCode;
@@ -70,7 +72,9 @@ export function interpret(req: ParseRequest, options: InterpretOptions): Promise
 /**
  * One HTTP attempt, never retried. Transient failures (429/503/504, client deadline,
  * offline, network error) fall back to the local rules parser for the SAME request and
- * are labelled with `fallbackReason`. User cancellation rejects with `AbortError`.
+ * are labelled with `fallbackReason`. User cancellation rejects with `AbortError`; it is
+ * re-checked after the exchange and again before every fallback or accepted result, so a
+ * cancellation that lands as the body settles is never answered with a proposal.
  */
 export async function interpretWith(
   req: ParseRequest,
@@ -81,15 +85,17 @@ export async function interpretWith(
   if (!checked.success) {
     throw new InterpretError({ code: "INVALID_REQUEST", status: 400, retryable: false, apiError: null });
   }
-  if (options.signal?.aborted) throw cancelled();
+  const signal = options.signal;
+  throwIfCancelled(signal);
   const request = checked.data;
   if (options.localOnly) return parseRules(request);
-  if (!deps.isOnline()) return fallback(request, "PROVIDER_UNAVAILABLE");
+  if (!deps.isOnline()) return fallback(request, "PROVIDER_UNAVAILABLE", signal);
 
-  const transport = await exchange(request, options.signal, deps);
-  if (transport.kind === "timeout") return fallback(request, "PARSE_TIMEOUT");
-  if (transport.kind === "network") return fallback(request, "PROVIDER_UNAVAILABLE");
-  return settle(request, transport.status, transport.body);
+  const transport = await exchange(request, signal, deps);
+  throwIfCancelled(signal);
+  if (transport.kind === "timeout") return fallback(request, "PARSE_TIMEOUT", signal);
+  if (transport.kind === "network") return fallback(request, "PROVIDER_UNAVAILABLE", signal);
+  return settle(request, transport.status, transport.body, signal);
 }
 
 async function exchange(
@@ -122,24 +128,46 @@ async function exchange(
   }
 }
 
-function settle(request: ParseRequest, status: number, body: unknown): ParseResponse {
-  if (status === 200) return accept(request, body);
-  const apiError = ApiErrorSchema.safeParse(body);
-  const code = apiError.success ? apiError.data.error.code : codeForStatus(status);
-  if (FALLBACK_STATUSES.has(status)) return fallback(request, code);
-  throw new InterpretError({
-    code,
-    status,
-    retryable: apiError.success ? apiError.data.error.retryable : false,
-    apiError: apiError.success ? apiError.data : null,
-  });
+/**
+ * Settles a completed exchange. A 200 must echo the request. On 429/503/504 the rules
+ * fallback is allowed in exactly two cases: the body is not a valid `ApiError` (proxy
+ * HTML, empty, non-JSON — the status alone is trusted and mapped), or it is a valid
+ * `ApiError` that `permitsFallback`. Every other structured error — malformed input, menu
+ * mismatch, invalid model output, a code that disagrees with the status, or someone
+ * else's requestId — fails closed with the envelope's own code and retryable flag.
+ */
+function settle(request: ParseRequest, status: number, body: unknown, signal: AbortSignal | undefined): ParseResponse {
+  if (status === 200) return accept(request, body, signal);
+  const parsed = ApiErrorSchema.safeParse(body);
+  if (!parsed.success) {
+    const code = codeForStatus(status);
+    if (FALLBACK_STATUSES.has(status)) return fallback(request, code, signal);
+    throw new InterpretError({ code, status, retryable: false, apiError: null });
+  }
+  const apiError = parsed.data;
+  if (permitsFallback(request, status, apiError)) return fallback(request, apiError.error.code, signal);
+  throw new InterpretError({ code: apiError.error.code, status, retryable: apiError.error.retryable, apiError });
 }
 
-function accept(request: ParseRequest, body: unknown): ParseResponse {
+/**
+ * A structured error permits the availability fallback only when its code is the one the
+ * status stands for (429 RATE_LIMITED, 503 PROVIDER_UNAVAILABLE, 504 PARSE_TIMEOUT) and it
+ * is addressed to this request (`requestId` null — refused before the id was read — or
+ * ours). `retryable` is deliberately NOT consulted: `retryable:false` only means "do not
+ * repeat the network call", which this client never does anyway; falling back to local
+ * rules for the same request is a different decision and stays available.
+ */
+function permitsFallback(request: ParseRequest, status: number, apiError: ApiError): boolean {
+  if (!FALLBACK_STATUSES.has(status) || STATUS_CODES[status] !== apiError.error.code) return false;
+  return apiError.requestId === null || apiError.requestId === request.requestId;
+}
+
+function accept(request: ParseRequest, body: unknown, signal: AbortSignal | undefined): ParseResponse {
   const parsed = ParseResponseSchema.safeParse(body);
   if (!parsed.success || !echoesRequest(parsed.data, request)) {
     throw new InterpretError({ code: "INVALID_MODEL_OUTPUT", status: 502, retryable: false, apiError: null });
   }
+  throwIfCancelled(signal);
   return parsed.data;
 }
 
@@ -151,12 +179,18 @@ function echoesRequest(response: ParseResponse, request: ParseRequest): boolean 
   );
 }
 
-function fallback(request: ParseRequest, reason: HttpCode): ParseResponse {
+/** Runs the local rules parser for the same request — never once the user has cancelled. */
+function fallback(request: ParseRequest, reason: HttpCode, signal: AbortSignal | undefined): ParseResponse {
+  throwIfCancelled(signal);
   return { ...parseRules(request), fallbackReason: reason };
 }
 
 function codeForStatus(status: number): HttpCode {
   return STATUS_CODES[status] ?? (status >= 500 ? "INVALID_MODEL_OUTPUT" : "INVALID_REQUEST");
+}
+
+function throwIfCancelled(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw cancelled();
 }
 
 function cancelled(): DOMException {

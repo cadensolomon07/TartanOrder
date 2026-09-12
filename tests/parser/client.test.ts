@@ -49,14 +49,34 @@ const geminiResponse: ParseResponse = {
   },
 };
 
-function apiError(code: ApiError["error"]["code"], retryable: boolean): ApiError {
-  return ApiErrorSchema.parse({ v: 1, requestId: "r7", error: { code, message: `Server said ${code}.`, retryable } });
+function apiError(code: ApiError["error"]["code"], retryable: boolean, requestId: string | null = "r7"): ApiError {
+  return ApiErrorSchema.parse({ v: 1, requestId, error: { code, message: `Server said ${code}.`, retryable } });
 }
 
 function respondingWith(status: number, body: unknown, raw = false): ReturnType<typeof vi.fn<typeof fetch>> {
   return vi.fn<typeof fetch>(async () =>
     raw ? new Response(String(body), { status }) : Response.json(body, { status }),
   );
+}
+
+/**
+ * A fetch whose body read schedules the caller's cancellation to land after the exchange
+ * has settled but before the client resumes — A's "cancellation as the body settles".
+ */
+function abortingAsBodySettles(status: number, body: unknown, controller: AbortController): ReturnType<typeof vi.fn<typeof fetch>> {
+  return vi.fn<typeof fetch>(async () => {
+    const response = Response.json(body, { status });
+    const readText = response.text.bind(response);
+    return Object.assign(response, {
+      text: async () => {
+        const text = await readText();
+        void Promise.resolve()
+          .then(() => undefined)
+          .then(() => controller.abort());
+        return text;
+      },
+    });
+  });
 }
 
 /** A fetch that only settles when its signal aborts, like a stalled network call. */
@@ -236,6 +256,90 @@ describe("interpretWith: cancellation never falls back", () => {
     controller.abort();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(parseRules).not.toHaveBeenCalled();
+  });
+
+  it("rejects with AbortError when cancellation lands as a 503 body settles, never running the fallback", async () => {
+    const controller = new AbortController();
+    const fetchImpl = abortingAsBodySettles(503, apiError("PROVIDER_UNAVAILABLE", true), controller);
+    const pending = interpretWith(request, { localOnly: false, signal: controller.signal }, deps(fetchImpl));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(controller.signal.aborted).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(parseRules).not.toHaveBeenCalled();
+  });
+
+  it("rejects with AbortError when cancellation lands as a 200 body settles, never accepting the result", async () => {
+    const controller = new AbortController();
+    const fetchImpl = abortingAsBodySettles(200, geminiResponse, controller);
+    const pending = interpretWith(request, { localOnly: false, signal: controller.signal }, deps(fetchImpl));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(parseRules).not.toHaveBeenCalled();
+  });
+});
+
+describe("interpretWith: structured errors on fallback statuses fail closed unless they match", () => {
+  it.each([
+    [503, "INVALID_REQUEST"],
+    [503, "MENU_VERSION_MISMATCH"],
+    [503, "INVALID_MODEL_OUTPUT"],
+    [429, "PROVIDER_UNAVAILABLE"],
+    [504, "RATE_LIMITED"],
+  ] as const)("throws InterpretError for %i carrying a mismatched %s envelope instead of falling back", async (status, code) => {
+    const body = apiError(code, false);
+    const fetchImpl = respondingWith(status, body);
+    const error = await expectInterpretError(interpretWith(request, { localOnly: false }, deps(fetchImpl)));
+    expect(error.code).toBe(code);
+    expect(error.status).toBe(status);
+    expect(error.retryable).toBe(false);
+    expect(error.apiError).toEqual(body);
+    expect(error.message).toBe(body.error.message);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(parseRules).not.toHaveBeenCalled();
+  });
+
+  it("throws for a matching 503 PROVIDER_UNAVAILABLE envelope addressed to a foreign requestId", async () => {
+    const body = apiError("PROVIDER_UNAVAILABLE", true, "r8");
+    const fetchImpl = respondingWith(503, body);
+    const error = await expectInterpretError(interpretWith(request, { localOnly: false }, deps(fetchImpl)));
+    expect(error.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(error.status).toBe(503);
+    expect(error.retryable).toBe(true);
+    expect(error.apiError).toEqual(body);
+    expect(parseRules).not.toHaveBeenCalled();
+  });
+
+  it("falls back on 503 PROVIDER_UNAVAILABLE for this request even when the envelope says retryable:false", async () => {
+    const fetchImpl = respondingWith(503, apiError("PROVIDER_UNAVAILABLE", false));
+    const result = await interpretWith(request, { localOnly: false }, deps(fetchImpl));
+    expect(result.parser).toBe("rules");
+    expect(result.fallbackReason).toBe("PROVIDER_UNAVAILABLE");
+    expect(result.requestId).toBe(request.requestId);
+    expect(ParseResponseSchema.safeParse(result).success).toBe(true);
+    expect(parseRules).toHaveBeenCalledWith(request);
+  });
+
+  it("falls back on a matching envelope whose requestId is null (refused before the id was read)", async () => {
+    const fetchImpl = respondingWith(504, apiError("PARSE_TIMEOUT", true, null));
+    const result = await interpretWith(request, { localOnly: false }, deps(fetchImpl));
+    expect(result.parser).toBe("rules");
+    expect(result.fallbackReason).toBe("PARSE_TIMEOUT");
+    expect(parseRules).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back on a 503 proxy HTML page by mapping the status", async () => {
+    const fetchImpl = respondingWith(503, "<html><body><h1>503 Service Unavailable</h1></body></html>", true);
+    const result = await interpretWith(request, { localOnly: false }, deps(fetchImpl));
+    expect(result.parser).toBe("rules");
+    expect(result.fallbackReason).toBe("PROVIDER_UNAVAILABLE");
+    expect(ParseResponseSchema.safeParse(result).success).toBe(true);
+    expect(parseRules).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back on a 503 with an empty body by mapping the status", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 503 }));
+    const result = await interpretWith(request, { localOnly: false }, deps(fetchImpl));
+    expect(result.fallbackReason).toBe("PROVIDER_UNAVAILABLE");
+    expect(parseRules).toHaveBeenCalledTimes(1);
   });
 });
 

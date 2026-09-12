@@ -296,15 +296,18 @@ describe("successful parse", () => {
 // ---------------------------------------------------------------------------
 
 describe("transport failures", () => {
+  // Transient: 429 and 5xx. Permanent (bad request, key, or model): 400/401/403/404 keep the
+  // PROVIDER_UNAVAILABLE vocabulary but must not invite a retry.
   it.each([
     [429, "RATE_LIMITED", 429, true],
     [500, "PROVIDER_UNAVAILABLE", 503, true],
+    [502, "PROVIDER_UNAVAILABLE", 503, true],
     [503, "PROVIDER_UNAVAILABLE", 503, true],
-    [400, "PROVIDER_UNAVAILABLE", 503, true],
-    [401, "PROVIDER_UNAVAILABLE", 503, true],
-    [403, "PROVIDER_UNAVAILABLE", 503, true],
-    [404, "PROVIDER_UNAVAILABLE", 503, true],
-  ])("maps HTTP %i to %s", async (http, code, status, retryable) => {
+    [400, "PROVIDER_UNAVAILABLE", 503, false],
+    [401, "PROVIDER_UNAVAILABLE", 503, false],
+    [403, "PROVIDER_UNAVAILABLE", 503, false],
+    [404, "PROVIDER_UNAVAILABLE", 503, false],
+  ])("maps HTTP %i to %s (retryable %s)", async (http, code, status, retryable) => {
     const error = await failure(respond(http, { error: { message: "provider detail" } }));
     expect(error.code).toBe(code);
     expect(error.status).toBe(status);
@@ -469,5 +472,16 @@ describe("GeminiError", () => {
     const error = new GeminiError("PROVIDER_UNAVAILABLE", "y".repeat(500), cause);
     expect(error.cause).toBe(cause);
     expect(error.message.length).toBeLessThanOrEqual(160);
+  });
+
+  it("lets a permanent PROVIDER_UNAVAILABLE opt out of retry while keeping its status", () => {
+    const error = new GeminiError("PROVIDER_UNAVAILABLE", "HTTP 401", undefined, false);
+    expect(error.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(error.status).toBe(503);
+    expect(error.retryable).toBe(false);
+  });
+
+  it("never lets INVALID_MODEL_OUTPUT become retryable", () => {
+    expect(new GeminiError("INVALID_MODEL_OUTPUT", "bad", undefined, true).retryable).toBe(false);
   });
 });

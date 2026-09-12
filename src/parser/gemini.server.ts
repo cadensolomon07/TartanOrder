@@ -36,16 +36,26 @@ const ERROR_STATUS = {
 export class GeminiError extends Error {
   readonly code: GeminiErrorCode;
   readonly status: (typeof ERROR_STATUS)[GeminiErrorCode];
+  /**
+   * Whether repeating the same call could succeed. Always false for INVALID_MODEL_OUTPUT.
+   * False for a PROVIDER_UNAVAILABLE caused by a permanent provider refusal (HTTP 400/401/
+   * 403/404: bad request, key, project, or model), which keeps the contract vocabulary and
+   * status but must not invite a retry. True for rate limits, 5xx, network errors, timeouts.
+   */
   readonly retryable: boolean;
 
-  constructor(code: GeminiErrorCode, message: string, cause?: unknown) {
+  constructor(code: GeminiErrorCode, message: string, cause?: unknown, retryable = true) {
     super(clip(message), cause === undefined ? undefined : { cause });
     this.name = "GeminiError";
     this.code = code;
     this.status = ERROR_STATUS[code];
-    this.retryable = code !== "INVALID_MODEL_OUTPUT";
+    this.retryable = code !== "INVALID_MODEL_OUTPUT" && retryable;
   }
 }
+
+// Provider statuses a retry cannot heal: malformed request, missing or bad key, forbidden
+// project, unknown model. 429 is RATE_LIMITED; every other status stays transient.
+const PERMANENT_STATUSES: ReadonlySet<number> = new Set([400, 401, 403, 404]);
 
 const ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MAX_OUTPUT_TOKENS = 512;
@@ -225,7 +235,8 @@ function createDeadline(config: GeminiConfig): Deadline {
 function mapStatus(status: number): GeminiError | null {
   if (status >= 200 && status < 300) return null;
   if (status === 429) return new GeminiError("RATE_LIMITED", "Provider rate limit reached (HTTP 429).");
-  return new GeminiError("PROVIDER_UNAVAILABLE", `Provider returned HTTP ${status}.`);
+  const retryable = !PERMANENT_STATUSES.has(status);
+  return new GeminiError("PROVIDER_UNAVAILABLE", `Provider returned HTTP ${status}.`, undefined, retryable);
 }
 
 function mapFailure(error: unknown, config: GeminiConfig, timedOut: boolean): unknown {

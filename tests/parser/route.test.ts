@@ -47,6 +47,26 @@ function postJson(value: unknown, init?: { headers?: Record<string, string>; sig
   return post(JSON.stringify(value), init);
 }
 
+/** Node requires `duplex: "half"` for a streaming request body; lib.dom's RequestInit has not caught up. */
+type StreamingInit = RequestInit & { duplex: "half" };
+
+/** A POST whose body is a caller-controlled byte stream (stalled, failing, or disconnected). */
+function postStream(source: UnderlyingDefaultSource<Uint8Array>, signal?: AbortSignal): Promise<Response> {
+  const init: StreamingInit = {
+    method: "POST",
+    body: new ReadableStream<Uint8Array>(source),
+    headers: { "content-type": "application/json" },
+    duplex: "half",
+    signal,
+  };
+  return POST(new Request(URL, init));
+}
+
+/** A pull that never settles, so the read stays pending until the route cancels the reader. */
+function stalledPull(): Promise<void> {
+  return new Promise<void>(() => undefined);
+}
+
 /** ASCII-only request JSON padded so the body is exactly `bytes` long. */
 function bodyOfBytes(bytes: number): string {
   const skeleton = JSON.stringify({ ...FIXTURE_REQUEST, text: "" });
@@ -178,6 +198,52 @@ describe("POST /api/interpret: admission", () => {
   });
 });
 
+describe("POST /api/interpret: one deadline bounds the whole body-read and parse lifecycle", () => {
+  it("answers 504 PARSE_TIMEOUT exactly at the 5 s deadline when a body is held open, and cancels the reader", async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    const partial = new TextEncoder().encode(JSON.stringify(FIXTURE_REQUEST).slice(0, 24));
+    const pending = postStream({
+      start: (controller) => controller.enqueue(partial),
+      pull: stalledPull,
+      cancel,
+    });
+    const settled = vi.fn();
+    void pending.then(settled, settled);
+    await vi.advanceTimersByTimeAsync(LIMITS.serverTimeoutMs - 1);
+    expect(settled).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    const res = await pending;
+    const body = await expectApiError(res, 504, "PARSE_TIMEOUT", true);
+    expect(body.requestId).toBeNull();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(loggedLine()).toMatchObject({ mode: "rules", outcome: "error", code: "PARSE_TIMEOUT", requestId: null });
+  });
+
+  it("answers 400 INVALID_REQUEST (never an uncaught rejection) when the body stream fails mid-read", async () => {
+    const res = await postStream({
+      pull: () => {
+        throw new Error("socket reset");
+      },
+    });
+    const body = await expectApiError(res, 400, "INVALID_REQUEST", false);
+    expect(body.requestId).toBeNull();
+    expect(loggedLine()).toMatchObject({ outcome: "error", code: "INVALID_REQUEST" });
+  });
+
+  it("returns a bare 499 and cancels the reader when the client disconnects while the body is still streaming", async () => {
+    const controller = new AbortController();
+    const cancel = vi.fn();
+    const pending = postStream({ pull: stalledPull, cancel }, controller.signal);
+    controller.abort();
+    const res = await pending;
+    expect(res.status).toBe(499);
+    expect(await res.text()).toBe("");
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(info).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/interpret: rules mode", () => {
   it("answers the u1 fixture with the fixture operations labelled parser rules", async () => {
     const res = await postJson(FIXTURE_REQUEST);
@@ -223,11 +289,18 @@ describe("POST /api/interpret: gemini mode", () => {
     vi.stubEnv("GEMINI_API_KEY", KEY);
   });
 
-  it("answers 503 PROVIDER_UNAVAILABLE retryable without a key and never calls the provider", async () => {
+  it("answers 503 PROVIDER_UNAVAILABLE non-retryable without a key (a configuration fault) and never calls the provider", async () => {
     vi.stubEnv("GEMINI_API_KEY", "");
     const res = await postJson(FIXTURE_REQUEST);
-    const body = await expectApiError(res, 503, "PROVIDER_UNAVAILABLE", true);
+    const body = await expectApiError(res, 503, "PROVIDER_UNAVAILABLE", false);
     expect(body.requestId).toBe("u1");
+    expect(parseGemini).not.toHaveBeenCalled();
+  });
+
+  it("answers 503 PROVIDER_UNAVAILABLE non-retryable for a whitespace-only key", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "   ");
+    const res = await postJson(FIXTURE_REQUEST);
+    await expectApiError(res, 503, "PROVIDER_UNAVAILABLE", false);
     expect(parseGemini).not.toHaveBeenCalled();
   });
 
@@ -299,6 +372,14 @@ describe("POST /api/interpret: gemini mode", () => {
     expect(loggedLine()).toMatchObject({ mode: "gemini", outcome: "error", code });
   });
 
+  it("forwards a permanent provider refusal (bad key, model, or request) as 503 PROVIDER_UNAVAILABLE retryable:false", async () => {
+    vi.mocked(parseGemini).mockRejectedValue(geminiError("PROVIDER_UNAVAILABLE", 503, false));
+    const res = await postJson(FIXTURE_REQUEST);
+    const body = await expectApiError(res, 503, "PROVIDER_UNAVAILABLE", false);
+    expect(body.requestId).toBe("u1");
+    expect(loggedLine()).toMatchObject({ mode: "gemini", outcome: "error", code: "PROVIDER_UNAVAILABLE" });
+  });
+
   it("never marks a 502 retryable even if the adapter says so", async () => {
     vi.mocked(parseGemini).mockRejectedValue(geminiError("INVALID_MODEL_OUTPUT", 502, true));
     const res = await postJson(FIXTURE_REQUEST);
@@ -322,6 +403,34 @@ describe("POST /api/interpret: gemini mode", () => {
     const body = await expectApiError(res, 504, "PARSE_TIMEOUT", true);
     expect(body.requestId).toBe("u1");
     expect((await provider.config).signal?.aborted).toBe(true);
+  });
+
+  it("charges a slow body against the same 5 s deadline as the provider call", async () => {
+    vi.useFakeTimers();
+    const provider = providerCalled();
+    provider.hang(() => new Promise<GeminiOutcome>(() => undefined));
+    const bytes = new TextEncoder().encode(JSON.stringify(FIXTURE_REQUEST));
+    const bodyDelayMs = 3000;
+    const pending = postStream({
+      start: (controller) => {
+        setTimeout(() => {
+          controller.enqueue(bytes);
+          controller.close();
+        }, bodyDelayMs);
+      },
+    });
+    await vi.advanceTimersByTimeAsync(bodyDelayMs);
+    const config = await provider.config;
+    expect(config.timeoutMs).toBeLessThanOrEqual(LIMITS.serverTimeoutMs - bodyDelayMs);
+    const settled = vi.fn();
+    void pending.then(settled, settled);
+    await vi.advanceTimersByTimeAsync(LIMITS.serverTimeoutMs - bodyDelayMs - 1);
+    expect(settled).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    const res = await pending;
+    const body = await expectApiError(res, 504, "PARSE_TIMEOUT", true);
+    expect(body.requestId).toBe("u1");
+    expect(config.signal?.aborted).toBe(true);
   });
 
   it("returns a bare 499 and aborts the provider when the client disconnects mid-call", async () => {

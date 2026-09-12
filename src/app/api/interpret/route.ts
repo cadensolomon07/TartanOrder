@@ -27,19 +27,33 @@ import { guardTranscript, parseRules } from "@/parser/rules";
  * - In gemini mode the rules `guardTranscript` runs before any model call. When it
  *   rejects, the 200 envelope is labelled `parser: "rules"` because the rules guard
  *   decided and no model was consulted; `fallbackReason` stays null (nothing failed).
- * - `retryable: true` only ever accompanies 429/503/504.
+ * - One `LIMITS.serverTimeoutMs` deadline, armed before the first body byte is read, bounds
+ *   the whole lifecycle: body read, validation, rules guard, and the provider call. A body
+ *   held open past it is 504 PARSE_TIMEOUT with `requestId: null` (nothing was parsed); a
+ *   body whose stream fails is 400 INVALID_REQUEST. The reader is cancelled either way.
+ * - `retryable: true` only ever accompanies 429/503/504 — but not every 503 is retryable.
+ *   A missing key or a permanent provider refusal (bad key, model, or request) is 503 with
+ *   `retryable: false`: repeating the same call cannot succeed.
  * - A provider failure that is not a `GeminiError` is reported as 502
  *   INVALID_MODEL_OUTPUT (not retryable) so an adapter bug never triggers retry storms.
- * - A client that disconnected mid-call gets a bare 499; nobody is listening.
+ * - A client that disconnected — while still sending the body or mid-call — gets a bare
+ *   499; nobody is listening.
  */
 export async function POST(request: Request): Promise<Response> {
   const start = performance.now();
   const mode = resolveMode();
-  const admission = await admit(request);
-  const timing: Timing = { start, validateMs: performance.now() - start, providerMs: 0 };
-  if (!admission.ok) return failureResponse(admission.failure, mode, timing);
-  if (mode === "rules") return rulesModeResponse(admission.request, timing);
-  return geminiModeResponse(request, admission.request, timing);
+  const lifecycle = startLifecycle(request, start);
+  try {
+    const admission = await admit(request, lifecycle);
+    const timing: Timing = { start, validateMs: performance.now() - start, providerMs: 0 };
+    if (admission.kind === "disconnected") return disconnectedResponse();
+    if (admission.kind === "failure") return failureResponse(admission.failure, mode, timing);
+    if (mode === "rules") return rulesModeResponse(admission.request, timing);
+    // `await` matters: a bare `return promise` would run `finally` (and disarm the deadline) at once.
+    return await geminiModeResponse(lifecycle, admission.request, timing);
+  } finally {
+    lifecycle.dispose();
+  }
 }
 
 type Mode = ParserMode;
@@ -51,8 +65,24 @@ type Failure = {
   readonly retryable: boolean;
   readonly message?: string;
 };
-type Admission = { ok: true; request: ParseRequest } | { ok: false; failure: Failure };
-type BodyRead = { ok: true; text: string } | { ok: false };
+type Lifecycle = {
+  readonly start: number;
+  /** Aborts on the server deadline or on client disconnect, whichever comes first. */
+  readonly signal: AbortSignal;
+  timedOut(): boolean;
+  disconnected(): boolean;
+  dispose(): void;
+};
+type Admission =
+  | { kind: "ok"; request: ParseRequest }
+  | { kind: "failure"; failure: Failure }
+  | { kind: "disconnected" };
+type BodyRead =
+  | { kind: "ok"; text: string }
+  | { kind: "oversize" }
+  | { kind: "unreadable" }
+  | { kind: "aborted" };
+type BodyReader = ReadableStreamDefaultReader<Uint8Array>;
 type Json = { ok: true; value: unknown } | { ok: false };
 type Shadow = { shadowAgree: boolean; shadowKind: ParseResult["kind"] };
 type ProviderCall =
@@ -88,44 +118,97 @@ function resolveMode(): Mode {
 }
 
 // ---------------------------------------------------------------------------
-// Admission: byte bound, JSON, menu version, strict schema, blank transcript.
+// Lifecycle: one deadline from the first body byte to the last provider byte,
+// merged with client disconnect so every await in the route can race it.
 // ---------------------------------------------------------------------------
 
-async function admit(request: Request): Promise<Admission> {
-  if (Number(request.headers.get("content-length")) > LIMITS.requestBytes) {
-    return { ok: false, failure: refuse(413, "INPUT_TOO_LARGE", null) };
-  }
-  const read = await readBounded(request, LIMITS.requestBytes);
-  if (!read.ok) return { ok: false, failure: refuse(413, "INPUT_TOO_LARGE", null) };
-  const json = parseJson(read.text);
-  if (!json.ok) return { ok: false, failure: refuse(400, "INVALID_REQUEST", null, "The request body is not valid JSON.") };
-  const requestId = extractRequestId(json.value);
-  if (hasForeignMenuVersion(json.value)) return { ok: false, failure: refuse(409, "MENU_VERSION_MISMATCH", requestId) };
-  const parsed = ParseRequestSchema.safeParse(json.value);
-  if (!parsed.success) return { ok: false, failure: refuse(400, "INVALID_REQUEST", requestId) };
-  if (parsed.data.text.trim().length === 0) {
-    return { ok: false, failure: refuse(400, "INVALID_REQUEST", requestId, "The transcript is blank.") };
-  }
-  return { ok: true, request: parsed.data };
+function startLifecycle(request: Request, start: number): Lifecycle {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(new DOMException("Server deadline", "TimeoutError")), LIMITS.serverTimeoutMs);
+  const client: AbortSignal | undefined = request.signal;
+  return {
+    start,
+    signal: client ? AbortSignal.any([client, deadline.signal]) : deadline.signal,
+    timedOut: () => deadline.signal.aborted,
+    disconnected: () => client?.aborted === true,
+    dispose: () => clearTimeout(timer),
+  };
 }
 
-/** Streams the body and gives up as soon as it exceeds `limit` bytes. */
-async function readBounded(request: Request, limit: number): Promise<BodyRead> {
+function disconnectedResponse(): Response {
+  return new Response(null, { status: 499 });
+}
+
+// ---------------------------------------------------------------------------
+// Admission: byte bound, bounded body read, JSON, menu version, strict schema,
+// blank transcript.
+// ---------------------------------------------------------------------------
+
+async function admit(request: Request, lifecycle: Lifecycle): Promise<Admission> {
+  if (Number(request.headers.get("content-length")) > LIMITS.requestBytes) {
+    return failed(refuse(413, "INPUT_TOO_LARGE", null));
+  }
+  const read = await readBounded(request, LIMITS.requestBytes, lifecycle.signal);
+  if (read.kind === "aborted") {
+    return lifecycle.disconnected() ? { kind: "disconnected" } : failed(transient(504, "PARSE_TIMEOUT", null));
+  }
+  if (read.kind === "oversize") return failed(refuse(413, "INPUT_TOO_LARGE", null));
+  if (read.kind === "unreadable") return failed(refuse(400, "INVALID_REQUEST", null, "The request body could not be read."));
+  return validate(read.text);
+}
+
+function validate(text: string): Admission {
+  const json = parseJson(text);
+  if (!json.ok) return failed(refuse(400, "INVALID_REQUEST", null, "The request body is not valid JSON."));
+  const requestId = extractRequestId(json.value);
+  if (hasForeignMenuVersion(json.value)) return failed(refuse(409, "MENU_VERSION_MISMATCH", requestId));
+  const parsed = ParseRequestSchema.safeParse(json.value);
+  if (!parsed.success) return failed(refuse(400, "INVALID_REQUEST", requestId));
+  if (parsed.data.text.trim().length === 0) {
+    return failed(refuse(400, "INVALID_REQUEST", requestId, "The transcript is blank."));
+  }
+  return { kind: "ok", request: parsed.data };
+}
+
+function failed(failure: Failure): Admission {
+  return { kind: "failure", failure };
+}
+
+/**
+ * Streams the body under `signal` and gives up as soon as it exceeds `limit` bytes. Every
+ * early exit — oversize, deadline, disconnect, or a stream that errors — cancels the
+ * reader so a stalled or abandoned socket is released, and never escapes as a rejection.
+ */
+async function readBounded(request: Request, limit: number, signal: AbortSignal): Promise<BodyRead> {
   const reader = request.body?.getReader();
-  if (!reader) return { ok: true, text: "" };
+  if (!reader) return { kind: "ok", text: "" };
+  try {
+    return await readChunks(reader, limit, signal);
+  } catch {
+    release(reader);
+    return { kind: signal.aborted ? "aborted" : "unreadable" };
+  }
+}
+
+async function readChunks(reader: BodyReader, limit: number, signal: AbortSignal): Promise<BodyRead> {
   const decoder = new TextDecoder();
   let text = "";
   let total = 0;
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) return { ok: true, text: text + decoder.decode() };
+    const { done, value } = await raceAbort(reader.read(), signal);
+    if (done) return { kind: "ok", text: text + decoder.decode() };
     total += value.byteLength;
     if (total > limit) {
-      await reader.cancel();
-      return { ok: false };
+      release(reader);
+      return { kind: "oversize" };
     }
     text += decoder.decode(value, { stream: true });
   }
+}
+
+/** Cancels the reader without waiting on the source: an errored stream rejects, a stalled one may never answer. */
+function release(reader: BodyReader): void {
+  void reader.cancel().catch(() => undefined);
 }
 
 function parseJson(text: string): Json {
@@ -162,15 +245,16 @@ function rulesModeResponse(req: ParseRequest, timing: Timing): Response {
   return successResponse(parseRules(req), { mode: "rules", timing, usage: null, shadow: null });
 }
 
-async function geminiModeResponse(request: Request, req: ParseRequest, timing: Timing): Promise<Response> {
+async function geminiModeResponse(lifecycle: Lifecycle, req: ParseRequest, timing: Timing): Promise<Response> {
   const apiKey = (process.env.GEMINI_API_KEY ?? "").trim();
   if (apiKey.length === 0) {
-    return failureResponse(transient(503, "PROVIDER_UNAVAILABLE", req.requestId), "gemini", timing);
+    // A missing key is a deployment fault, not an outage: retrying the same call cannot succeed.
+    return failureResponse(refuse(503, "PROVIDER_UNAVAILABLE", req.requestId), "gemini", timing);
   }
   const guarded = guardTranscript(req.text);
   if (guarded) return deliver(req, "rules", guarded, { timing, usage: null });
-  const call = await callProvider(request, req, apiKey, timing);
-  if (call.kind === "disconnected") return new Response(null, { status: 499 });
+  const call = await callProvider(lifecycle, req, apiKey, timing);
+  if (call.kind === "disconnected") return disconnectedResponse();
   if (call.kind === "failure") return failureResponse(call.failure, "gemini", call.timing);
   return deliver(req, "gemini", call.result, { timing: call.timing, usage: call.usage });
 }
@@ -198,26 +282,28 @@ function deliver(
   return successResponse(envelope.data, { mode: "gemini", timing: meta.timing, usage: meta.usage, shadow });
 }
 
-async function callProvider(request: Request, req: ParseRequest, apiKey: string, timing: Timing): Promise<ProviderCall> {
-  const remaining = Math.max(0, LIMITS.serverTimeoutMs - (performance.now() - timing.start));
-  const deadline = new AbortController();
-  const timer = setTimeout(() => deadline.abort(new DOMException("Server deadline", "TimeoutError")), remaining);
-  const signal = request.signal ? AbortSignal.any([request.signal, deadline.signal]) : deadline.signal;
+/** The provider gets whatever is left of the single lifecycle deadline, capped at `PROVIDER_TIMEOUT_MS`. */
+async function callProvider(lifecycle: Lifecycle, req: ParseRequest, apiKey: string, timing: Timing): Promise<ProviderCall> {
+  const remaining = Math.max(0, LIMITS.serverTimeoutMs - (performance.now() - lifecycle.start));
   const started = performance.now();
   const timed = (): Timing => ({ ...timing, providerMs: performance.now() - started });
   try {
-    const config = { apiKey, model: process.env.GEMINI_MODEL || DEFAULT_MODEL, timeoutMs: Math.min(PROVIDER_TIMEOUT_MS, remaining), signal };
-    const outcome = await raceAbort(parseGemini(req, config), signal);
+    const config = {
+      apiKey,
+      model: process.env.GEMINI_MODEL || DEFAULT_MODEL,
+      timeoutMs: Math.min(PROVIDER_TIMEOUT_MS, remaining),
+      signal: lifecycle.signal,
+    };
+    const outcome = await raceAbort(parseGemini(req, config), lifecycle.signal);
     return { kind: "ok", result: outcome.result, usage: outcome.usage, timing: timed() };
   } catch (error) {
-    if (request.signal?.aborted) return { kind: "disconnected" };
-    if (deadline.signal.aborted) return { kind: "failure", failure: transient(504, "PARSE_TIMEOUT", req.requestId), timing: timed() };
+    if (lifecycle.disconnected()) return { kind: "disconnected" };
+    if (lifecycle.timedOut()) return { kind: "failure", failure: transient(504, "PARSE_TIMEOUT", req.requestId), timing: timed() };
     return { kind: "failure", failure: providerFailure(error, req.requestId), timing: timed() };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
+/** Forwards the adapter's own `retryable` verdict (a permanent 4xx refusal is false); 502 is never retryable. */
 function providerFailure(error: unknown, requestId: string): Failure {
   if (error instanceof GeminiError) {
     return { status: error.status, code: error.code, requestId, retryable: error.retryable && RETRYABLE_STATUSES.has(error.status) };
