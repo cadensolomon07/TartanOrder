@@ -165,8 +165,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const onDraftChange = useCallback(
     (v: string) => {
       setInputMode("text");
-      if (phase === "reviewing" && !draftStarted && v.trim() !== "") {
-        controller.startInput(); // first edit of a reviewed order
+      // The first keystroke of a draft — in ANY editable phase — opens the
+      // typed-input lifecycle: startInput() cancels an in-flight parse (a late
+      // response can no longer apply), invalidates review/pending and holds
+      // `busy` so Review/Confirm stay blocked until the draft is submitted,
+      // discarded or erased. (A's first-intake correction on PR #2.)
+      if (!draftStarted && v.trim() !== "" && phase !== "committed") {
+        controller.startInput();
         setDraftStarted(true);
       } else if (draftStarted && v.trim() === "") {
         controller.endInput(); // erased the draft: release capture, do not strand Review
