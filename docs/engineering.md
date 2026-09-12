@@ -22,12 +22,14 @@ The controller owns capture, requests and cancellation. Starting input invalidat
 
 ## Evidence available to judges
 
-The corrected A/C integration has **359 passing automated tests** (including A's 92) and two skipped live-Gemini checks. It includes **1,000 generated sequences of up to 50 events, seed `20260912`**, with invalid/stale events. This is evidence, not formal proof. Fresh installation, typecheck, lint, production build and browser journeys passed; see the [runbook](runbook.md) and [integration record](integration.md).
+The A/C integration with its evaluation harness has **365 passing default tests** (including A's 92); eight optional checks skip without live Gemini/HTTP settings. The explicit deployed evaluation passed all 12 integrity checks. The engine runs **1,000 generated sequences of up to 50 events, seed `20260912`**, including invalid/stale events. This is evidence, not formal proof. Fresh installation, typecheck, lint, build and browser journeys passed; see the [integration record](integration.md).
 
 The deployed rules demo passed in a fresh logged-out browser: three items at $13.50 → double burger at $16.00 → undo at $13.50; second-burger ambiguity; input invalidating review; explicit confirmation. Typed ordering worked on a prebuilt local production server with physical Wi-Fi disabled. An actual downloaded audit reproduced the receipt without changing the page.
+
+On 36 labelled development cases, rules matched 12/12 expected carts and 24/24 clarification/rejection outcomes, with 5/5 labelled choices completing. On 24 separate adversarial cases, six outcomes differed from labels; none produced an unexpected accepted cart. These development results are not unseen-language accuracy. [Evaluation evidence](evaluation.md) keeps the denominators, transports and failures visible.
 
 ## Current limits and integration status
 
 Prices are illustrative, not official CMU prices. The seeded menu has three items and burger-only modifiers. Bounds: five lines, ten units, quantities 1–5, eight operations and one ambiguity per batch. State lives in browser memory; export/replay is neither persistence nor a tamper-proof ledger. Browser validation establishes prototype correctness, not production security.
 
-**At this checkpoint:** rules default; voice/review speech await B; Gemini remains unverified. C's corrected `6273955` passed review and local integration checks; the integration record tracks production verification. The evaluation harness is pending; no accuracy, latency or comparative-performance metrics are claimed. Fixture tests are labelled `fixture` and are not real parser success.
+**At this checkpoint:** C's corrected parser is live in rules mode; B's v1 voice/review-speech handoff awaits integration. Gemini remains unverified. The evaluation command is `npm run eval`; held-out cases have not run, and no voice or model-comparison performance is claimed. Fixture tests are labelled `fixture` and are not real parser success.
