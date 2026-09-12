@@ -45,7 +45,7 @@ export function InputBar(p: InputBarProps) {
 
   function submit() {
     p.onSubmit();
-    // The draft clears and Add disables; keep keyboard focus somewhere useful.
+    // The draft clears and Submit disables; keep keyboard focus somewhere useful.
     inputRef.current?.focus();
   }
 
@@ -71,7 +71,7 @@ export function InputBar(p: InputBarProps) {
             title={p.voiceActive ? "Stop — I’m done" : "Talk"}
             onClick={p.voiceActive ? p.onStopTalking : p.onTalk}
           >
-            <MicIcon />
+            {p.voiceActive ? <>■ <span>Stop — I’m done</span></> : <MicIcon />}
           </button>
         )}
         <label htmlFor="order-text" className={styles.srOnly}>
@@ -99,7 +99,7 @@ export function InputBar(p: InputBarProps) {
           disabled={p.voiceActive || p.draft.trim().length === 0}
           onClick={submit}
         >
-          Add
+          Submit
         </button>
         {(p.draft.length > 0 || p.draftOpen) && !p.voiceActive && (
           <button type="button" className={styles.secondaryBtn} data-testid="discard" onClick={p.onDiscard}>
@@ -128,7 +128,7 @@ export function InputBar(p: InputBarProps) {
         ) : p.lastTranscript ? (
           <span>Heard: “{p.lastTranscript}”</span>
         ) : (
-          <span className={styles.muted}>{p.hint ?? "Press the mic and speak, or type an order and press Add."}</span>
+          <span className={styles.muted}>{p.hint ?? "Press the mic and speak, or type a request and press Submit."}</span>
         )}
         {!p.voiceSupported && (
           <span className={styles.muted} data-testid="voice-unsupported">

@@ -62,7 +62,7 @@ export function CategoryRail({ locationId, value, onChange }: { locationId: Loca
 export function MenuButtons({ disabled, onOps, locationId = "demo", filter = "all", profile, onMealItem }: { disabled: boolean; onOps: (ops: Op[]) => void; locationId?: LocationId; filter?: MenuFilter; profile?: DietaryProfile; onMealItem?: (id: ItemId) => void }) {
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
-  const ids = ITEM_IDS.filter(id => MENU[id].locationId === locationId && [MENU[id].label, MENU[id].description, ...MENU[id].aliases].some(value => value.toLowerCase().includes(query)));
+  const ids = ITEM_IDS.filter(id => MENU[id].locationId === locationId && (filter === "all" || MENU[id].category === filter) && [MENU[id].label, MENU[id].description, ...MENU[id].aliases].some(value => value.toLowerCase().includes(query)));
   const previewItems = UNPRICED_MENU_ITEMS.filter(item => item.locationId === locationId);
   const previews = previewItems.filter(item => `${item.label} ${item.description}`.toLowerCase().includes(query));
   const shown = filter === "all" ? CATEGORIES : CATEGORIES.filter((c) => c.id === filter);
@@ -86,7 +86,7 @@ export function MenuButtons({ disabled, onOps, locationId = "demo", filter = "al
             <span className={styles.menuItemHeading}><span>{MENU[id].label}</span>{!blocked && <span className={styles.menuBtnPlus} aria-hidden="true">+</span>}</span>
             <span className={styles.menuVendor}>{locationName(locationId)}</span>
             {MENU[id].description !== GENERIC_DESCRIPTION && <span className={styles.menuDescription}>{MENU[id].description}</span>}
-            {hasRequirements && check && <span className={styles.menuDescription} data-testid={`compatibility-${id}`}><strong>{check.status === "match" ? "Matches recorded requirements" : check.status === "unknown" ? "Needs verification" : "Conflicts with requirements"}</strong>{check.status !== "match" && <> · {check.reasons.join(" ")}</>}</span>}
+            {hasRequirements && check && <span className={`${styles.menuCompatibility} ${check.status === "match" ? styles.menuMatch : styles.menuConflict}`} data-testid={`compatibility-${id}`}><strong>{check.status === "match" ? "Matches recorded requirements" : check.status === "unknown" ? "Needs verification" : "Conflicts with requirements"}</strong>{check.status !== "match" && <> · {check.reasons.join(" ")}</>}</span>}
             {!blocked && (onMealItem || preferenceConflict) && <span className={styles.menuDescription}>{preferenceConflict ? "Request a preference choice" : "Choose for meal"}</span>}
             <span className={styles.menuPrice}>{formatCents(MENU[id].priceCents)}</span>
           </span>

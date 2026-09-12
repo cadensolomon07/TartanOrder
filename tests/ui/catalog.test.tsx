@@ -79,6 +79,15 @@ describe("consolidated public catalog", () => {
     expect(onOps).not.toHaveBeenCalled();
   });
 
+  it("scopes dietary matches and exclusions to the chosen menu category", () => {
+    render(<MenuButtons locationId="demo" filter="sides" disabled={false} onOps={vi.fn()} profile={{ preference: "vegan", allergies: [], dislikes: [], exceptions: [] }} />);
+    expect(screen.getByTestId("menu-match-count").textContent).toContain("2 choices match");
+    expect(screen.getByTestId("excluded-menu").textContent).toContain("Inspect 1 conflicting");
+    expect(screen.getByTestId("compatibility-onion_rings").textContent).toContain("milk");
+    expect(screen.queryByTestId("menu-burger")).toBeNull();
+    expect(screen.queryByTestId("menu-water")).toBeNull();
+  });
+
   it("retains actual priced ADD actions and the internal no-argument Demo fixture", () => {
     const onOps = vi.fn();
     const { rerender } = render(<MenuButtons locationId="188" disabled={false} onOps={onOps} />);

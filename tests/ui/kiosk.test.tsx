@@ -146,6 +146,7 @@ describe("Kiosk (fake controller, mocked voice)", () => {
     // The same element is now the Stop control; nothing else re-enters talk().
     expect(screen.queryByTestId("talk")).toBeNull();
     expect(screen.getByTestId("stop-talk")).toBeTruthy();
+    expect(screen.getByTestId("stop-talk").textContent).toContain("Stop — I’m done");
     expect(ctrl().calls.filter((c) => c.fn === "startInput")).toHaveLength(1);
   });
 
@@ -209,6 +210,9 @@ describe("Kiosk (fake controller, mocked voice)", () => {
   it("committed shows ticket with simulated tag; New order resets", () => {
     const { ctrl } = mount(committedThree);
     expect(screen.getByTestId("ticket")).toBeTruthy();
+    expect(screen.getByTestId("ticket").textContent).toContain("sample price");
+    expect(screen.getByTestId("assistant-response").textContent).toContain("Nothing was purchased or sent");
+    expect(screen.queryByText(/Pick up at|Ready in about|Order placed/)).toBeNull();
     expect(screen.getByText("Simulated · no real purchase")).toBeTruthy();
     fireEvent.click(screen.getByTestId("new-order"));
     expect(ctrl().calls.at(-1)).toEqual({ fn: "reset" });

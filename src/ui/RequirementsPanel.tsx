@@ -19,7 +19,7 @@ export function RequirementsSummary({ requirements }: { requirements?: Requireme
     <div className={styles.summaryChips}>
       {meal && <><span>{meal.budgetCents === null ? "No menu budget" : `Menu budget ${formatCents(meal.budgetCents)}`}</span><span>{COMPONENTS.filter(component => meal.components.includes(component.id)).map(component => component.label).join(" + ")}</span>{meal.lockedItemIds.map(id => <span key={id}>Keep {MENU[id].label}</span>)}</>}
       {profile.preference !== "none" && <span>Preference: {profile.preference}</span>}
-      {profile.allergies.map(name => <span key={`allergy-${name}`}>Allergy: {name}</span>)}
+      {profile.allergies.map(name => <span className={styles.allergyChip} key={`allergy-${name}`}>Allergy: {name}</span>)}
       {profile.dislikes.map(name => <span key={`dislike-${name}`}>Dislike: {name}</span>)}
     </div>
   </section>;
@@ -74,7 +74,14 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
   return <section ref={panel} id="food-requirements" className={styles.panel} data-testid="requirements-panel" aria-label="Your food requirements">
     <div className={styles.heading}><h2>Your food requirements</h2><span>For this order</span></div>
     <p className={styles.note}>Preferences, allergies and dislikes stay separate. Changing them rechecks your cart; it does not silently remove food.</p>
+    {decision && <div className={styles.decision} data-testid="requirements-decision" role="group" aria-label="Choose how to continue">
+      <h3>Your choice</h3><p>{decision.message}</p>
+      {proposedTotal !== null && <div className={styles.proposal} data-testid="proposed-meal"><strong>Proposed · not applied</strong><ul>{decision.proposedLines.map(line => <li key={line.lineId}>{line.qty} × {MENU[line.itemId].label}{line.modifiers.length ? ` · ${line.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}</li>)}</ul><p>Proposed menu subtotal: <strong>{formatCents(proposedTotal)}</strong>. {proposedTotal === acceptedTotalCents ? "Same subtotal as your accepted cart." : `${formatCents(Math.abs(proposedTotal - acceptedTotalCents))} ${proposedTotal > acceptedTotalCents ? "more" : "less"} than your accepted cart (${formatCents(acceptedTotalCents)}).`}</p></div>}
+      {decision.minimumCents !== null && <p>Minimum subtotal for this proposed requirement set: {formatCents(decision.minimumCents)}.</p>}
+      <div className={styles.buttons}>{decision.choices.map(choice => <button key={choice.id} type="button" disabled={disabled || drafting} data-testid={`requirement-choice-${choice.id}`} onClick={() => onAction({ type: "DECIDE_REQUIREMENTS", pendingId: decision.id, revision: decision.revision, choiceId: choice.id })}>{choice.label}</button>)}</div>
+    </div>}
     <fieldset disabled={disabled} className={styles.controls}>
+      <div className={styles.preferenceRow}>
       <label className={styles.field}>Dietary preference
         <select disabled={drafting} data-testid="dietary-preference" value={profile.preference} onChange={event => change([{ type: "SET_DIETARY", preference: event.target.value as DietaryProfile["preference"] }])}>
           <option value="none">No dietary preference</option><option value="vegetarian">Vegetarian</option><option value="vegan">Vegan</option>
@@ -82,8 +89,9 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
       </label>
       <div className={styles.chips} aria-label="Active requirements">
         {profile.preference !== "none" && <button disabled={drafting} type="button" onClick={() => change([{ type: "SET_DIETARY", preference: "none" }])}>Preference: {profile.preference} ×</button>}
-        {profile.allergies.map(allergen => <button disabled={drafting} key={`allergy-${allergen}`} type="button" onClick={() => change([{ type: "REMOVE_ALLERGY", allergen }])}>Allergy: {allergen} ×</button>)}
+        {profile.allergies.map(allergen => <button className={styles.allergyChip} disabled={drafting} key={`allergy-${allergen}`} type="button" onClick={() => change([{ type: "REMOVE_ALLERGY", allergen }])}>Allergy: {allergen} ×</button>)}
         {profile.dislikes.map(ingredient => <button disabled={drafting} key={`dislike-${ingredient}`} type="button" onClick={() => change([{ type: "SET_DISLIKE", ingredient, enabled: false }])}>Dislike: {ingredient} ×</button>)}
+      </div>
       </div>
       <div className={styles.forms}>
         <form onSubmit={event => addNamed(event, "allergy")} className={styles.inlineForm}>
@@ -96,7 +104,7 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
           <button disabled={drafting && !dirtyFields.has("dislike")} type="submit" data-testid="add-dislike">Add dislike</button>
         </form>
       </div>
-      {drafting && <p className={styles.note} data-testid="requirements-draft">Apply this change, erase it, or <button type="button" data-testid="discard-requirements-draft" onClick={endDraft}>Discard this draft</button>. A new review is required afterward.</p>}
+      {drafting && <p className={styles.draftNote} data-testid="requirements-draft">Apply this change, erase it, or <button type="button" data-testid="discard-requirements-draft" onClick={endDraft}>Discard this draft</button>. A new review is required afterward.</p>}
       {profile.allergies.filter(name => /^(nut|nuts)$/i.test(name.trim())).map(name => <div key={name} className={styles.warning} data-testid="nuts-clarification">
         <p>Does “{name}” mean peanuts, tree nuts, or both? The restriction stays active until you clarify.</p>
         <div className={styles.buttons}>{[{ label: "Peanuts", to: ["peanut"] }, { label: "Tree nuts", to: ["tree nuts"] }, { label: "Both", to: ["peanut", "tree nuts"] }].map(choice => <button key={choice.label} disabled={drafting} type="button" onClick={() => change([{ type: "RESOLVE_ALLERGEN", from: name, to: choice.to }])}>{choice.label}</button>)}</div>
@@ -108,13 +116,15 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
       <label className={styles.mode}><input disabled={drafting} type="checkbox" data-testid="meal-mode" checked={Boolean(meal)} onChange={event => change([{ type: "SET_MEAL_MODE", enabled: event.target.checked }])} /> Build my meal <span>Optional · choose required parts and a budget</span></label>
       {meal && <div className={styles.meal}>
         <p className={styles.mealSummary} data-testid="meal-requirement-summary"><strong>{meal.budgetCents === null ? "No menu budget set" : `Menu budget ${formatCents(meal.budgetCents)}`}</strong><span>{COMPONENTS.filter(component => meal.components.includes(component.id)).map(component => component.label).join(" + ")}</span></p>
+        <div className={styles.mealControls}>
         <form onSubmit={setBudget} className={styles.inlineForm}>
           <label>Maximum menu subtotal ($)<input disabled={drafting && !dirtyFields.has("budget")} onChange={event => draft("budget", event.target.value, meal.budgetCents === null ? "" : (meal.budgetCents / 100).toFixed(2))} key={meal.budgetCents ?? "none"} name="budget" inputMode="decimal" defaultValue={meal.budgetCents === null ? "" : (meal.budgetCents / 100).toFixed(2)} placeholder="No limit" data-testid="meal-budget" /></label>
           <button disabled={drafting && !dirtyFields.has("budget")} type="submit" data-testid="apply-budget">Apply budget</button>
         </form>
+        <div className={styles.componentField}><span className={styles.fieldLabel}>Required meal parts</span><div className={styles.components} role="group" aria-label="Required meal parts">{COMPONENTS.map(component => <label key={component.id}><input type="checkbox" data-testid={`component-${component.id}`} checked={meal.components.includes(component.id)} disabled={drafting || (meal.components.length === 1 && meal.components.includes(component.id))} onChange={event => change([{ type: "SET_COMPONENTS", components: event.target.checked ? [...meal.components, component.id] : meal.components.filter(value => value !== component.id) }])} />{component.label}</label>)}</div></div>
+        </div>
         <p className={styles.note}>Menu prices only. Tax and fees are not included. You pay per item; this is not a meal-plan exchange.</p>
-        <div className={styles.components} role="group" aria-label="Required meal parts">{COMPONENTS.map(component => <label key={component.id}><input type="checkbox" data-testid={`component-${component.id}`} checked={meal.components.includes(component.id)} disabled={drafting || (meal.components.length === 1 && meal.components.includes(component.id))} onChange={event => change([{ type: "SET_COMPONENTS", components: event.target.checked ? [...meal.components, component.id] : meal.components.filter(value => value !== component.id) }])} />{component.label}</label>)}</div>
-        {requirements?.remainingCents !== null && requirements?.remainingCents !== undefined && <p data-testid="meal-remaining">{requirements.remainingCents >= 0 ? `${formatCents(requirements.remainingCents)} left in your menu budget` : `${formatCents(-requirements.remainingCents)} over your menu budget`}</p>}
+        {requirements?.remainingCents !== null && requirements?.remainingCents !== undefined && <p className={styles.remaining} data-testid="meal-remaining">{requirements.remainingCents >= 0 ? `${formatCents(requirements.remainingCents)} left in your menu budget` : `${formatCents(-requirements.remainingCents)} over your menu budget`}</p>}
         {meal.selections.length > 0 && <div className={styles.selections} aria-label="Requested meal items">{meal.selections.map(selection => <div key={selection.component}>
           <span>{meal.lockedItemIds.includes(selection.itemId) ? "Keep " : "Requested: "}{MENU[selection.itemId].label}{selection.modifiers.length ? ` · ${selection.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}</span>
           <button disabled={drafting} type="button" data-testid={`lock-${selection.itemId}`} onClick={() => change([meal.lockedItemIds.includes(selection.itemId) ? { type: "UNLOCK_ITEM", itemId: selection.itemId } : { type: "SELECT_ITEM", itemId: selection.itemId, modifiers: selection.modifiers, locked: true }])}>{meal.lockedItemIds.includes(selection.itemId) ? "Unlock" : "Lock item"}</button>
@@ -124,13 +134,7 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
       {profile.exceptions.length > 0 && <div className={styles.warning} aria-label="Explicit preference exceptions">{profile.exceptions.map(exception => <p key={`${exception.itemId}-${exception.modifiers.join()}`}>Exception: {MENU[exception.itemId].label}{exception.modifiers.length ? ` with ${exception.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}. Allergies still apply. <button disabled={drafting} type="button" onClick={() => change([{ type: "REMOVE_EXCEPTION", itemId: exception.itemId }])}>Remove exception</button></p>)}</div>}
     </fieldset>
     {formNotice && <p role="status">{formNotice}</p>}
-    {requirements?.message && <p className={styles.message} data-testid="requirements-message" role="status">{requirements.message}</p>}
-    {decision && <div className={styles.decision} data-testid="requirements-decision" role="group" aria-label="Choose how to continue">
-      <h3>Your choice</h3><p>{decision.message}</p>
-      {proposedTotal !== null && <div className={styles.proposal} data-testid="proposed-meal"><strong>Proposed · not applied</strong><ul>{decision.proposedLines.map(line => <li key={line.lineId}>{line.qty} × {MENU[line.itemId].label}{line.modifiers.length ? ` · ${line.modifiers.map(modifier => MODIFIERS[modifier].label).join(", ")}` : ""}</li>)}</ul><p>Proposed menu subtotal: <strong>{formatCents(proposedTotal)}</strong>. {proposedTotal === acceptedTotalCents ? "Same subtotal as your accepted cart." : `${formatCents(Math.abs(proposedTotal - acceptedTotalCents))} ${proposedTotal > acceptedTotalCents ? "more" : "less"} than your accepted cart (${formatCents(acceptedTotalCents)}).`}</p></div>}
-      {decision.minimumCents !== null && <p>Minimum subtotal for this proposed requirement set: {formatCents(decision.minimumCents)}.</p>}
-      <div className={styles.buttons}>{decision.choices.map(choice => <button key={choice.id} type="button" disabled={disabled || drafting} data-testid={`requirement-choice-${choice.id}`} onClick={() => onAction({ type: "DECIDE_REQUIREMENTS", pendingId: decision.id, revision: decision.revision, choiceId: choice.id })}>{choice.label}</button>)}</div>
-    </div>}
+    {requirements?.message && !decision && <p className={styles.message} data-testid="requirements-message" role="status">{requirements.message}</p>}
     {issues.length > 0 && <div className={styles.warning} data-testid="cart-requirement-issues"><h3>These cart items need attention</h3>{issues.map(check => {
       const line = lines.find(line => line.lineId === check.lineId);
       return <p key={check.lineId}><strong>{line ? MENU[line.itemId].label : "Cart item"} · {check.status === "unknown" ? "Needs verification" : "Conflicts with requirements"}</strong><br />{check.reasons.join(" ")}</p>;
@@ -142,6 +146,6 @@ export function RequirementsPanel({ requirements, lines, acceptedTotalCents, loc
       <p>Please check complete ingredients, preparation and cross-contact. No staff member has been contacted. This app cannot guarantee allergy safety or override missing evidence.</p>
       <a href={FOOD_GUIDANCE_URL} target="_blank" rel="noreferrer">FARE: questions about cross-contact</a>
     </details>}
-    <p className={styles.note}>Your requirements are held in this browser session. New order clears them. An explicit order-log download includes them; do not share that file unintentionally.</p>
+    <p className={styles.privacyNote}>Your requirements are held in this browser session. New order clears them. An explicit order-log download includes them; do not share that file unintentionally.</p>
   </section>;
 }
