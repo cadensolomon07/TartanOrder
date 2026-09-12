@@ -77,6 +77,22 @@ test("an unsupported phrase (18,000 lemonades under the bootstrap grammar) is re
   await expect(page.getByTestId("total")).toHaveText("$13.50");
 });
 
+test("an unsent typed draft during editing blocks Review (busy) until discarded or erased", async ({ page }) => {
+  await open(page);
+  await page.getByTestId("menu-fries").click();
+  await expect(page.getByTestId("total")).toHaveText("$3.00");
+  await expect(page.getByTestId("review")).toBeEnabled();
+  await page.getByTestId("text-input").fill("lemonade"); // begun, not submitted
+  await expect(page.getByTestId("review")).toBeDisabled();
+  await expect(page.getByTestId("badge-busy")).toHaveText("typing");
+  await page.getByTestId("discard").click();
+  await expect(page.getByTestId("review")).toBeEnabled();
+  await page.getByTestId("text-input").fill("l");
+  await expect(page.getByTestId("review")).toBeDisabled();
+  await page.getByTestId("text-input").fill(""); // erased
+  await expect(page.getByTestId("review")).toBeEnabled();
+});
+
 test("edit invalidates prior review; confirm needs a fresh review", async ({ page }) => {
   await open(page);
   await type(page, "a burger, fries and lemonade");
