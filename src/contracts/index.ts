@@ -23,7 +23,7 @@ export const CORE_CODES = [
   "OFF_MENU", "INVALID_MODIFIER", "QUANTITY_LIMIT", "CART_LIMIT",
   "AMBIGUOUS_REFERENCE", "UNKNOWN_REFERENCE", "STALE_RESPONSE", "INVALID_SCHEMA",
   "REVIEW_REQUIRED", "EMPTY_CART", "NO_UNDO", "NO_PENDING", "SESSION_COMMITTED",
-  "UNSUPPORTED",
+  "UNSUPPORTED", "STALE_OFFER",
 ] as const;
 
 export const HTTP_CODES = [
@@ -64,6 +64,60 @@ export const ModifiersSchema = z.array(ModifierIdSchema).max(ModifierIdSchema.op
     ctx.addIssue({ code: "custom", message: "A modifier may occur only once per unit." });
   }
 });
+
+const WaitMinutesSchema = z.number().finite().nonnegative();
+export const WaitTimeSnapshotSchema = z.strictObject({
+  id: IdSchema,
+  source: z.enum(["seeded", "api"]),
+  asOf: z.iso.datetime(),
+  waits: z.partialRecord(LocationIdSchema, WaitMinutesSchema.nullable()),
+});
+export type WaitTimeSnapshot = z.infer<typeof WaitTimeSnapshotSchema>;
+export const WaitEngineConfigSchema = z.strictObject({
+  snapshot: WaitTimeSnapshotSchema,
+  available: z.boolean(),
+  unavailableReason: MessageSchema.nullable(),
+  evaluatedAt: z.iso.datetime(),
+  groups: z.array(z.strictObject({
+    id: IdSchema,
+    itemIds: z.array(ItemIdSchema).min(2).max(10),
+    differences: z.partialRecord(ItemIdSchema, MessageSchema),
+  })).max(100),
+  nearbyPairs: z.array(z.strictObject({
+    vendors: z.tuple([LocationIdSchema, LocationIdSchema]),
+    sourceUrl: z.url().max(1000),
+    note: MessageSchema,
+  })).max(100),
+  swapThresholdMinutes: WaitMinutesSchema,
+  priceToleranceCents: CentsSchema,
+});
+export type WaitEngineConfig = z.infer<typeof WaitEngineConfigSchema>;
+export const WaitViewSchema = z.strictObject({
+  snapshotId: IdSchema,
+  source: z.enum(["seeded", "api"]),
+  asOf: z.iso.datetime(),
+  status: z.enum(["empty", "known", "unavailable"]),
+  estimateMinutes: WaitMinutesSchema.nullable(),
+  lineWaits: z.record(IdSchema, WaitMinutesSchema.nullable()),
+});
+export type WaitView = z.infer<typeof WaitViewSchema>;
+const SwapItemSchema = z.strictObject({
+  itemId: ItemIdSchema, vendorId: LocationIdSchema,
+  waitMinutes: WaitMinutesSchema, unitPriceCents: CentsSchema,
+});
+export const SwapOfferSchema = z.strictObject({
+  offerId: IdSchema, originalLineId: IdSchema, revision: RevisionSchema,
+  waitSnapshotId: IdSchema, quantity: QuantitySchema,
+  original: SwapItemSchema, alternative: SwapItemSchema,
+  retainedModifiers: ModifiersSchema, removedModifiers: ModifiersSchema,
+  differences: z.array(MessageSchema).max(12),
+  priceDifferenceCents: z.number().int(),
+  currentCartEstimateMinutes: WaitMinutesSchema.nullable(),
+  projectedCartEstimateMinutes: WaitMinutesSchema.nullable(),
+  itemWaitReductionMinutes: WaitMinutesSchema,
+  cartWaitReductionMinutes: WaitMinutesSchema.nullable(),
+});
+export type SwapOffer = z.infer<typeof SwapOfferSchema>;
 
 const LastRefSchema = z.strictObject({ by: z.literal("last") });
 const ItemRefSchema = z.strictObject({ by: z.literal("item"), itemId: ItemIdSchema });
@@ -229,6 +283,8 @@ export const UiActionSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("CLEAR") }),
   z.strictObject({ type: z.literal("REVIEW") }),
   z.strictObject({ type: z.literal("CONFIRM"), reviewId: IdSchema, revision: RevisionSchema }),
+  z.strictObject({ type: z.literal("ACCEPT_SWAP"), offerId: IdSchema, revision: RevisionSchema }),
+  z.strictObject({ type: z.literal("DECLINE_SWAP"), offerId: IdSchema }),
 ]);
 export type UiAction = z.infer<typeof UiActionSchema>;
 
@@ -257,11 +313,14 @@ export const OrderViewSchema = z.strictObject({
   receipt: ReceiptSchema.nullable(),
   totalCents: CentsSchema,
   audit: z.array(AuditEntrySchema),
+  wait: WaitViewSchema.optional(),
+  swapOffer: SwapOfferSchema.nullable().optional(),
 });
 export type OrderView = z.infer<typeof OrderViewSchema>;
 
 export const ExportLogSchema = z.strictObject({
   v: z.literal(API_VERSION), menuVersion: z.literal(MENU_VERSION), sessionId: IdSchema, audit: z.array(AuditEntrySchema),
+  waitConfig: WaitEngineConfigSchema.optional(),
 });
 export type ExportLog = z.infer<typeof ExportLogSchema>;
 

@@ -1,0 +1,128 @@
+{
+  "kind": "real-browser-gemini-seeded-waits",
+  "appUrl": "http://127.0.0.1:3000",
+  "recordedAt": "2026-09-12T14:25:36.015Z",
+  "voice": "Typed browser input; automated speech tests elsewhere are mocks.",
+  "waitSource": "seeded",
+  "retries": "None",
+  "requests": [
+    {
+      "text": "I'd like one Nashville Sandwich - Southern-style Fried Chicken, please.",
+      "status": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 2,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_188_nashville_sandwich_southern_style_fried_chicken",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "text": "Make that two.",
+      "status": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r2",
+        "baseRevision": 6,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "SET_QTY",
+              "ref": {
+                "by": "line",
+                "lineId": "r1:0"
+              },
+              "qty": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "text": "One fresh cut fries and one Nashville Sandwich - Southern-style Fried Chicken, please.",
+      "status": 200,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 2,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_188_fresh_cut_fries",
+              "qty": 1,
+              "modifiers": []
+            },
+            {
+              "type": "ADD",
+              "itemId": "cmu_188_nashville_sandwich_southern_style_fried_chicken",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "pageErrors": [],
+  "checkpoints": [
+    {
+      "name": "original",
+      "total": "$9.20",
+      "waitMinutes": 14,
+      "passed": true
+    },
+    {
+      "name": "accepted",
+      "total": "$9.99",
+      "waitMinutes": 4,
+      "passed": true
+    },
+    {
+      "name": "conversational edit of replacement",
+      "total": "$19.98",
+      "waitMinutes": 4,
+      "passed": true
+    },
+    {
+      "name": "undo quantity change",
+      "total": "$9.99",
+      "waitMinutes": 4,
+      "passed": true
+    },
+    {
+      "name": "multi-item original",
+      "total": "$12.65",
+      "waitMinutes": 14,
+      "passed": true
+    },
+    {
+      "name": "faster item, unchanged whole-cart estimate",
+      "total": "$13.44",
+      "waitMinutes": 14,
+      "passed": true
+    }
+  ],
+  "receipt": "Order placed\nSimulated · no real purchase\n\nTicket 1hk33hr:receipt:8\n\n1× Fried Chicken Sandwich · The Grill at Scotty's\n$9.99 · published menu price\nEstimated preparation wait: 4 min. Simulated wait times\nTotal\n$9.99\n\nEstimated preparation wait: 4 min Simulated wait times\n\nUses the maximum vendor wait, assuming parallel preparation. Excludes walking and pickup travel.\n\nNew order\n\nPublished or sample menu prices only; no tax or meal-plan discounts applied. Nothing was sent to a dining location.",
+  "passed": true
+}

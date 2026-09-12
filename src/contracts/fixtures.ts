@@ -1,4 +1,22 @@
-import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, type ParseResponse } from "./index";
+import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, WaitEngineConfigSchema, SwapOfferSchema, type ParseResponse } from "./index";
+import seedWaits from "../../config/wait-times.seed.json";
+import equivalents from "../../config/equivalents.json";
+
+export const WAIT_FIXTURE_CONFIG = WaitEngineConfigSchema.parse({
+  snapshot: seedWaits, available: true, unavailableReason: null,
+  evaluatedAt: "2026-09-12T14:00:00.000Z", ...equivalents,
+  swapThresholdMinutes: 5, priceToleranceCents: 100,
+});
+export const WAIT_FIXTURE_OFFER = SwapOfferSchema.parse({
+  offerId: "fixture-swap", originalLineId: "wait-order:0", revision: 2,
+  waitSnapshotId: seedWaits.id, quantity: 2,
+  original: { itemId: "cmu_188_nashville_sandwich_southern_style_fried_chicken", vendorId: "188", waitMinutes: 14, unitPriceCents: 920 },
+  alternative: { itemId: "cmu_109_fried-chicken-sandwich", vendorId: "109", waitMinutes: 4, unitPriceCents: 999 },
+  retainedModifiers: [], removedModifiers: [],
+  differences: Object.values(equivalents.groups[0].differences),
+  priceDifferenceCents: 158, currentCartEstimateMinutes: 14,
+  projectedCartEstimateMinutes: 4, itemWaitReductionMinutes: 10, cartWaitReductionMinutes: 10,
+});
 
 /** Demonstration data is explicitly labelled fixture, never reported as live parsing. */
 export const FIXTURE_REQUEST = ParseRequestSchema.parse({

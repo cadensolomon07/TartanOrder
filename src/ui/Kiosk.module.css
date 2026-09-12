@@ -150,6 +150,23 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.swapOffer {
+  border: 2px solid var(--red);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0 0 20px;
+  background: var(--cream);
+  font-size: 16px;
+}
+.swapOffer h3 { margin: 0 0 10px; color: var(--red-dark); font-size: 19px; }
+.swapOffer p { margin: 9px 0; }
+.swapOffer ul { padding-left: 22px; }
+.swapActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.swapActions button { flex: 1 1 180px; }
+.waitSource { display: inline-block; color: var(--red-dark); font-size: 12px; font-weight: 600; }
+.lineWait { display: block; color: var(--ink-soft); font-size: 13px; margin-top: 5px; }
+.waitEstimate { border-top: 1px solid var(--rule); margin-top: 14px; padding-top: 12px; font-size: 16px; }
+.waitEstimate p { margin: 4px 0; }
 .menu { min-width: 0; }
 .menuCategory + .menuCategory { margin-top: 22px; }
 .categoryTitle {

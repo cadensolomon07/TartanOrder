@@ -158,3 +158,14 @@ A second deployed browser check also passed the $13.50 → $16.00 → undo journ
 B/C received their temporary files with `1676b3d`. Subsequent integrations added the HTTP client, cancellation-aware fallback, grammar, provider validation, kiosk/voice and `npm run eval`. Historical rules development/adversarial evaluations are documented in [evaluation.md](evaluation.md); their counts are not Gemini accuracy. Default evaluation does not use the network; `EVAL_BASE_URL` opts into an HTTP target. Keep held-out evaluation separate and do not tune on it after inspection.
 
 Remaining release gate: collect the actual human microphone observations above. The current browser-offline backup has passed; rehearse recovery on the demo laptop before presenting. Record exact deployed SHA/URL and results before claiming completion. Cut optional import/replay UI and presentation effects before weakening atomicity or confirmation.
+
+
+## Wait demonstration recovery
+
+`WAIT_TIME_MODE=seeded` is the default server-only setting. It loads fixed, labelled simulated waits; no live queue feed exists in the verified dining API. Leave this setting for the demo. Setting `api` explicitly produces unavailable waits and no suggestions, never an automatic seeded/live substitution.
+
+Refresh the public kiosk after release, keep Stack’d Underground selected, and order “a Nashville sandwich.” If Gemini is unavailable, open Engineering, enable Local only, and type the exact published label “Nashville Sandwich - Southern-style Fried Chicken” or use its menu button. The menu button and wait offer work without a network once the page is loaded. Accept Switch to The Grill at Scotty’s; the single-item total becomes $9.99 and simulated preparation estimate becomes 4 min. Undo restores $9.20 / 14 min. Keep it or starting another input dismisses the offer. New order starts a clean session.
+
+For a multi-item demonstration, add Fresh Cut Fries at Stack’d first, then the Nashville sandwich. The switch raises the total from $12.65 to $13.44, while the whole-cart preparation estimate stays 14 min because the fries remain at Stack’d. This excludes walking and pickup travel. Unknown vendor waits make the complete estimate unavailable.
+
+If the network or provider fails, use the already-built local production server and Local only/menu buttons. Do not rebuild while that server is serving the demo. Keep the previous verified production deployment available for Vercel rollback. Export the engineering log to retain the fixed wait configuration and exact swap actions; replay remains a detached simulation. Nothing is dispatched to a real restaurant.

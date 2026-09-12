@@ -5,6 +5,7 @@ import {
   AuditEventSchema,
   ExportLogSchema,
   IdSchema,
+  WaitEngineConfigSchema,
   type AuditEntry,
   type AuditEvent,
   type Choice,
@@ -14,8 +15,10 @@ import {
   type OrderView,
   type Ref,
   type UiAction,
+  type WaitEngineConfig,
 } from "@/contracts";
 import { MENU, MODIFIERS } from "@/contracts/menu";
+import { deriveWaitView, swapCandidates } from "./waits";
 
 type CartSnapshot = { lines: Line[]; lastLineId: string | null };
 type PendingContext = { requestId: string };
@@ -31,6 +34,8 @@ export type EngineState = {
   readonly continuation: { pending: NonNullable<OrderView["pending"]>; requestId: string } | null;
   readonly lastOutcome: Outcome;
   readonly lastCode: string | null;
+  readonly waitConfig?: WaitEngineConfig;
+  readonly suppressedLineIds: readonly string[];
 };
 
 type Failure = { kind: "error"; code: CoreCode };
@@ -60,8 +65,9 @@ function derivedId(state: EngineState, kind: string, number: number): string {
   return `${sessionKey(state.view.sessionId)}:${kind}:${number}`;
 }
 
-export function createEngine(sessionId: string): EngineState {
+export function createEngine(sessionId: string, config?: WaitEngineConfig): EngineState {
   IdSchema.parse(sessionId);
+  const waitConfig = config === undefined ? undefined : WaitEngineConfigSchema.parse(clone(config));
   return {
     view: {
       sessionId,
@@ -74,6 +80,7 @@ export function createEngine(sessionId: string): EngineState {
       receipt: null,
       totalCents: 0,
       audit: [],
+      ...(waitConfig ? { wait: deriveWaitView([], waitConfig), swapOffer: null } : {}),
     },
     history: [],
     seenRequestIds: [],
@@ -81,18 +88,31 @@ export function createEngine(sessionId: string): EngineState {
     continuation: null,
     lastOutcome: "applied",
     lastCode: null,
+    ...(waitConfig ? { waitConfig } : {}),
+    suppressedLineIds: [],
   };
 }
 
 export function getView(state: EngineState): OrderView {
-  return clone(state.view);
+  return clone(state.waitConfig ? { ...state.view, wait: deriveWaitView(state.view.lines, state.waitConfig) } : state.view);
 }
 
 function snapshot(state: EngineState): CartSnapshot {
   return { lines: clone(state.view.lines), lastLineId: state.view.lastLineId };
 }
 
-function invalidate(state: EngineState): EngineState {
+function dismissOffer(state: EngineState): EngineState {
+  if (!state.waitConfig) return state;
+  const lineId = state.view.swapOffer?.originalLineId;
+  return {
+    ...state,
+    suppressedLineIds: lineId ? [...new Set([...state.suppressedLineIds, lineId])] : state.suppressedLineIds,
+    view: { ...state.view, swapOffer: null },
+  };
+}
+
+function invalidate(original: EngineState): EngineState {
+  const state = dismissOffer(original);
   return {
     ...state,
     pendingContext: null,
@@ -114,6 +134,7 @@ function finish(state: EngineState, event: AuditEvent, outcome: Outcome, code: A
     lastCode: code,
     view: {
       ...state.view,
+      ...(state.waitConfig ? { wait: deriveWaitView(state.view.lines, state.waitConfig) } : {}),
       audit: [...state.view.audit, {
         seq: state.view.audit.length + 1,
         event: clone(event),
@@ -247,7 +268,16 @@ function applyBatch(state: EngineState, event: AuditEvent, ops: Op[], requestId:
   if (result.kind === "clarify") {
     return finish(enterPending(state, requestId, result.question, result.choices), event, "clarify", "AMBIGUOUS_REFERENCE");
   }
-  return finish(installCart(state, result.cart, [...state.history, before]), event, "applied");
+  let installed = installCart(state, result.cart, [...state.history, before]);
+  if (state.waitConfig) {
+    const addedIds = result.cart.lines.filter(line => !before.lines.some(previous => previous.lineId === line.lineId) && !state.suppressedLineIds.includes(line.lineId)).map(line => line.lineId);
+    const candidate = swapCandidates(result.cart.lines, state.waitConfig, addedIds)[0];
+    if (candidate) installed = {
+      ...installed,
+      view: { ...installed.view, swapOffer: { ...candidate, offerId: derivedId(installed, "swap", state.view.audit.length + 1), revision: installed.view.revision } },
+    };
+  }
+  return finish(installed, event, "applied");
 }
 
 function reduceUi(state: EngineState, event: AuditEvent & { type: "UI" }, action: UiAction): EngineState {
@@ -277,13 +307,35 @@ function reduceUi(state: EngineState, event: AuditEvent & { type: "UI" }, action
     }, event, "applied");
   }
   if (state.view.phase === "committed") return finish(state, event, "rejected", "SESSION_COMMITTED");
+  if (action.type === "DECLINE_SWAP") {
+    if (!state.view.swapOffer || state.view.swapOffer.offerId !== action.offerId) return finish(state, event, "rejected", "STALE_OFFER");
+    return finish(dismissOffer(state), event, "applied");
+  }
+  if (action.type === "ACCEPT_SWAP") {
+    const offer = state.view.swapOffer;
+    const next = invalidate(state);
+    if (!state.waitConfig || !offer || state.view.phase !== "editing" || offer.offerId !== action.offerId ||
+        offer.revision !== action.revision || state.view.revision !== action.revision ||
+        offer.waitSnapshotId !== state.waitConfig.snapshot.id || state.suppressedLineIds.includes(offer.originalLineId)) {
+      return finish(next, event, "rejected", "STALE_OFFER");
+    }
+    const candidate = swapCandidates(state.view.lines, state.waitConfig, [offer.originalLineId]).find(candidate => candidate.alternative.itemId === offer.alternative.itemId);
+    if (!candidate || JSON.stringify({ ...candidate, offerId: offer.offerId, revision: offer.revision }) !== JSON.stringify(offer)) {
+      return finish(next, event, "rejected", "STALE_OFFER");
+    }
+    const lines = state.view.lines.map(line => line.lineId === offer.originalLineId
+      ? { ...line, itemId: offer.alternative.itemId, modifiers: [...offer.retainedModifiers] }
+      : clone(line));
+    return finish(installCart(next, { lines, lastLineId: offer.originalLineId }, [...state.history, snapshot(state)]), event, "applied");
+  }
   if (action.type === "REVIEW") {
     if (state.view.pending) return finish(state, event, "rejected", "AMBIGUOUS_REFERENCE");
     if (state.view.lines.length === 0) return finish(state, event, "rejected", "EMPTY_CART");
+    const reviewed = dismissOffer(state);
     return finish({
-      ...state,
+      ...reviewed,
       view: {
-        ...state.view,
+        ...reviewed.view,
         phase: "reviewing",
         review: {
           id: derivedId(state, "review", state.view.revision),
@@ -369,13 +421,14 @@ export function exportLog(state: EngineState): string {
     menuVersion: MENU_VERSION,
     sessionId: state.view.sessionId,
     audit: state.view.audit,
+    ...(state.waitConfig ? { waitConfig: state.waitConfig } : {}),
   }, null, 2);
 }
 
 /** Offline reconstruction only: no controller, recognition, API, or live order. */
 export function replayLog(json: string): OrderView {
   const log = ExportLogSchema.parse(JSON.parse(json));
-  let state = createEngine(log.sessionId);
+  let state = createEngine(log.sessionId, log.waitConfig);
   for (const entry of log.audit) {
     if (entry.seq !== state.view.audit.length + 1) throw new Error("INVALID_SCHEMA: audit sequence is not contiguous.");
     state = reduceEngine(state, entry.event);

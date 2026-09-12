@@ -2,11 +2,13 @@ import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, Loc
 import { createEngine, reduceEngine, getView, exportLog } from "@/core/engine";
 import { interpret } from "@/parser/client";
 import { MENU, MODIFIERS, fullItemLabel, locationName, itemsForLocation } from "@/contracts/menu";
+import type { WaitEngineConfig } from "@/contracts";
 
 type Dependencies = {
   interpret?: (request:ParseRequest, options:InterpretOptions)=>Promise<ParseResponse>;
   sessionId?: ()=>string;
   locationId?: LocationId;
+  waitConfig?: WaitEngineConfig;
 };
 const messages:Record<string,string> = {
   INVALID_SCHEMA:"That edit did not match the order format. Your cart was not changed.",
@@ -16,6 +18,7 @@ const messages:Record<string,string> = {
   UNKNOWN_REFERENCE:"That item is not in your cart. Select a cart row or add it first.",
   AMBIGUOUS_REFERENCE:"Choose the cart item you meant.",
   STALE_RESPONSE:"An outdated response was ignored.",
+  STALE_OFFER:"That alternative is no longer active. Your cart was not changed.",
   REVIEW_REQUIRED:"Review the current order before confirming it.",
   EMPTY_CART:"Add something to your cart first.",
   NO_UNDO:"There are no earlier cart edits to restore.",
@@ -29,7 +32,7 @@ const messages:Record<string,string> = {
 export function createOrderController(deps:Dependencies = {}) {
   const makeSession = deps.sessionId ?? (()=>crypto.randomUUID());
   const parse = deps.interpret ?? interpret;
-  let engine = createEngine(makeSession());
+  let engine = createEngine(makeSession(), deps.waitConfig);
   let capture = false;
   let localOnly = false;
   let locationId = LocationIdSchema.parse(deps.locationId ?? "demo");
@@ -111,6 +114,9 @@ export function createOrderController(deps:Dependencies = {}) {
     }
   }
   function act(action:UiAction) {
+    if(action.type === "ACCEPT_SWAP" && (capture || active)) {
+      notice=messages.STALE_OFFER;publish();return;
+    }
     if((action.type==="REVIEW"||action.type==="CONFIRM")&&(capture||active)){
       notice="Finish or cancel the current input before reviewing or confirming.";publish();return;
     }
@@ -120,7 +126,13 @@ export function createOrderController(deps:Dependencies = {}) {
     const before=getView(engine);
     dispatch({type:"UI",action});
     if(engine.lastOutcome === "clarify")answer(getView(engine).pending?.question ?? "Which item did you mean?");
-    else if(engine.lastOutcome === "applied" && action.type !== "REVIEW" && action.type !== "CONFIRM")answer(describeChanges(before,getView(engine),[]));
+    else if(engine.lastOutcome === "applied" && action.type === "DECLINE_SWAP")answer("Keeping your current item. Is there anything else I can get you?");
+    else if(engine.lastOutcome === "applied" && action.type !== "REVIEW" && action.type !== "CONFIRM") {
+      // Wait recommendations stay out of the model's conversation context.
+      // Only the accepted food/vendor change is remembered.
+      if(action.type === "ACCEPT_SWAP" && before.swapOffer)locationId=before.swapOffer.alternative.vendorId;
+      answer(describeChanges(before,getView(engine),[]));
+    }
     else if(engine.lastOutcome === "rejected" && notice)answer(notice);
     publish();
   }
@@ -132,7 +144,7 @@ export function createOrderController(deps:Dependencies = {}) {
     publish();
   }
   function reset() {
-    cancel();capture=false;engine=createEngine(makeSession());parser="none";notice=null;assistant=null;conversation=[];publish();
+    cancel();capture=false;engine=createEngine(makeSession(), deps.waitConfig);parser="none";notice=null;assistant=null;conversation=[];publish();
   }
   function setLocation(value: LocationId) {
     if(value === locationId)return;
@@ -169,7 +181,7 @@ export function describeChanges(before: OrderView, after: OrderView, notices: Or
   const removed=before.lines.filter(line=>!after.lines.some(next=>next.lineId===line.lineId));
   const changed=after.lines.filter(line=>{
     const old=before.lines.find(old=>old.lineId===line.lineId);
-    return old && (old.qty!==line.qty || [...old.modifiers].sort().join()!==[...line.modifiers].sort().join());
+    return old && (old.itemId!==line.itemId || old.qty!==line.qty || [...old.modifiers].sort().join()!==[...line.modifiers].sort().join());
   });
   const parts:string[]=[];
   if(added.length)parts.push(`I added ${joinWords(added.map(describeLine))}.`);

@@ -3,7 +3,7 @@
 // controller.act; every sentence goes through controller.submit; the UI never
 // mutates state or calls an API itself.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Op, OrderController, UiAction, LocationId } from "@/contracts";
 import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useSpeaking, useTtsAvailable } from "@/voice/tts";
@@ -19,6 +19,8 @@ import { EngineeringPanel } from "./EngineeringPanel";
 import { useChangedLines } from "./useChangedLines";
 import { reviewToSpeech } from "./reviewSpeech";
 import { formatCents } from "./labels";
+import { WaitEstimate } from "./WaitEstimate";
+import { SwapOfferPanel, swapOfferToSpeech } from "./SwapOfferPanel";
 import { DEMO_DISCLOSURE, CAMPUS_DISCLOSURE, itemsForLocation } from "@/contracts/menu";
 
 export type KioskProps = {
@@ -77,6 +79,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const tts = useTtsAvailable();
   const speaking = useSpeaking();
   const changed = useChangedLines(state.lines);
+  const spokenOffers = useRef(new Set<string>());
+  const offer = phase === "editing" && state.wait ? state.swapOffer : null;
+  const offerSpeech = offer && state.wait ? swapOfferToSpeech(offer, state.wait.source) : null;
+  const offerSpeechId = offer ? `${state.sessionId}:${offer.offerId}` : null;
 
   // ---- voice -----------------------------------------------------------
   const speech = useSpeech({
@@ -154,7 +160,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       // response can no longer apply), invalidates review/pending and holds
       // `busy` so Review/Confirm stay blocked until the draft is submitted,
       // discarded or erased. (A's first-intake correction on PR #2.)
-      if (!draftStarted && v.trim() !== "" && phase !== "committed") {
+      if (!draftStarted && (v.trim() !== "" || (offer && v !== "")) && phase !== "committed") {
         cancelSpeech();
         controller.startInput();
         setDraftStarted(true);
@@ -164,7 +170,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       }
       setDraft(v);
     },
-    [controller, phase, draftStarted],
+    [controller, phase, draftStarted, offer],
   );
 
   const submitDraft = useCallback(() => {
@@ -239,15 +245,39 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   // Read only the accepted controller reply or the exact immutable review.
   // A new input, mode switch, reset, or unmount cancels the old utterance.
-  const replyId = phase === "committed" ? undefined : phase === "reviewing" ? state.review?.id : assistant?.id;
+  const replyId = phase === "committed" ? undefined : phase === "reviewing" ? state.review?.id : offerSpeechId ?? assistant?.id;
   const replyText = phase === "committed" ? undefined : phase === "reviewing" && state.review
     ? reviewToSpeech(state.review)
-    : assistant?.text;
+    : [assistant?.text, offerSpeech].filter(Boolean).join(" ");
+  const abortCapture = speech.abort;
+  const endCapture = controller.endInput;
   useEffect(() => {
-    if (readReplies && !busy && !speech.active && replyText) speak(replyText);
-    else cancelSpeech();
+    // A final capture normally ends before an offer arrives. Enforce that
+    // boundary here too: an offer must never play into an active microphone.
+    if (offerSpeechId && speech.active) {
+      abortCapture();
+      endCapture();
+      return cancelSpeech;
+    }
+    if (!readReplies || busy || speech.active || !replyText) {
+      cancelSpeech();
+      return cancelSpeech;
+    }
+    if (offerSpeechId) {
+      // Queue only offer playback so React's development effect replay can
+      // cancel the first setup before speaking. Ack + offer is one utterance.
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled && !spokenOffers.current.has(offerSpeechId)) {
+          spokenOffers.current.add(offerSpeechId);
+          speak(replyText);
+        }
+      });
+      return () => { cancelled = true; cancelSpeech(); };
+    }
+    speak(replyText);
     return cancelSpeech;
-  }, [replyId, replyText, readReplies, busy, speech.active]);
+  }, [replyId, replyText, readReplies, busy, speech.active, abortCapture, endCapture, offerSpeechId]);
 
   // ---- derived ---------------------------------------------------------
   // busy covers capture + draft + parsing; only the last one is "working on" text.
@@ -287,7 +317,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
       {phase === "committed" && state.receipt ? (
         <main className={styles.main}>
-          <Ticket receipt={state.receipt} onNewOrder={newOrder} />
+          <Ticket receipt={state.receipt} onNewOrder={newOrder} wait={state.wait} />
         </main>
       ) : (
         <main className={styles.main}>
@@ -301,6 +331,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
               <p className={styles.assistantReply} data-testid="assistant-response" aria-live="polite">
                 {assistant?.text || "What sounds good? Tell me your order, or choose from the menu."}
               </p>
+              {offer && state.wait && <SwapOfferPanel offer={offer} source={state.wait.source} disabled={busy || speech.active} onAction={act} />}
             <InputBar
               example={locationId === "demo" ? undefined : itemsForLocation(locationId)[0] ? `Try: “one ${itemsForLocation(locationId)[0].label}”. Include the item’s name and size.` : "Choose a location with published prices to add food, or edit items already in your cart."}
               draft={draft}
@@ -342,6 +373,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
                 onConfirm={confirm}
                 onReadAloud={readAloud}
                 ttsAvailable={tts}
+                wait={state.wait}
               />
             ) : (
               <section className={styles.cartPanel}>
@@ -352,7 +384,9 @@ export function Kiosk({ controller, replay }: KioskProps) {
                   changed={changed}
                   editable={editable}
                   onOps={manual}
+                  wait={state.wait}
                 />
+                <WaitEstimate wait={state.wait} />
                 <div className={styles.cartFooter}>
                   <span className={styles.total}>
                     Total <strong data-testid="total">{formatCents(state.totalCents)}</strong>

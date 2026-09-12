@@ -1,8 +1,9 @@
 "use client";
-import type { Line, Op, ItemId } from "@/contracts";
+import type { Line, Op, ItemId, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, modifiersFor } from "./labels";
 import { LinePrice } from "./LinePrice";
+import { WaitEstimate } from "./WaitEstimate";
 
 export type CartProps = {
   lines: Line[];
@@ -10,6 +11,7 @@ export type CartProps = {
   changed: Set<string>;
   editable: boolean;
   onOps: (ops: Op[]) => void;
+  wait?: WaitView;
 };
 
 // "Burger (line 2)" when the same item appears more than once, so the
@@ -22,7 +24,7 @@ export function lineLabel(lines: Line[], line: Line): string {
   return `${base} (line ${n})`;
 }
 
-export function Cart({ lines, lastLineId, changed, editable, onOps }: CartProps) {
+export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: CartProps) {
   if (lines.length === 0) {
     return (
       <div className={styles.emptyCart} data-testid="cart-empty">
@@ -54,6 +56,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps }: CartProps)
               </span>
             </div>
             <LinePrice line={line} />
+            <WaitEstimate wait={wait} lineId={line.lineId} />
             {line.modifiers.length > 0 && (
               <div className={styles.rowMods}>
                 {line.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}

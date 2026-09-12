@@ -253,3 +253,53 @@ Initial complete gates passed typecheck, lint, build, **528 default tests / 20 o
 The [local real-browser evidence](../evals/runs/campus-browser-gemini-2026-09-12T07-46-33-814Z.json) passed 13 cases with **14 real HTTP/Gemini requests**, no retries/fallback and zero page errors: one correctly priced item per imported location, plus a two-item Stack'd order, follow-up quantity correction, Undo, review and explicit simulated receipt. This is typed browser evidence, not a new microphone accuracy claim. The user reports prior live microphone success; a new campus spoken trial remains a human check. Reproduce deliberately with `npm run test:campus:live` against the prebuilt local server; `CAMPUS_APP_URL` selects another owned deployment. The command makes real provider requests and records a dated report.
 
 Deployment verification follows publication. Remaining coverage blocker: authoritative item prices and resolved configurations for the unpriced locations/omitted items; the API alone cannot supply them. No real purchase, dispatch, tax, stock or meal-plan calculation was added.
+
+
+## Deterministic wait milestone — September 12, 10:21 a.m. EDT
+
+The user authorized this addition and whole-project integration. API 2 and the published menu version stay unchanged. The exact strict schemas and inferred types live only in `src/contracts/index.ts`; `src/contracts/waits.ts` reexports them. Existing logs without optional wait configuration still replay with the previous view shape. Gemini operations are unchanged and cannot generate a swap.
+
+Shared shapes:
+
+```ts
+WaitTimeSnapshot = { id, source: "seeded" | "api", asOf, waits: Partial<Record<LocationId, number | null>> }
+WaitEngineConfig = {
+  snapshot: WaitTimeSnapshot, available: boolean, unavailableReason: string | null,
+  evaluatedAt: string,
+  groups: { id, itemIds: ItemId[], differences: Partial<Record<ItemId, string>> }[],
+  nearbyPairs: { vendors: [LocationId, LocationId], sourceUrl, note }[],
+  swapThresholdMinutes: number, priceToleranceCents: number
+}
+WaitView = {
+  snapshotId, source, asOf, status: "empty" | "known" | "unavailable",
+  estimateMinutes: number | null, lineWaits: Record<string, number | null>
+}
+SwapOffer = {
+  offerId, originalLineId, revision, waitSnapshotId, quantity,
+  original: { itemId, vendorId, waitMinutes, unitPriceCents },
+  alternative: { itemId, vendorId, waitMinutes, unitPriceCents },
+  retainedModifiers, removedModifiers, differences,
+  priceDifferenceCents, currentCartEstimateMinutes, projectedCartEstimateMinutes,
+  itemWaitReductionMinutes, cartWaitReductionMinutes
+}
+UiAction += { type: "ACCEPT_SWAP", offerId, revision } | { type: "DECLINE_SWAP", offerId }
+OrderView += { wait?: WaitView, swapOffer?: SwapOffer | null }
+ExportLog += { waitConfig?: WaitEngineConfig }
+```
+
+All objects are strict; IDs retain the 100-character bound, quantities 1–5, prices integer cents, and waits finite/nonnegative. Dates are ISO strings. A missing vendor value means unknown. Whole-cart estimates/reductions are nullable when any contributing wait is unknown. The signed price difference is for the full line quantity. `STALE_OFFER` is the new rejection code. Shared `WAIT_FIXTURE_CONFIG` and `WAIT_FIXTURE_OFFER` are explicitly test data; the offer fixture uses two sandwiches and +158 cents.
+
+`loadWaitConfiguration()` in `src/waits/config.server.ts` runs outside the engine. The server page injects it through `OrderApp` → `useOrderController(locationId, waitConfig)` → `createOrderController({waitConfig})` → `createEngine(sessionId, config)`. A session retains that fixed configuration; export records it and replay loads it without API, clock, voice or live-session actions. API snapshot freshness is evaluated against recorded `evaluatedAt` with a five-minute bound, including rejection of future timestamps. The seeded fixture is deliberately labelled simulated and is not represented as a recent measured queue.
+
+Only successful ADDs select one curated alternative. Accept revalidates the offer/revision/snapshot/item and replaces the row atomically with the same line ID/quantity. It updates the selected vendor and subsequent actual cart context. No wait data or offer wording enters Gemini context. New input/cart edits/review dismiss offers; declined/dismissed/accepted rows are suppressed for the session. Undo restores the prior cart and its fixed-snapshot estimate. The UI displays engine values and combines acknowledgment/offer in one speech request; speech tests remain mocks.
+
+The seed demonstrates Stack’d Nashville sandwich (920 cents, 14 minutes) → The Grill at Scotty’s fried chicken sandwich (999 cents, 4 minutes), disclosing that Scotty’s toppings/bread/portion are unspecified. The second pair is the explicitly listed 12 oz latte at La Prima Gates → Wean, 500 cents each. Nearby pairs are curated from verified directory coordinates, with no walking-time claim. More detail: [wait-data.md](wait-data.md). Full integration and public release results follow below.
+
+
+### Wait release checks
+
+Final source typecheck and lint passed; **577 default tests passed / 20 opt-in checks skipped**. The existing 1,000 generated sequences (up to 50 events, seed `20260912`) remain green. Wait coverage includes 22 engine cases, 12 provider cases, strict contracts, controller context synchronization and 10 UI cases. The full production browser suite passed **24/24**, including both actual invocations of mocked HTTP 503 fallback and the new browser-offline wait swap/Undo/receipt. A final whitespace-only dismissal correction and plain-language price label were covered by focused UI tests, followed by final full unit/type/lint checks and rebuild/relevant browser checks. The correction dismisses on the first space and releases capture when erased.
+
+The [real local Gemini wait journey](../evals/runs/waits-browser-gemini-2026-09-12T14-25-36-014Z.json) passed three actual HTTP requests without retries or fallback: the exact southern-style Nashville sandwich, “Make that two” after accepting Scotty’s replacement, and a combined fries/sandwich order. It verified $9.20/14 min → $9.99/4 min, correct conversational quantity changes, Undo, review and explicit receipt, plus the multi-item $12.65 → $13.44 case whose whole-cart estimate remains 14 min. Export includes the fixed wait configuration and swap actions. Desktop/mobile were inspected; no page errors or horizontal overflow occurred. These are typed provider checks; human microphone success remains the user's reported observation, not automated speech accuracy evidence.
+
+Reproduce the deliberate live check with `npm run test:waits:live`; set `WAITS_APP_URL=https://tartan-order.vercel.app` for a fresh public browser. It requires actual Gemini responses and records a dated JSON report, screenshots and exported audit. This command incurs real provider requests; default CI uses explicit fixtures/rules instead. Public deployment is verified separately after publication.

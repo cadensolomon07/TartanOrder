@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef } from "react";
-import type { Receipt } from "@/contracts";
+import type { Receipt, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
 import { LinePrice } from "./LinePrice";
+import { WaitEstimate } from "./WaitEstimate";
 
-export function Ticket({ receipt, onNewOrder }: { receipt: Receipt; onNewOrder: () => void }) {
+export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewOrder: () => void; wait?: WaitView }) {
   // Focus the heading, NOT the reset button: a repeated Enter after Confirm
   // must not wipe the receipt before anyone reads it.
   const heading = useRef<HTMLHeadingElement>(null);
@@ -32,6 +33,7 @@ export function Ticket({ receipt, onNewOrder }: { receipt: Receipt; onNewOrder: 
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
               <LinePrice line={l} />
+              <WaitEstimate wait={wait} lineId={l.lineId} />
             </span>
           </li>
         ))}
@@ -40,6 +42,7 @@ export function Ticket({ receipt, onNewOrder }: { receipt: Receipt; onNewOrder: 
         <span>Total</span>
         <span>{formatCents(receipt.totalCents)}</span>
       </div>
+      <WaitEstimate wait={wait} />
       <button type="button" className={styles.primaryBtn} data-testid="new-order" onClick={onNewOrder}>
         New order
       </button>

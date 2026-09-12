@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef } from "react";
-import type { Review } from "@/contracts";
+import type { Review, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
 import { LinePrice } from "./LinePrice";
+import { WaitEstimate } from "./WaitEstimate";
 
 export type ReviewProps = {
   review: Review;
@@ -11,9 +12,10 @@ export type ReviewProps = {
   onConfirm: (reviewId: string, revision: number) => void;
   onReadAloud: () => void;
   ttsAvailable: boolean;
+  wait?: WaitView;
 };
 
-export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAvailable }: ReviewProps) {
+export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAvailable, wait }: ReviewProps) {
   // The Review button that was focused has just unmounted; land focus here.
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -33,6 +35,7 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
               <LinePrice line={l} />
+              <WaitEstimate wait={wait} lineId={l.lineId} />
             </span>
           </li>
         ))}
@@ -41,6 +44,7 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
         <span>Total</span>
         <span data-testid="review-total">{formatCents(review.totalCents)}</span>
       </div>
+      <WaitEstimate wait={wait} />
       <div className={styles.reviewActions}>
         {ttsAvailable && (
           <button type="button" className={styles.secondaryBtn} onClick={onReadAloud}>

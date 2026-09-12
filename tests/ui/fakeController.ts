@@ -72,7 +72,7 @@ export function makeFake(
       }
       fake.busy = true;
       fake.assistant = null;
-      fake.set({ review: null, pending: null, phase: "editing", revision: fake.state.revision + 1 });
+      fake.set({ review: null, pending: null, swapOffer: null, phase: "editing", revision: fake.state.revision + 1 });
     },
     endInput() {
       fake.calls.push({ fn: "endInput" });
@@ -95,7 +95,7 @@ export function makeFake(
     reset() {
       fake.calls.push({ fn: "reset" });
       fake.assistant = null;
-      fake.set({ ...EMPTY, sessionId: `s${fake.calls.length}` });
+      fake.set({ ...EMPTY, wait: undefined, swapOffer: null, sessionId: `s${fake.calls.length}` });
     },
     exportLog() {
       fake.calls.push({ fn: "exportLog" });

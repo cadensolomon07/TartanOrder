@@ -1,7 +1,9 @@
-"use client";
-import { useOrderController } from "@/controller/useOrderController";
-import { Kiosk } from "@/ui/Kiosk";
-export default function Home() {
-  const controller = useOrderController("188");
-  return <Kiosk controller={controller} />;
+import { OrderApp } from "@/controller/OrderApp";
+import { loadWaitConfiguration } from "@/waits/config.server";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const waitConfig = await loadWaitConfiguration();
+  return <OrderApp waitConfig={waitConfig} />;
 }
