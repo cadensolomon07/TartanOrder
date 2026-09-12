@@ -44,6 +44,7 @@ export function createOrderController(deps:Dependencies = {}) {
   const dispatch = (event:Parameters<typeof reduceEngine>[1])=>{
     engine=reduceEngine(engine,event);
     notice=engine.lastCode ? messages[engine.lastCode] ?? engine.lastCode : null;
+    if(engine.lastCode==="AMBIGUOUS_REFERENCE"&&engine.lastOutcome==="rejected")notice="Select a cart row or split the request into one edit at a time.";
   };
   function startInput() {
     if (getView(engine).phase==="committed") { notice=messages.SESSION_COMMITTED;publish();return; }
@@ -80,12 +81,14 @@ export function createOrderController(deps:Dependencies = {}) {
     if((action.type==="REVIEW"||action.type==="CONFIRM")&&(capture||active)){
       notice="Finish or cancel the current input before reviewing or confirming.";publish();return;
     }
-    if(action.type!=="REVIEW"&&action.type!=="CONFIRM"){cancel();capture=false;}
+    // A menu edit cancels parsing; an existing microphone/text draft remains
+    // active until its owner explicitly ends or submits it.
+    if(action.type!=="REVIEW"&&action.type!=="CONFIRM")cancel();
     dispatch({type:"UI",action});publish();
   }
   function setLocalOnly(value:boolean) {
     if(localOnly===value)return;
-    localOnly=value;cancel();capture=false;
+    localOnly=value;cancel();
     if(getView(engine).phase!=="committed")dispatch({type:"INPUT_STARTED"});
     notice=value?"Local rules selected. Typed ordering works without internet.":"Parser connection enabled; availability depends on the parser handoff.";
     publish();

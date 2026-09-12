@@ -12,7 +12,7 @@ Pull the bootstrap on main before working. Preserve teammate changes. A integrat
 
 ## Bootstrap stub handoff
 
-**B/C files are handed over as soon as the bootstrap is pushed (before minute 30).** A will stop editing them at that handoff.
+**B/C files were handed over with bootstrap `1676b3d` around Friday 10 p.m., within 10 minutes of this session's start.** A stopped editing these files at handoff. That SHA is on main and the initial three work branches.
 
 - B receives `src/ui/Kiosk.tsx` and `tests/e2e/starter.spec.ts`. This temporary kiosk supports typed ordering, manual ADD/remove, undo/clear, choices, review/confirm, new order, audit export, and local-mode control. It has no voice implementation.
 - C receives `src/parser/client.ts`, `src/parser/rules.ts`, and `src/app/api/interpret/route.ts`. The starter client always uses the small local rules grammar, even with Local only unchecked. The route uses the same rules. This is real rule parsing, not fixture substitution. Gemini is not verified or enabled. Extend the grammar and implement the promised HTTP/fallback deadlines in C's files.
@@ -40,7 +40,11 @@ The page only composes the controller and Kiosk. B must call `startInput()` at m
 
 Core exports from `src/core/engine.ts`: `createEngine(sessionId)`, `reduceEngine(state,event)`, `getView(state)`, `exportLog(state)`, `replayLog(json)`, `totalCents(lines)`. Replay returns a detached view and never calls recognition/API or a live controller. Core has no time/random/network calls. The controller supplies IDs and owns cancellation; transport responses failing active-request identity are discarded before the engine. Engine guards revisions, duplicates and menu version. Mode switches invalidate review/request state.
 
-All IDs are at most100 characters. Generated ADD IDs must also satisfy this limit: requests whose derived line IDs overflow are rejected atomically. Real controller IDs are short. Manual replay IDs derive from session and recorded audit sequence. Browser validation is prototype correctness, not a production security boundary.
+All IDs are at most 100 characters. Generated ADD IDs must also satisfy this limit: requests whose derived line IDs overflow are rejected atomically. Real controller IDs are short. Manual replay IDs derive from session and recorded audit sequence. Browser validation is prototype correctness, not a production security boundary.
+
+The first A correctness follow-up constrains reject codes to `CORE_CODES`, fallback/API codes to `HTTP_CODES`, and audit codes to their union. This enforces V1's existing rule that new codes require an A contract change. No operations or fields were added. Update from main before the first consumer handoff.
+
+Capture stays active across manual edits and mode changes until B calls `endInput()` or `submit()`. A menu click cancels parsing but cannot silently finish a draft/microphone capture. Review/confirm stay blocked during capture. Transport responses rejected before admission never mutate the cart and do not enter the replay audit, since V1 has no transport lifecycle event. Malformed manual payloads invalidate review through a canonical `INPUT_STARTED` audit event; malformed data cannot enter the strict V1 audit.
 
 ## Handoff checklist
 

@@ -149,6 +149,16 @@ describe("shared strict contract V1", () => {
   });
 });
 
+describe("agreed V1 codes", () => {
+  it("rejects new parser, fallback, API, and audit codes until the contract is updated", () => {
+    expect(ParseResultSchema.safeParse({kind:"reject",code:"INVENTED",message:"No."}).success).toBe(false);
+    expect(ModelParseResultSchema.safeParse({kind:"reject",code:"RATE_LIMITED",message:"No."}).success).toBe(false);
+    expect(ParseResponseSchema.safeParse({...FIXTURE_RESPONSE,fallbackReason:"INVENTED"}).success).toBe(false);
+    expect(ApiErrorSchema.safeParse({v:1,requestId:null,error:{code:"INVENTED",message:"No.",retryable:false}}).success).toBe(false);
+    expect(AuditEntrySchema.safeParse({...audit,code:"INVENTED"}).success).toBe(false);
+  });
+});
+
 describe("authoritative seeded menu", () => {
   it("has exactly the specified illustrative prices and aliases", () => {
     expect(Object.keys(MENU)).toEqual(["burger", "fries", "lemonade"]);

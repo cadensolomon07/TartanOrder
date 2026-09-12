@@ -47,7 +47,7 @@ export const RevisionSchema = z.number().int().nonnegative();
 export const QuantitySchema = z.number().int().min(1).max(LIMITS.quantity);
 export const MessageSchema = z.string().min(1).max(LIMITS.messageChars);
 export const LabelSchema = z.string().min(1).max(LIMITS.labelChars);
-const CodeSchema = z.string().min(1).max(LIMITS.labelChars);
+const CodeSchema = z.enum([...CORE_CODES, ...HTTP_CODES]);
 const CentsSchema = z.number().int().nonnegative();
 
 export const ModifiersSchema = z.array(ModifierIdSchema).max(3).superRefine((modifiers, ctx) => {
@@ -112,7 +112,7 @@ const ModelChoicesSchema = z.array(ModelChoiceSchema).min(1).max(LIMITS.choices)
 export const ParseResultSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("proposal"), ops: OpsSchema }),
   z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ChoicesSchema }),
-  z.strictObject({ kind: z.literal("reject"), code: CodeSchema, message: MessageSchema }),
+  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema }),
 ]);
 export type ParseResult = z.infer<typeof ParseResultSchema>;
 
@@ -120,7 +120,7 @@ export type ParseResult = z.infer<typeof ParseResultSchema>;
 export const ModelParseResultSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("proposal"), ops: ModelOpsSchema }),
   z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ModelChoicesSchema }),
-  z.strictObject({ kind: z.literal("reject"), code: CodeSchema, message: MessageSchema }),
+  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema }),
 ]);
 
 export const ParseRequestSchema = z.strictObject({
@@ -140,7 +140,7 @@ export const ParseResponseSchema = z.strictObject({
   baseRevision: RevisionSchema,
   menuVersion: z.literal(MENU_VERSION),
   parser: z.enum(["gemini", "rules", "fixture"]),
-  fallbackReason: CodeSchema.nullable(),
+  fallbackReason: HttpCodeSchema.nullable(),
   result: ParseResultSchema,
 });
 export type ParseResponse = z.infer<typeof ParseResponseSchema>;
@@ -148,7 +148,7 @@ export type ParseResponse = z.infer<typeof ParseResponseSchema>;
 export const ApiErrorSchema = z.strictObject({
   v: z.literal(API_VERSION),
   requestId: RequestIdSchema.nullable(),
-  error: z.strictObject({ code: CodeSchema, message: MessageSchema, retryable: z.boolean() }),
+  error: z.strictObject({ code: HttpCodeSchema, message: MessageSchema, retryable: z.boolean() }),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 

@@ -103,7 +103,7 @@ function invalidate(state: EngineState): EngineState {
   };
 }
 
-function finish(state: EngineState, event: AuditEvent, outcome: Outcome, code: string | null = null): EngineState {
+function finish(state: EngineState, event: AuditEvent, outcome: Outcome, code: AuditEntry["code"] = null): EngineState {
   return {
     ...state,
     lastOutcome: outcome,
@@ -274,7 +274,7 @@ function reduceUi(state: EngineState, event: AuditEvent & { type: "UI" }, action
   }
   if (state.view.phase === "committed") return finish(state, event, "rejected", "SESSION_COMMITTED");
   if (action.type === "REVIEW") {
-    if (state.view.pending) return finish(state, event, "rejected", "NO_PENDING");
+    if (state.view.pending) return finish(state, event, "rejected", "AMBIGUOUS_REFERENCE");
     if (state.view.lines.length === 0) return finish(state, event, "rejected", "EMPTY_CART");
     return finish({
       ...state,
@@ -293,7 +293,9 @@ function reduceUi(state: EngineState, event: AuditEvent & { type: "UI" }, action
   if (action.type === "CHOOSE") {
     const pending = state.view.pending;
     const context = state.pendingContext;
-    if (!pending || pending.id !== action.pendingId || !context) return finish(state, event, "rejected", "NO_PENDING");
+    if (!pending || pending.id !== action.pendingId || !context) {
+      return finish(state.view.review ? invalidate(state) : state, event, "rejected", "NO_PENDING");
+    }
     const choice = pending.choices.find((candidate) => candidate.id === action.choiceId);
     if (!choice) return finish(state, event, "rejected", "NO_PENDING");
     return applyBatch(invalidate(state), event, choice.ops, context.requestId);
