@@ -23,11 +23,19 @@ export type CatalogIndex = {
   locationName(locationId: string): string;
   /** Demo items show their label only; campus items add their counter name. */
   fullItemLabel(itemId: string): string;
-  /** Public shortlist in display order (activeRank ascending). */
+  /** Ranked shortlist in display order (activeRank ascending). */
   readonly activeLocations: readonly CatalogLocation[];
   readonly activeLocationIds: readonly string[];
+  /**
+   * Locations the public kiosk may order from: the ranked shortlist plus the
+   * fictional Demo Counter, which is deliberately orderable for the meal and
+   * ingredient demonstration while staying out of the ranked list.
+   */
+  readonly publicLocationIds: readonly string[];
   readonly itemIds: readonly string[];
 };
+
+const DEMO_LOCATION_ID = "demo";
 
 const EMPTY_ITEMS: readonly CatalogItem[] = Object.freeze([]);
 const EMPTY_PREVIEWS: readonly CatalogPreview[] = Object.freeze([]);
@@ -46,6 +54,11 @@ export function indexCatalog(catalog: Catalog): CatalogIndex {
   const activeLocations = Object.freeze(
     catalog.locations.filter((location) => location.activeRank !== null).sort((a, b) => (a.activeRank ?? 0) - (b.activeRank ?? 0)),
   );
+  const activeLocationIds = Object.freeze(activeLocations.map((location) => location.id));
+  const publicLocationIds = Object.freeze([
+    ...activeLocationIds,
+    ...(locations.has(DEMO_LOCATION_ID) && !activeLocationIds.includes(DEMO_LOCATION_ID) ? [DEMO_LOCATION_ID] : []),
+  ]);
   const locationName = (locationId: string) => locations.get(locationId)?.name ?? "Unknown location";
   const index: CatalogIndex = {
     catalog,
@@ -58,10 +71,11 @@ export function indexCatalog(catalog: Catalog): CatalogIndex {
     fullItemLabel: (itemId) => {
       const item = items.get(itemId);
       if (!item) return itemId;
-      return item.locationId === "demo" ? item.label : `${item.label} · ${locationName(item.locationId)}`;
+      return item.locationId === DEMO_LOCATION_ID ? item.label : `${item.label} · ${locationName(item.locationId)}`;
     },
     activeLocations,
-    activeLocationIds: Object.freeze(activeLocations.map((location) => location.id)),
+    activeLocationIds,
+    publicLocationIds,
     itemIds: Object.freeze(catalog.items.map((item) => item.id)),
   };
   INDEXES.set(catalog, index);
@@ -70,24 +84,33 @@ export function indexCatalog(catalog: Catalog): CatalogIndex {
 
 /** Stack'd stays the kiosk default while it is active; a catalog without it falls back to its first ranked location. */
 export function defaultLocationFor(menu: CatalogIndex): string {
-  return menu.activeLocationIds.includes(KIOSK_DEFAULT_LOCATION_ID) ? KIOSK_DEFAULT_LOCATION_ID : menu.activeLocationIds[0] ?? "demo";
+  return menu.activeLocationIds.includes(KIOSK_DEFAULT_LOCATION_ID) ? KIOSK_DEFAULT_LOCATION_ID : menu.activeLocationIds[0] ?? DEMO_LOCATION_ID;
 }
 
 function buildPublicParseRequestSchema(catalog: Catalog) {
   const menu = indexCatalog(catalog);
-  const active = new Set(menu.activeLocationIds);
-  const activeItems = new Set(catalog.items.filter((item) => active.has(item.locationId)).map((item) => item.id));
+  const publicLocations = new Set(menu.publicLocationIds);
+  const publicItems = new Set(catalog.items.filter((item) => publicLocations.has(item.locationId)).map((item) => item.id));
   const defaultLocationId = defaultLocationFor(menu);
-  // Public HTTP accepts only the active shortlist. Internal parser/core fixtures
+  // Public HTTP accepts only the public locations. Internal parser/core fixtures
   // retain the wider archive; no request field can enable it.
   return ParseRequestSchema.extend({
-    locationId: LocationIdSchema.refine((id) => active.has(id), "Location is not in the active catalog.").default(defaultLocationId),
+    locationId: LocationIdSchema.refine((id) => publicLocations.has(id), "Location is not in the public catalog.").default(defaultLocationId),
   }).superRefine((request, ctx) => {
+    const requirements = request.context?.requirements;
     const ids = [
       ...(request.context?.lines.map((line) => line.itemId) ?? []),
+      ...(requirements?.profile.exceptions.map((value) => value.itemId) ?? []),
+      ...(requirements?.meal?.selections.map((value) => value.itemId) ?? []),
+      ...(requirements?.meal?.lockedItemIds ?? []),
+      ...(requirements?.decision?.proposedLines.map((value) => value.itemId) ?? []),
+      ...(requirements?.decision?.proposedMeal?.selections.map((value) => value.itemId) ?? []),
       ...(request.context?.pending?.choices.flatMap((choice) => choice.ops.flatMap((op) => op.type === "ADD" ? [op.itemId] : "ref" in op && op.ref.by === "item" ? [op.ref.itemId] : [])) ?? []),
     ];
-    if (ids.some((id) => !activeItems.has(id))) ctx.addIssue({ code: "custom", message: "Cart context contains an item outside the active campus catalog." });
+    const locations = [requirements?.locationId, requirements?.meal?.locationId, requirements?.decision?.nextLocationId, requirements?.decision?.proposedMeal?.locationId]
+      .filter((value): value is string => value !== undefined);
+    if (locations.some((id) => !publicLocations.has(id))) ctx.addIssue({ code: "custom", message: "Requirement context contains a restaurant outside the active catalog." });
+    if (ids.some((id) => !publicItems.has(id))) ctx.addIssue({ code: "custom", message: "Cart context contains an item outside the active campus catalog." });
   });
 }
 
@@ -99,9 +122,13 @@ export type CatalogGuard = {
   readonly defaultLocationId: string;
   isItem(id: string): boolean;
   isLocation(id: string): boolean;
+  /** Ranked shortlist membership. */
   isActiveLocation(id: string): boolean;
-  /** An item is orderable over public HTTP only at an active location. */
   isActiveItem(id: string): boolean;
+  /** Public membership: the ranked shortlist plus the Demo Counter. */
+  isPublicLocation(id: string): boolean;
+  /** An item is orderable over public HTTP only at a public location. */
+  isPublicItem(id: string): boolean;
   readonly publicParseRequestSchema: PublicParseRequestSchema;
 };
 
@@ -112,6 +139,7 @@ export function catalogGuard(catalog: Catalog): CatalogGuard {
   if (cached) return cached;
   const menu = indexCatalog(catalog);
   const active = new Set(menu.activeLocationIds);
+  const publicLocations = new Set(menu.publicLocationIds);
   const guard: CatalogGuard = {
     catalog,
     defaultLocationId: defaultLocationFor(menu),
@@ -119,6 +147,8 @@ export function catalogGuard(catalog: Catalog): CatalogGuard {
     isLocation: (id) => menu.location(id) !== undefined,
     isActiveLocation: (id) => active.has(id),
     isActiveItem: (id) => { const item = menu.item(id); return item !== undefined && active.has(item.locationId); },
+    isPublicLocation: (id) => publicLocations.has(id),
+    isPublicItem: (id) => { const item = menu.item(id); return item !== undefined && publicLocations.has(item.locationId); },
     publicParseRequestSchema: buildPublicParseRequestSchema(catalog),
   };
   GUARDS.set(catalog, guard);

@@ -82,7 +82,7 @@ export function campusAdditionAmbiguity(req: ParseRequest, catalog: Catalog): Pa
 }
 
 /** Ignore only intrinsic menu-name numbers; an explicit leading quantity remains. */
-export function guardCampusQuantities(req: ParseRequest, catalog: Catalog): Rejection | null {
+export function guardCampusQuantities(req: ParseRequest, catalog: Catalog, maximum: number = LIMITS.quantity): Rejection | null {
   const menu = indexCatalog(catalog);
   const items = [
     ...menu.itemsForLocation(req.locationId ?? "demo"),
@@ -104,7 +104,7 @@ export function guardCampusQuantities(req: ParseRequest, catalog: Catalog): Reje
     const units = unit.startsWith("oz") || unit.startsWith("ounce") ? "(?:oz|ounces?)" : "pieces?";
     text = text.replace(new RegExp(`(?<![\\d.,-])${escapePattern(value)}\\s*${units}\\b`, "g"), "menu size");
   }
-  return guardExplicitQuantities(text);
+  return guardExplicitQuantities(text, maximum);
 }
 
 function escapePattern(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

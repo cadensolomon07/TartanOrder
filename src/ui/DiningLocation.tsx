@@ -14,6 +14,7 @@ export function DiningLocation({ locationId, onChange }: { locationId: LocationI
       <optgroup label="CMU dining locations">
         {menu.activeLocations.map((location) => <option key={location.id} value={location.id}>{location.name}{menu.itemsForLocation(location.id).length ? "" : " — ordering unavailable"}</option>)}
       </optgroup>
+      {menu.publicLocationIds.includes("demo") && <optgroup label="Fictional meal demo"><option value="demo">Demo Counter · fictional recipes</option></optgroup>}
     </select>
     {selected ? <>
       <p className={styles.muted}>{selected.location}</p>
@@ -25,6 +26,6 @@ export function DiningLocation({ locationId, onChange }: { locationId: LocationI
         {selected.detailUrl && <a href={selected.detailUrl} target="_blank" rel="noreferrer">CMU location details</a>}
         <a href={snapshot.sourceRepository} target="_blank" rel="noreferrer">Directory by ScottyLabs</a>
       </div>
-    </> : <p className={styles.muted}>Choose a campus dining location from the list.</p>}
+    </> : locationId === "demo" ? <p className={styles.muted} data-testid="price-source">Fictional recipes and illustrative prices for trying meal and dietary requirements. These do not describe any real kitchen. Defined September 12, 2026.</p> : <p className={styles.muted}>Choose a campus dining location from the list.</p>}
   </section>;
 }

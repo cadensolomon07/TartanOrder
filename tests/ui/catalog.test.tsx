@@ -27,12 +27,13 @@ const mount = (node: React.ReactNode) => render(withCatalog(node, "bundled", cat
 afterEach(cleanup);
 
 describe("consolidated public catalog", () => {
-  it("shows exactly the eleven requested locations in order, without Demo or archive entries", () => {
+  it("preserves the eleven requested locations and separates the explicit fictional demo", () => {
     const onChange = vi.fn();
     mount(<DiningLocation locationId="110" onChange={onChange} />);
     const options = screen.getAllByRole("option") as HTMLOptionElement[];
-    expect(options.map(option => option.value)).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"]);
-    expect(screen.queryByRole("option", { name: /Demo Counter|La Prima|El Gallo/ })).toBeNull();
+    expect(options.map(option => option.value)).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108", "demo"]);
+    expect(screen.queryByRole("option", { name: /La Prima|El Gallo/ })).toBeNull();
+    expect(screen.getByRole("group", { name: "Fictional meal demo" })).toBeTruthy();
     fireEvent.change(screen.getByTestId("dining-location"), { target: { value: "82" } });
     expect(onChange).toHaveBeenCalledWith("82");
   });

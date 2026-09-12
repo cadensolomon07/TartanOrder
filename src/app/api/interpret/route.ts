@@ -299,8 +299,19 @@ function deliver(
     return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
   }
   const accepted = envelope.data.result;
-  const ops = accepted.kind === "proposal" ? accepted.ops : accepted.kind === "clarify" ? accepted.choices.flatMap(choice => choice.ops) : [];
-  if (ops.some((op) => op.type === "ADD" && !guard.isActiveItem(op.itemId))) {
+  // Every item id anywhere in the accepted result (ops, refs, requirement changes) must belong
+  // to a public location of the loaded catalog; requirement locations likewise.
+  const itemIds: string[] = [];
+  const collectIds = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(collectIds); return; }
+    if (value && typeof value === "object") for (const [key, child] of Object.entries(value)) {
+      if (key === "itemId" && typeof child === "string") itemIds.push(child);
+      else collectIds(child);
+    }
+  };
+  collectIds(accepted);
+  const foreignRequirementLocation = accepted.kind === "requirements" && (accepted.locationId !== req.locationId || accepted.changes.some(change => change.type === "SWITCH_LOCATION" && !guard.isPublicLocation(change.locationId)));
+  if (foreignRequirementLocation || itemIds.some((itemId) => !guard.isPublicItem(itemId))) {
     return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
   }
   const shadow = shadowAgreement(req, envelope.data.result, guard.catalog);
@@ -390,7 +401,7 @@ function serverTiming(timing: Timing): string {
 function emitLog(input: LogInput): void {
   const line = {
     event: "interpret",
-    requestId: input.requestId,
+    // Caller-supplied identifiers can contain personal details; do not log them.
     mode: input.mode,
     outcome: input.outcome,
     code: input.code,

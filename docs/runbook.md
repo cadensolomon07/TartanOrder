@@ -1,16 +1,28 @@
 # Demo and release runbook
 
-## Current consolidated campus menu — September 12
+## Current meal and dietary milestone — September 12
 
-The consolidated menu uses API 3 / catalog version `cmu-shortlist-2026-09-12`, loaded from the Supabase project and shown in the kiosk header as `Menu: Supabase · cmu-shortlist-2026-09-12`. Choose a location with the **Order from** list; the initial location is **Stack’d Underground**. Only the eleven requested venues are selectable. Eight have 237 published fixed-price configurations; Au Bon Pain, Capital Grains and Schatz display unavailable previews until complete prices are verified. Hunan's main entrées also remain previews because the included-side choices are unresolved. Prices come from dated published PDFs, not a live register. Details and omissions: [dining-data.md](dining-data.md).
+The consolidated menu uses API 3 / catalog version `cmu-meal-2026-09-12`, loaded from the Supabase project and shown in the kiosk footer badges as `Menu: Supabase · cmu-meal-2026-09-12`; the ranked campus shortlist and the fictional Demo Counter are the selectable locations. Details and omissions: [dining-data.md](dining-data.md).
+
+The catalog version `cmu-meal-2026-09-12` retains the eleven selected campus venues and adds a separate **Demo Counter · fictional recipes** for the requested meal/recipe demonstration. The complete script is [meal-demo.md](meal-demo.md). Start with “I have twelve dollars. Get me a main, a side, and a drink. Keep the fries and lemonade.” The calculated accepted subtotal is $12. Requesting chicken proposes $14 while preserving the accepted meal; only an explicit current choice raises the budget. Review and confirm a simulated receipt.
+
+Dietary preferences, dislikes and allergies also apply to ordinary ordering. Real campus ingredients and preparation remain unknown; a published name/price is not allergy evidence. The staff summary is on screen only and contacts nobody. The Demo recipes/preparation are fictional. Budgets exclude uncalculated taxes and fees.
+
+**Meal recovery:** on the prebuilt local server, select **Engineering → Local only**, then use Build my meal, budget/component controls, menu cards and decision buttons. The new browser-offline check completed a $12 vegan meal through review and receipt with zero interpret requests. This disables browser networking, not the physical Wi-Fi adapter. Complex conversational meal requests require Gemini; manual controls are the dependable offline path. Finish or discard budget/allergy/dislike drafts before review. Cancelling capture restores fresh pending-decision buttons, never an old review. Undo restores the meal/cart while retaining the current dietary profile; **New order** clears profile and conversation. Explicit exported logs contain requirements and must not be casually shared.
+
+Current candidate checks: 697 default tests passed, 29 opt-in checks skipped; typecheck, lint and production build passed. Nine real Gemini adapter cases and the seven-request complete local browser journey passed without fallback. These are synthetic typed checks, not a new human microphone trial. Publication/CI evidence is reported separately; older release entries below are historical.
+
+## Consolidated campus menu
+
+The campus menu contains the eleven requested venues. Choose a location with the **Order from** list; the initial location is **Stack’d Underground**. Eight have 237 published fixed-price configurations; Au Bon Pain, Capital Grains and Schatz display unavailable previews until complete prices are verified. Hunan's main entrées also remain previews because the included-side choices are unresolved. Prices come from dated published PDFs, not a live register. Details and omissions: [dining-data.md](dining-data.md).
 
 Demo path: press **Talk**, say “One Smash’d Burger and fresh cut fries,” then **Stop — I’m done**. With a successful Gemini response the total should be **$12.65**. Review lists the location, items and prices; **Confirm simulated order** creates a receipt without sending anything. Use exact names and sizes when several variants are offered. No newly recorded campus microphone success is claimed until a person performs this test.
 
 Recovery: select **Engineering → Local only**, then type `a smashd burger` and submit; type `fresh cut fries` and submit separately. Expect $12.65, then review and confirm. Campus local rules accept one exact menu item/quantity per input plus remove, quantity edits and undo; menu buttons also work offline. The prebuilt local server at http://127.0.0.1:3000 remains the offline fallback. Discard unfinished text or cancel capture before review. **New order** clears a committed session; changing location keeps existing cart items and cancels unfinished input/review.
 
-The original Demo Counter and other restaurants have been removed from public selection and new orders. Earlier videos and evidence use that archived catalog; do not present them as the current demo or proof of campus prices. Export logs are catalog-version-bound: earlier `demo-v2` and `cmu-published-2026-09-12` logs are rejected rather than repriced. `npm run dining:check` checks directory links/PDF bytes without changing the released catalog.
+Restaurants outside the shortlist remain unavailable in public selection and new orders. The separate fictional Demo Counter is restored only for the new meal demonstration, with explicit recipe provenance; it is not a campus restaurant. Earlier videos do not prove current campus prices. Export logs are catalog-version-bound: earlier `demo-v2` and `cmu-published-2026-09-12` logs are rejected rather than repriced. `npm run dining:check` checks directory links/PDF bytes without changing the released catalog.
 
-The notes below retain historical release evidence and setup instructions. The campus section supersedes their old default-menu instructions.
+The notes below retain historical release evidence and setup instructions. The meal and campus sections supersede their old default-menu instructions.
 
 ## Supabase persistence
 

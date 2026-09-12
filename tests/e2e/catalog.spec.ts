@@ -5,6 +5,8 @@ import { HealthResponseSchema } from "../../src/contracts/index";
 import { BUNDLED_VERSION_ID } from "../../src/catalog/bundled";
 
 const SHORTLIST = ["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"];
+// The fictional Demo Counter is public for the meal demo and listed after the ranked shortlist.
+const PUBLIC = [...SHORTLIST, "demo"];
 
 test("health, header badges and the selector agree on catalog source, version and shortlist order", async ({ page, request }) => {
   const health = HealthResponseSchema.parse(await (await request.get("/api/health")).json());
@@ -29,7 +31,7 @@ test("health, header badges and the selector agree on catalog source, version an
   const selector = page.getByTestId("dining-location");
   await expect(selector).toHaveValue("188");
   const values = await selector.locator("option").evaluateAll(options => options.map(option => (option as HTMLOptionElement).value));
-  expect(values).toEqual(SHORTLIST);
+  expect(values).toEqual(PUBLIC);
   await selector.selectOption("113");
   const preview = page.getByTestId("menu-preview-113-0");
   await expect(preview).toBeVisible();

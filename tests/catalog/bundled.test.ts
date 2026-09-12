@@ -9,11 +9,13 @@ describe("bundled catalog", () => {
 
   it("is the released shortlist version with the documented counts", () => {
     expect(catalog.versionId).toBe(BUNDLED_VERSION_ID);
+    expect(BUNDLED_VERSION_ID).toBe("cmu-meal-2026-09-12");
     expect(catalog.items).toHaveLength(506);
     expect(catalog.locations).toHaveLength(46);
     expect(catalog.previews).toHaveLength(50);
     expect(catalog.modifiers).toHaveLength(7);
     expect(menu.activeLocationIds).toEqual(["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"]);
+    expect(menu.publicLocationIds).toEqual([...menu.activeLocationIds, "demo"]);
     expect(catalog.items.filter((item) => menu.activeLocationIds.includes(item.locationId))).toHaveLength(237);
     expect(catalog.items.filter((item) => item.locationId === "demo")).toHaveLength(11);
   });
@@ -48,11 +50,17 @@ describe("bundled catalog", () => {
     expect(guard.isActiveLocation("188")).toBe(true);
     expect(guard.isActiveLocation("demo")).toBe(false);
     expect(guard.isActiveItem("burger")).toBe(false);
+    expect(guard.isPublicLocation("demo")).toBe(true);
+    expect(guard.isPublicItem("burger")).toBe(true);
+    expect(guard.isPublicItem("cmu_190_vanilla_milkshake")).toBe(false);
     expect(guard.isActiveItem("cmu_188_smash_d_burger")).toBe(true);
     const base = { v: 3, requestId: "r1", baseRevision: 0, menuVersion: catalog.versionId, text: "hi", source: "text", asrConfidence: null };
     expect(guard.publicParseRequestSchema.parse(base).locationId).toBe("188");
-    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "demo" }).success).toBe(false);
-    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "188", context: { lines: [{ lineId: "l1", itemId: "burger", qty: 1, modifiers: [] }], lastLineId: null, pending: null, recent: [] } }).success).toBe(false);
+    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "demo" }).success).toBe(true);
+    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "190" }).success).toBe(false);
+    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "188", context: { lines: [{ lineId: "l1", itemId: "cmu_190_vanilla_milkshake", qty: 1, modifiers: [] }], lastLineId: null, pending: null, recent: [] } }).success).toBe(false);
+    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "188", context: { lines: [{ lineId: "l1", itemId: "burger", qty: 1, modifiers: [] }], lastLineId: null, pending: null, recent: [] } }).success).toBe(true);
+    expect(guard.publicParseRequestSchema.safeParse({ ...base, locationId: "demo", context: { lines: [], lastLineId: null, pending: null, recent: [], requirements: { locationId: "190", meal: null, profile: { preference: "none", allergies: [], dislikes: [], exceptions: [] }, decision: null, checks: [], message: null, remainingCents: null, solver: null } } }).success).toBe(false);
     expect(catalogGuard(catalog)).toBe(guard);
   });
 });

@@ -14,6 +14,7 @@ import { MESSAGES, reject, type Rejection } from "./rules/messages";
 import { normalizeText, splitClauses } from "./rules/normalize";
 import { findNearMisses, joinNearMissPhrases } from "./rules/phonetic";
 import { parseCampusText } from "./campus.rules";
+import { parseRequirementsText } from "./requirements.rules";
 
 export type RulesOptions = { phonetic: boolean };
 export const DEFAULT_RULES_OPTIONS: RulesOptions = { phonetic: true };
@@ -58,7 +59,7 @@ export function parseRulesWith(req: ParseRequest, options: RulesOptions, catalog
     parser: "rules" as const,
     fallbackReason: null,
   };
-  const result = (request.locationId ?? "demo") === "demo" ? interpretText(request.text, options, lexicon) : parseCampusText(request, catalog);
+  const result = parseRequirementsText(request, catalog) ?? ((request.locationId ?? "demo") === "demo" ? interpretText(request.text, options, lexicon) : parseCampusText(request, catalog));
   const checked = ParseResponseSchema.safeParse({ ...envelope, result });
   if (checked.success) return checked.data;
   return { ...envelope, result: reject("INVALID_SCHEMA", MESSAGES.invalidSchema) };

@@ -6,7 +6,8 @@ import { ACTIVE_LOCATION_IDS, CAMPUS_ITEMS, DINING_LOCATIONS, DINING_SNAPSHOT, U
 import { DEMO_MENU, MODIFIERS } from "@/contracts/menu";
 import { freezeCatalog } from "./lookup";
 
-export const BUNDLED_VERSION_ID = "cmu-shortlist-2026-09-12";
+// Bumped with the Demo Counter recipe/modifier update that shipped with the meal requirements.
+export const BUNDLED_VERSION_ID = "cmu-meal-2026-09-12";
 
 type LooseLocation = {
   id: string; name: string; location: string;

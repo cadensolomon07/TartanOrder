@@ -27,7 +27,7 @@ export const CORE_CODES = [
   "OFF_MENU", "INVALID_MODIFIER", "QUANTITY_LIMIT", "CART_LIMIT",
   "AMBIGUOUS_REFERENCE", "UNKNOWN_REFERENCE", "STALE_RESPONSE", "INVALID_SCHEMA",
   "REVIEW_REQUIRED", "EMPTY_CART", "NO_UNDO", "NO_PENDING", "SESSION_COMMITTED",
-  "UNSUPPORTED", "STALE_OFFER",
+  "UNSUPPORTED", "STALE_OFFER", "REQUIREMENT_CONFLICT", "STAFF_REVIEW_REQUIRED", "STALE_DECISION",
 ] as const;
 
 export const HTTP_CODES = [
@@ -49,6 +49,8 @@ export const LocationIdSchema = z.string().min(1).max(20).regex(/^[a-z0-9]+$/, "
 export type LocationId = z.infer<typeof LocationIdSchema>;
 /** The kiosk's default counter when the catalog lists it as active; otherwise the first ranked location. */
 export const KIOSK_DEFAULT_LOCATION_ID = "188";
+// The fictional Demo Counter is publicly orderable for the meal/ingredient demonstration:
+// see CatalogIndex.publicLocationIds and catalogGuard(catalog) in src/catalog/lookup.ts.
 export const AllowedLocationIdsSchema = z.array(LocationIdSchema).min(1).max(100).refine(ids => new Set(ids).size === ids.length, "Location IDs must be unique.");
 export const ModifierIdSchema = z.enum([
   "no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice",
@@ -280,24 +282,6 @@ export type OrderNotice = z.infer<typeof OrderNoticeSchema>;
 const NoticesSchema = z.array(OrderNoticeSchema).max(5).optional();
 const ResolveResultSchema = z.strictObject({ kind: z.literal("resolve"), pendingId: IdSchema, choiceId: IdSchema });
 
-export const ParseResultSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("proposal"), ops: OpsSchema, notices: NoticesSchema }),
-  z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ChoicesSchema }),
-  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema, notices: NoticesSchema }),
-  ResolveResultSchema,
-]);
-export type ParseResult = z.infer<typeof ParseResultSchema>;
-
-// Models may reference current context lines and resolve an existing pending
-// choice. Context membership is a server/engine semantic check, not a JSON shape.
-export const ModelParseResultSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("proposal"), ops: ModelOpsSchema, notices: NoticesSchema }),
-  z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ModelChoicesSchema }),
-  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema, notices: NoticesSchema }),
-  ResolveResultSchema,
-]);
-export type ModelParseResult = z.infer<typeof ModelParseResultSchema>;
-
 export const LineSchema = z.strictObject({
   lineId: IdSchema, itemId: ItemIdSchema, qty: QuantitySchema, modifiers: ModifiersSchema,
 });
@@ -311,6 +295,112 @@ export const LinesSchema = z.array(LineSchema).max(LIMITS.lines).superRefine((li
   }
 });
 
+// Persistent meal and dietary requirements. Ingredient evidence is owned by the menu,
+// never supplied by the parser. Additional allergen names remain explicit strings.
+export const MealComponentSchema = z.enum(["mains", "sides", "drinks"]);
+export type MealComponent = z.infer<typeof MealComponentSchema>;
+export const IngredientNameSchema = z.string().trim().min(1).max(60);
+const IngredientsSchema = z.array(IngredientNameSchema).max(20);
+export const DietaryProfileSchema = z.strictObject({
+  preference: z.enum(["none", "vegetarian", "vegan"]),
+  allergies: IngredientsSchema,
+  dislikes: IngredientsSchema,
+  exceptions: z.array(z.strictObject({ itemId: ItemIdSchema, modifiers: ModifiersSchema, preference: z.enum(["none", "vegetarian", "vegan"]), dislikes: IngredientsSchema })).max(20),
+});
+export type DietaryProfile = z.infer<typeof DietaryProfileSchema>;
+export const MealSelectionSchema = z.strictObject({ component: MealComponentSchema, itemId: ItemIdSchema, modifiers: ModifiersSchema });
+export const MealRequirementsSchema = z.strictObject({
+  locationId: LocationIdSchema,
+  budgetCents: CentsSchema.max(100000).nullable(),
+  components: z.array(MealComponentSchema).min(1).max(3).refine(values => new Set(values).size === values.length, "Meal components must be unique."),
+  selections: z.array(MealSelectionSchema).max(3),
+  lockedItemIds: z.array(ItemIdSchema).max(3),
+});
+export type MealRequirements = z.infer<typeof MealRequirementsSchema>;
+export const CompatibilityResultSchema = z.strictObject({
+  status: z.enum(["match", "conflict", "unknown"]),
+  reasons: z.array(MessageSchema).max(30),
+  staffReview: z.boolean(),
+  source: MessageSchema,
+});
+export type CompatibilityResult = z.infer<typeof CompatibilityResultSchema>;
+export const CartCompatibilityCheckSchema = CompatibilityResultSchema.extend({ lineId: IdSchema });
+export type CartCompatibilityCheck = z.infer<typeof CartCompatibilityCheckSchema>;
+export const SolverSummarySchema = z.strictObject({
+  checkedCombinations: z.number().int().nonnegative(),
+  exhaustive: z.literal(true),
+  minimumCents: CentsSchema.nullable(),
+  explanation: MessageSchema,
+});
+export type SolverSummary = z.infer<typeof SolverSummarySchema>;
+export const RequirementChoiceSchema = z.strictObject({ id: IdSchema, label: LabelSchema });
+export const RequirementDecisionSchema = z.strictObject({
+  id: IdSchema, revision: RevisionSchema,
+  kind: z.enum(["budget", "locked_item", "preference", "leave_meal", "switch_counter", "conflict"]),
+  message: MessageSchema,
+  proposedMeal: MealRequirementsSchema.nullable(),
+  proposedLines: LinesSchema,
+  minimumCents: CentsSchema.nullable(),
+  nextLocationId: LocationIdSchema.optional(),
+  choices: z.array(RequirementChoiceSchema).min(1).max(2),
+});
+export type RequirementDecision = z.infer<typeof RequirementDecisionSchema>;
+export const RequirementsStateSchema = z.strictObject({
+  locationId: LocationIdSchema,
+  meal: MealRequirementsSchema.nullable(),
+  profile: DietaryProfileSchema,
+  decision: RequirementDecisionSchema.nullable(),
+  checks: z.array(CartCompatibilityCheckSchema).max(LIMITS.lines),
+  message: MessageSchema.nullable(),
+  remainingCents: z.number().int().nullable(),
+  solver: SolverSummarySchema.nullable(),
+});
+export type RequirementsState = z.infer<typeof RequirementsStateSchema>;
+export const RequirementChangeSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("SET_MEAL_MODE"), enabled: z.boolean() }),
+  z.strictObject({ type: z.literal("SET_BUDGET"), budgetCents: CentsSchema.max(100000).nullable() }),
+  z.strictObject({ type: z.literal("SET_COMPONENTS"), components: MealRequirementsSchema.shape.components }),
+  z.strictObject({ type: z.literal("SELECT_ITEM"), itemId: ItemIdSchema, modifiers: ModifiersSchema, locked: z.boolean() }),
+  z.strictObject({ type: z.literal("CLEAR_SELECTION"), component: MealComponentSchema }),
+  z.strictObject({ type: z.literal("UNLOCK_ITEM"), itemId: ItemIdSchema }),
+  z.strictObject({ type: z.literal("SET_DIETARY"), preference: DietaryProfileSchema.shape.preference }),
+  z.strictObject({ type: z.literal("ADD_ALLERGY"), allergen: IngredientNameSchema }),
+  z.strictObject({ type: z.literal("REMOVE_ALLERGY"), allergen: IngredientNameSchema }),
+  z.strictObject({ type: z.literal("RESOLVE_ALLERGEN"), from: IngredientNameSchema, to: IngredientsSchema.min(1) }),
+  z.strictObject({ type: z.literal("SET_DISLIKE"), ingredient: IngredientNameSchema, enabled: z.boolean() }),
+  z.strictObject({ type: z.literal("REMOVE_EXCEPTION"), itemId: ItemIdSchema }),
+  z.strictObject({ type: z.literal("SWITCH_LOCATION"), locationId: LocationIdSchema }),
+]);
+export type RequirementChange = z.infer<typeof RequirementChangeSchema>;
+export const RequirementChangesSchema = z.array(RequirementChangeSchema).min(1).max(12);
+export const RequirementsResultSchema = z.strictObject({
+  kind: z.literal("requirements"), locationId: LocationIdSchema,
+  changes: RequirementChangesSchema, ops: OpsSchema.optional(),
+});
+export const DecideRequirementsResultSchema = z.strictObject({ kind: z.literal("decide_requirements"), pendingId: IdSchema, choiceId: IdSchema });
+
+export const ParseResultSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("proposal"), ops: OpsSchema, notices: NoticesSchema }),
+  z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ChoicesSchema }),
+  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema, notices: NoticesSchema }),
+  ResolveResultSchema,
+  RequirementsResultSchema,
+  DecideRequirementsResultSchema,
+]);
+export type ParseResult = z.infer<typeof ParseResultSchema>;
+
+// Models may reference current context lines and resolve an existing pending
+// choice. Context membership is a server/engine semantic check, not a JSON shape.
+export const ModelParseResultSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("proposal"), ops: ModelOpsSchema, notices: NoticesSchema }),
+  z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ModelChoicesSchema }),
+  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema, notices: NoticesSchema }),
+  ResolveResultSchema,
+  RequirementsResultSchema,
+  DecideRequirementsResultSchema,
+]);
+export type ModelParseResult = z.infer<typeof ModelParseResultSchema>;
+
 export const ConversationTurnSchema = z.strictObject({
   role: z.enum(["user", "assistant"]), text: z.string().min(1).max(1000),
 });
@@ -320,6 +410,7 @@ export const OrderContextSchema = z.strictObject({
   lastLineId: IdSchema.nullable(),
   pending: PendingSchema.nullable(),
   recent: z.array(ConversationTurnSchema).max(8),
+  requirements: RequirementsStateSchema.optional(),
 });
 export type OrderContext = z.infer<typeof OrderContextSchema>;
 
@@ -336,7 +427,8 @@ export const ParseRequestSchema = z.strictObject({
 });
 export type ParseRequest = z.infer<typeof ParseRequestSchema>;
 
-// Public HTTP accepts only the loaded catalog's active shortlist: see
+// Public HTTP accepts only the loaded catalog's public locations (the ranked
+// shortlist plus the fictional Demo Counter): see
 // catalogGuard(catalog).publicParseRequestSchema in src/catalog/lookup.ts.
 
 export const ParseResponseSchema = z.strictObject({
@@ -376,6 +468,9 @@ export const UiActionSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("CONFIRM"), reviewId: IdSchema, revision: RevisionSchema }),
   z.strictObject({ type: z.literal("ACCEPT_SWAP"), offerId: IdSchema, revision: RevisionSchema }),
   z.strictObject({ type: z.literal("DECLINE_SWAP"), offerId: IdSchema }),
+  z.strictObject({ type: z.literal("REQUIREMENTS"), locationId: LocationIdSchema, changes: RequirementChangesSchema }),
+  z.strictObject({ type: z.literal("RESUME_REQUIREMENTS_DECISION") }),
+  z.strictObject({ type: z.literal("DECIDE_REQUIREMENTS"), pendingId: IdSchema, revision: RevisionSchema, choiceId: IdSchema }),
 ]);
 export type UiAction = z.infer<typeof UiActionSchema>;
 
@@ -406,6 +501,7 @@ export const OrderViewSchema = z.strictObject({
   audit: z.array(AuditEntrySchema),
   wait: WaitViewSchema.optional(),
   swapOffer: SwapOfferSchema.nullable().optional(),
+  requirements: RequirementsStateSchema.optional(),
 });
 export type OrderView = z.infer<typeof OrderViewSchema>;
 

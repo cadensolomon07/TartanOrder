@@ -20,8 +20,8 @@ export function OrderApp({ catalogConfig, waitConfig, orderPersistence = "off" }
   if (!catalogConfig.catalog) {
     return <div className={styles.kiosk} data-testid="catalog-unavailable" role="alert">
       <header className={styles.header}>
-        <div className={styles.brand}>TartanOrder</div>
-        <div className={styles.subBrand}>Menu unavailable · No real purchase.</div>
+        <div className={styles.brandBlock}><span className={styles.logoMark} aria-hidden="true">T</span><span className={styles.brand}>TartanOrder</span></div>
+        <div className={styles.venue}><div className={styles.venueName}>Menu unavailable</div><div className={styles.venueMeta}>No real purchase.</div></div>
       </header>
       <main className={styles.main}>
         <section className={styles.notice}>
@@ -37,7 +37,8 @@ export function OrderApp({ catalogConfig, waitConfig, orderPersistence = "off" }
 
 function LoadedApp({ catalog, source, waitConfig, orderPersistence }: { catalog: Catalog; source: CatalogSource; waitConfig: WaitEngineConfig; orderPersistence: OrderPersistenceMode }) {
   const menu = indexCatalog(catalog);
-  const allowed = menu.activeLocationIds.length > 0 ? menu.activeLocationIds : undefined;
+  // The public counters: the ranked campus shortlist plus the fictional Demo Counter for the meal demonstration.
+  const allowed = menu.publicLocationIds.length > 0 ? menu.publicLocationIds : undefined;
   const controller = useOrderController(catalog, defaultLocationFor(menu), waitConfig, allowed, { mode: orderPersistence });
   return <CatalogProvider catalog={catalog} source={source}><Kiosk controller={controller} /></CatalogProvider>;
 }

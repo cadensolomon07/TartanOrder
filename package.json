@@ -24,7 +24,8 @@
     "db:verify": "node --env-file-if-exists=.env.local --import tsx scripts/verify-catalog-db.ts",
     "test:db:live": "node --env-file=.env.local ./node_modules/.bin/vitest run tests/persistence/live.test.ts",
     "test:e2e:live": "node --env-file=.env.local ./node_modules/.bin/playwright test",
-    "check:build": "node --env-file-if-exists=.env.local scripts/check-build-secrets.mjs"
+    "check:build": "node --env-file-if-exists=.env.local scripts/check-build-secrets.mjs",
+    "test:meal:live": "node scripts/verify-meal-browser.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",

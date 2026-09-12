@@ -116,7 +116,7 @@ describe("buildProviderSchema", () => {
     expect(serialized).not.toContain('"minLength"');
     expect(serialized).not.toContain('"maxLength"');
     expect(Array.isArray(schema.anyOf)).toBe(true);
-    expect((schema.anyOf as unknown[]).length).toBe(4);
+    expect((schema.anyOf as unknown[]).length).toBe(6);
   });
 
   it("does not constrain provider qty bounds, so the decoder cannot clamp", () => {
@@ -130,7 +130,8 @@ describe("buildProviderSchema", () => {
       expect(node).not.toHaveProperty("minimum");
       expect(node).not.toHaveProperty("maximum");
     }
-    expect(serialized).not.toContain('"maximum"');
+    // Budget amounts retain their own upper bound; quantity bounds alone are omitted.
+    expect(serialized).toContain('"maximum":100000');
   });
 
   it("retains result kind literals, the item and modifier enums, and the reject codes", () => {
@@ -139,7 +140,7 @@ describe("buildProviderSchema", () => {
       if (Array.isArray(record.enum)) enums.push(record.enum);
     });
     const flattened = enums.flat();
-    expect(flattened).toEqual(expect.arrayContaining(["proposal", "clarify", "reject", "resolve"]));
+    expect(flattened).toEqual(expect.arrayContaining(["proposal", "clarify", "reject", "resolve", "requirements", "decide_requirements"]));
     expect(enums).toContainEqual([...DEMO_ITEM_IDS]);
     expect(enums).toContainEqual(ModifierIdSchema.options);
     expect(enums).toContainEqual([...CORE_CODES]);
@@ -195,7 +196,8 @@ describe("buildSystemInstruction", () => {
   it("contains no menu price fields or currency", () => {
     expect(instruction).not.toContain("$");
     expect(instruction).not.toContain("priceCents");
-    expect(instruction).not.toMatch(/cents/i);
+    expect(instruction).toContain("budgetCents");
+    expect(instruction).not.toContain("totalCents");
   });
 });
 

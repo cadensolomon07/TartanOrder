@@ -6,7 +6,7 @@ describe("catalog seed rows", () => {
   const rows = seedRows(CATALOG);
 
   it("produces the documented counts with ordinals and an inactive version row", () => {
-    expect(rows.version).toEqual({ id: "cmu-shortlist-2026-09-12", source_snapshot: CATALOG.snapshot, is_active: false });
+    expect(rows.version).toEqual({ id: CATALOG.versionId, source_snapshot: CATALOG.snapshot, is_active: false });
     expect(rows.locations).toHaveLength(46);
     expect(rows.locations.filter((location) => location.active_rank !== null)).toHaveLength(11);
     expect(rows.modifiers).toHaveLength(7);

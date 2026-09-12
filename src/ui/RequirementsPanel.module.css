@@ -1,0 +1,42 @@
+.panel { background: #fffaf1; border: 1px solid #d9cbbc; border-radius: 20px; padding: 22px; color: #302a27; }
+.summaryPanel { background: #fffaf1; border: 1px solid #d9cbbc; border-radius: 16px; padding: 16px 18px; color: #302a27; }
+.summaryPanel h2 { font-size: 1rem; }
+.summaryPanel a { color: #8d2632; font-size: .85rem; }
+.summaryChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.summaryChips span { border: 1px solid #d3bb9f; background: #f4e6d7; padding: 5px 9px; border-radius: 20px; font-size: .84rem; overflow-wrap: anywhere; }
+.heading { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.heading h2 { margin: 0; font-size: 1.25rem; }
+.heading span, .note { color: #675b51; font-size: .84rem; line-height: 1.5; }
+.controls { border: 0; padding: 0; margin: 14px 0 0; min-width: 0; }
+.field { display: grid; gap: 6px; font-weight: 650; }
+.panel select, .panel input:not([type=checkbox]) { box-sizing: border-box; width: 100%; min-height: 42px; border: 1px solid #b5a799; border-radius: 8px; padding: 9px 10px; background: #fff; color: #302a27; font: inherit; }
+.panel input[type=checkbox] { accent-color: #b52d36; width: 18px; height: 18px; }
+.panel button { border: 1px solid #a79382; border-radius: 8px; padding: 9px 12px; color: #642c2c; background: #fff; font: inherit; font-size: .85rem; font-weight: 650; cursor: pointer; }
+.panel button:disabled { opacity: .5; cursor: default; }
+.panel button:focus-visible, .panel input:focus-visible, .panel select:focus-visible, .panel summary:focus-visible { outline: 3px solid #bd4048; outline-offset: 3px; }
+.chips, .buttons, .components { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips { margin: 12px 0; }
+.chips button { border-radius: 24px; background: #f4e6d7; }
+.forms { display: grid; gap: 12px; }
+.inlineForm { display: flex; align-items: end; gap: 8px; }
+.inlineForm label { display: grid; gap: 5px; flex: 1; min-width: 0; font-size: .86rem; font-weight: 650; }
+.inlineForm button { min-height: 42px; flex-shrink: 0; }
+.mode { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #d9cbbc; font-weight: 700; }
+.mode span { width: 100%; margin-left: 27px; color: #675b51; font-size: .84rem; font-weight: 400; }
+.meal { padding-top: 14px; }
+.mealSummary { display: flex; flex-wrap: wrap; gap: 8px; }
+.mealSummary strong, .mealSummary span { background: #f4e6d7; border-radius: 20px; padding: 6px 10px; font-size: .88rem; }
+.proposal { background: #fff8f0; border: 1px solid #d5b1a2; border-radius: 8px; padding: 12px; margin: 12px 0; }
+.proposal ul { margin: 8px 0; padding-left: 20px; }
+.components label { display: flex; align-items: center; gap: 6px; }
+.selections { display: grid; gap: 8px; margin-top: 12px; }
+.selections > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.selections span { flex: 1 0 100%; font-weight: 650; }
+.message, .warning, .decision, .staff { border-radius: 10px; padding: 12px; margin: 14px 0 0; background: #f3e7d4; line-height: 1.5; font-size: .9rem; }
+.decision { background: #f5dddd; border: 1px solid #c87979; }
+.panel h3 { margin: 0 0 7px; font-size: 1rem; }
+.warning p, .decision p, .staff p { margin: 7px 0; overflow-wrap: anywhere; }
+.staff summary { font-weight: 700; cursor: pointer; }
+.staff a { color: #8d2632; }
+@media (max-width: 480px) { .panel { padding: 17px; } .heading { flex-wrap: wrap; gap: 3px; } .inlineForm { flex-wrap: wrap; } .inlineForm label { flex-basis: 100%; } .mode span { margin-left: 0; } }
+@media (max-width: 860px) { .panel { order: 2; } }

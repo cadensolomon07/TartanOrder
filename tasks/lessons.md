@@ -10,3 +10,8 @@
 
 - **Do not write files with backslash sequences through a Python heredoc.** Inside a quoted heredoc, Python source `"\\n"` is a literal backslash-n; I corrupted package.json and a regex-heavy script that way, and the aborted script skipped later edits. Rule: write whole files with a quoted shell heredoc; use Python only for exact-string replacements, and never chain an unrelated edit after an assertion that can fail.
 - **Reruns after review fixes are the evidence, not the earlier green runs.** Route code changed after the first end-to-end pass, so the build, both browser suites and the live database test were rerun before reporting.
+
+## 2026-09-12 — merge
+
+- **Never stage a conflicted file without checking for markers first.** A typo aborted my resolution script, yet the following `git add` staged the files with `<<<<<<<` markers still inside. Rule: resolve, then `grep -l '^<<<<<<<'` must print nothing, then stage; keep the resolution and the staging in separate commands.
+- **A data change upstream means a new catalog version, not an edit.** Upstream changed a demo item and bumped the version string; the immutable catalog design meant publishing a second version and activating it, which the seed script already supported.

@@ -23,7 +23,7 @@ describe("shared strict contract V3", () => {
   it("exports the agreed API and menu versions and honest fixture envelopes", () => {
     expect(API_VERSION).toBe(3);
     expect(CATALOG.versionId).toBe(MENU_VERSION);
-    expect(MENU_VERSION).toBe("cmu-shortlist-2026-09-12");
+    expect(MENU_VERSION).toBe("cmu-meal-2026-09-12");
     expect(ParseRequestSchema.parse(FIXTURE_REQUEST).source).toBe("fixture");
     for (const response of [FIXTURE_RESPONSE, FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION]) {
       expect(ParseResponseSchema.parse(response).parser).toBe("fixture");
