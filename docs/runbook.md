@@ -20,6 +20,8 @@ A's session actually began about Friday 9:50 p.m.; early milestones are compress
 
 ## Local production fallback
 
+Prepare this before the demo while internet is available. Preserve an existing `.env.local`; the conditional copy below does not overwrite it.
+
 ```sh
 nvm use
 npm ci
@@ -28,9 +30,32 @@ npm run build
 npm run start
 ```
 
+If `nvm` or `node` is unavailable on A's Mac, use the installed Node 22.23.2 runtime before running npm:
+
+```sh
+export PATH="/Users/cadensolomon/Documents/Codex/2026-09-11/workstream-a-astra-6-in-codex/work/runtime/node-v22.23.2-darwin-arm64/bin:$PATH"
+cd /Users/cadensolomon/Documents/Codex/2026-09-11/workstream-a-astra-6-in-codex/TartanOrder
+```
+
 Open http://localhost:3000. Select Local only. Once the production page is loaded, disable Wi-Fi and run the typed demo; restore Wi-Fi afterward. All assets are bundled, with no remote fonts/images. Stop the production server before rebuilding to avoid stale assets.
 
 Playwright starts a fresh production server on port 3100, separate from the visible demo on port 3000. Build first. Set `PLAYWRIGHT_BASE_URL` to test a deployment.
+
+## Recover during the demo
+
+- **Internet or provider unavailable:** keep the loaded page open, select **Local only**, and use typed input or menu buttons. Show the actual parser mode. The current starter already uses local rules; this recovery also applies after C's network client arrives. Do not claim Gemini success when rules handled the request.
+- **Draft or microphone capture stuck:** use the input's Cancel/Stop control and clear the draft. This must end capture before review can proceed. In the current starter, **Cancel input** releases draft capture; it does **not** abort a parser request already in flight.
+- **Parsing stuck:** change the **Local only** selection to cancel the active request. If already selected, turn it off and back on without submitting between changes. Then cancel any remaining draft and retry a short typed order. A mode change preserves an active draft, so switching modes alone may leave review disabled. Cancelled/late responses are ignored.
+- **Review or confirmation disappeared:** this is expected after starting input or attempting an edit, even if the edit was rejected. Finish or cancel input, resolve any item choice, select **Review order**, inspect the complete snapshot, then confirm again. An old confirmation cannot be reused.
+- **Wrong accepted edit:** use **Undo** to restore the previous accepted cart batch and its reference. Review again afterward. **New order** abandons the whole session, clears its history and receipt, and starts empty; use it after a completed simulated receipt or when intentionally restarting.
+- **Before reload, closing the tab, or New order:** export the audit from the engineering panel if the history matters. Orders exist only in page memory. Reload/reset loses the live cart; an export supports inspection/replay, not restoration into the live order. Replay must never enable live confirmation or make parser/voice calls.
+- **Deployed page fails:** use the primary public URL, https://tartan-order.vercel.app, rather than a sign-in-protected team/deployment URL. If it remains broken, switch to the prebuilt local page at http://localhost:3000 with **Local only**. If its server stopped, use the runtime setup above and run `npm run start`; keep that terminal open. Reuse the existing production build during the demo. Installation/rebuilding needs a separate preparation window, and moving between deployed/local pages starts a separate order.
+
+### A-only deployment recovery
+
+The verified baseline recorded below is implementation `3ca392b219b90d24574bca21aa3f77cba51eb8b5`, deployment `dpl_B1nB1ppEWiriuZMQm8QUdgWziWeE`. Treat it as historical evidence, not a claim about the latest deployment. A first checks which deployment currently serves the primary URL.
+
+In Vercel, open the correct project's Production Deployment tile and choose **Instant Rollback**. Select an eligible deployment already known to work; verify its commit/deployment identity and the `tartan-order.vercel.app` domain before confirming. Hobby accounts can roll back only to the immediately previous production deployment. If the verified baseline is unavailable, continue the local demo while A investigates; do not select an unverified build or purchase an upgrade. After rollback, A checks `/api/health` and the typed review/receipt journey in a fresh logged-out browser. Rollback uses the earlier build/environment and pauses automatic production-domain assignment; A must deliberately restore normal promotion after verifying a fix. [Vercel rollback instructions](https://vercel.com/docs/instant-rollback)
 
 ## Demonstration
 
@@ -39,7 +64,7 @@ Playwright starts a fresh production server on port 3100, separate from the visi
 3. Add another burger; type `remove burger`: show both choices. Choose the second; only that line disappears.
 4. Review every item, quantity, modifier and total. Begin editing input; confirmation disappears immediately.
 5. Cancel input, review again, explicitly confirm. Show the simulated receipt. Start a new order before editing.
-6. Show actual parser mode in the engineering panel and export the audit. Replay reconstructs state without a live action.
+6. Show actual parser mode in the engineering panel and export the audit. The replay engine reconstructs it without a live action. The on-page replay/import viewer is not yet implemented; it is B-owned and can be cut under the agreed plan. Do not promise a visible replay button in the current demo.
 
 Starter mode: **typed input + small real local rules grammar**. Unsupported language is rejected; fixtures are explicitly marked. B owns voice and the finished kiosk. C owns provider verification and expanded rules/client/server behavior. Keep `PARSER_MODE=rules` until C verifies Gemini. Never commit `.env.local` or output secrets.
 
@@ -56,6 +81,8 @@ Starter mode: **typed input + small real local rules grammar**. Unsupported lang
 - **Physical Wi-Fi-off demonstration passed** around 10:04 p.m.: verified the Mac's Wi-Fi switch was off; typed `make the burger a double` in the preloaded production app; observed $16.00; reviewed and confirmed a simulated receipt. Restored Wi-Fi and verified connected status.
 
 An intermediate browser test hit stale assets while the visible server was being rebuilt. Tests now start their own fresh server on port 3100; rerun passed. No current failing automated checks are known.
+
+Follow-up evidence, September 11 around 10:44 p.m.: downloaded **Export audit** from the real deployed rules-based three-item receipt and replayed the exact downloaded bytes. Its five audit entries, receipt ID, cart and $13.50 total matched the displayed history/receipt; the live page was unchanged. Two new fixture-labelled React hook integration tests passed for StrictMode lifecycle, cancellation plus unchanged export after late response, and replay/remount isolation. One new targeted test rejected a tampered audit whose replacement error code was itself valid. Typecheck/lint passed. No production code changed and no existing property-suite rerun was needed for this follow-up.
 
 ## Deployment and remaining handoffs
 

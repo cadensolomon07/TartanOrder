@@ -361,6 +361,14 @@ describe("audit export and deterministic read-only replay", () => {
     }
   });
 
+  it("refuses a different allowed rejection code even when the recorded outcome is unchanged", () => {
+    const rejected = manual(createEngine("code-check"), {type:"REMOVE",ref:{by:"last"}});
+    const log = JSON.parse(exportLog(rejected));
+    expect(log.audit[0]).toMatchObject({outcome:"rejected",code:"UNKNOWN_REFERENCE"});
+    log.audit[0].code = "NO_UNDO";
+    expect(() => replayLog(JSON.stringify(log))).toThrow(/audit outcome differs/);
+  });
+
   it("never mutates its incoming state or event", () => {
     const state = order();
     const event: AuditEvent = { type: "UI", action: { type: "MANUAL", ops: [add("burger")] } };

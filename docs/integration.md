@@ -84,3 +84,15 @@ Implementation SHA: `3ca392b219b90d24574bca21aa3f77cba51eb8b5`, merged to main a
 Checks passed: fresh npm ci, typecheck, lint, 89 unit/contract tests including 1,000 generated sequences (seed 20260912), build, local/deployed Playwright receipt journey, real HTTP health/400/409/413 smoke, physical Wi-Fi-off typed modifier/review/receipt with Wi-Fi restored. See runbook for detail.
 
 Runnable example: `npm ci`, copy `.env.example` to `.env.local` if absent, `npm run dev`, open localhost:3000, type `a burger, fries and lemonade`, review, confirm. Expected total: $13.50, simulated receipt only. Actual mode: text/local rules; no verified Gemini or voice. No current failing automated checks. Next dependency: B/C handoffs in their owned files, followed by sequential integration and C's eval command.
+
+## A deliverable audit before teammate integration
+
+Reviewed September 11 around 10:44 p.m. EDT. A's independent implementation is complete: shared starter/contracts/menu/fixtures, atomic engine and references, pending choices, bounded totals, undo/audit, request guards and input lifecycle, immutable review/idempotent simulated receipt, export and deterministic replay, CI configuration, and initial local/Vercel deployment. No replay/export implementation defect was found; no production or teammate files were changed in this follow-up.
+
+Filled evidence gaps with two React StrictMode hook tests using the shared fixtures, one allowed-but-forged audit-code rejection assertion, and one actual browser-download round trip. The hook checks combine pending-request cancellation with byte-identical export after a late response, detached replay, and unmount/remount isolation. Fixture calls stay labelled fixture. The browser check used the real deployed rules parser, downloaded the actual audit file, and replayed those exact bytes to the displayed $13.50 receipt without changing the page. All three new targeted tests passed; typecheck/lint and documentation checks passed. Existing passing suites were not manually rerun just for this audit.
+
+**Still A-owned:** review/integrate each ready B/C commit, make required A-owned configuration changes, add C's eval script, align the health route with C's effective parser-mode implementation, deploy the combined app, then perform integration and release checks. These are handoff-dependent tasks, not missing standalone engine work.
+
+**Requires B:** finished kiosk/voice and review speech, browser-specific capture behavior, and its UI/e2e handoff. The optional on-page import/replay viewer belongs to B; the existing engine is ready for it. **Requires C:** expanded real rules, HTTP client/server deadlines and fallback, provider-output validation, eval runner/command, and genuine Gemini verification if used. A will not duplicate those modules. Current rules-only typed ordering remains available.
+
+The [runbook](runbook.md#recover-during-the-demo) now explains lost internet, stuck capture versus parsing, re-review, undo versus reset, exporting before reload, local-server recovery and A-only deployment rollback. Export/replay inspects history; it does not restore or confirm a live order.
