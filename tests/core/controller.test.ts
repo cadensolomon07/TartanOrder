@@ -418,3 +418,24 @@ describe("controller commit, reset and replay", () => {
     expect(controller.interpret).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("language switches preserve transaction boundaries", () => {
+  it("keeps the cart but invalidates review, cancels parsing and ignores the old response", async () => {
+    const c = harness();
+    const review = seedReview(c);
+    c.getSnapshot().setLanguage("es-ES");
+    expect(c.getSnapshot().state.review).toBeNull();
+    expect(c.getSnapshot().state.lines).toEqual(review.lines);
+    const pending = c.getSnapshot().submit("unas papas fritas", "text", null);
+    expect(c.calls[0].request.language).toBe("es-ES");
+    c.getSnapshot().setLanguage("zh-CN");
+    expect(c.calls[0].options.signal?.aborted).toBe(true);
+    expect(c.getSnapshot().busy).toBe(false);
+    c.calls[0].deferred.resolve(proposal(c.calls[0].request, [fries]));
+    await pending;
+    expect(c.getSnapshot().state.lines).toEqual(review.lines);
+    c.getSnapshot().act({ type: "CONFIRM", reviewId: review.id, revision: review.revision });
+    expect(c.getSnapshot().state.receipt).toBeNull();
+    expect(c.getSnapshot().language).toBe("zh-CN");
+  });
+});

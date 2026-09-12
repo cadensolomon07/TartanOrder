@@ -169,6 +169,7 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
   // on-device for every later capture (when its pack is installed).
   const preferLocalRef = useRef(false);
   const onDeviceRef = useRef<OnDeviceStatus>("unknown");
+  const onDeviceLanguageRef = useRef(lang);
   // The CURRENT recognition object. Handlers compare against it; anything else is stale.
   const recRef = useRef<RecognitionLike | null>(null);
   // "settled" means the current capture has already produced its one outcome
@@ -200,15 +201,16 @@ export function useSpeech({ onFinal, onFail, lang = "en-US" }: UseSpeechOptions)
 
   const updateOnDevice = useCallback((s: OnDeviceStatus) => {
     onDeviceRef.current = s;
+    onDeviceLanguageRef.current = lang;
     setOnDevice(s);
-  }, []);
+  }, [lang]);
 
   // NEVER probe availability at page load: SpeechRecognition.available() is
   // only needed once the cloud path has failed (or the user asks to download),
   // and at least one Chromium build (the headless shell) crashes the renderer
   // on that call. Resolve lazily and remember the answer.
   const ensureOnDevice = useCallback(async (): Promise<OnDeviceStatus> => {
-    if (onDeviceRef.current !== "unknown") return onDeviceRef.current;
+    if (onDeviceLanguageRef.current === lang && onDeviceRef.current !== "unknown") return onDeviceRef.current;
     const s = await onDeviceAvailability(lang);
     updateOnDevice(s);
     return s;

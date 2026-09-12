@@ -34,8 +34,13 @@ export function useSpeaking(): boolean {
 }
 
 // Hook form: false on the server render, the truth on the client.
-export function useTtsAvailable(): boolean {
-  return useSyncExternalStore(noop, ttsAvailable, onServer);
+export function useTtsAvailable(language = "en-US"): boolean {
+  const subscribeVoices = (callback: () => void) => {
+    if(!ttsAvailable())return noop();
+    window.speechSynthesis.addEventListener?.("voiceschanged",callback);
+    return ()=>window.speechSynthesis.removeEventListener?.("voiceschanged",callback);
+  };
+  return useSyncExternalStore(subscribeVoices, () => ttsAvailable() && (language === "en-US" || (window.speechSynthesis.getVoices?.() ?? []).some(voice=>voice.lang.split('-')[0]===language.split('-')[0])), onServer);
 }
 
 export function cancelSpeech(): void {
@@ -49,12 +54,18 @@ export function cancelSpeech(): void {
   }
 }
 
-export function speak(text: string): boolean {
+export function speak(text: string, language = "en-US"): boolean {
   if (!ttsAvailable() || !text.trim()) return false;
   try {
     cancelSpeech();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US";
+    u.lang = language;
+    const voices = window.speechSynthesis.getVoices?.() ?? [];
+    const voice = voices.find(candidate => candidate.lang.toLowerCase() === language.toLowerCase())
+      ?? voices.find(candidate => candidate.lang.split('-')[0] === language.split('-')[0]);
+    if (voice) u.voice = voice;
+    // Do not substitute an English voice for another language.
+    if (language !== "en-US" && !voice) return false;
     u.rate = 1;
     activeUtterance = u;
     const settle = () => { if (activeUtterance === u) finish(); };

@@ -1,5 +1,13 @@
 # Demo and release runbook
 
+## Language selector — September 12 release
+
+The header offers English, Español and 简体中文. Select a language before pressing the microphone or typing. Recognition uses en-US, es-ES or zh-CN; spoken reviews use a matching installed voice. If no matching voice exists, read the full review on screen. Microphone support varies by browser; typing always remains available. Changing language cancels capture/drafts and parsing, keeps accepted cart contents, and invalidates an uncommitted review. Review again before confirming. Mandarin composition Enter does not submit unfinished text.
+
+The primary controls, demo item labels and review/receipt labels are translated. Campus menu names, detailed source/evidence descriptions, some dynamic requirement explanations and engineering diagnostics may remain English. Prices and canonical item IDs never change with language. Gemini receives the selected locale and can return native-language questions and special requests. Local rules remain English-only: in an offline Spanish/Chinese session use the translated menu buttons, or select English for simple typed rules. No translation quality or live microphone accuracy metric is claimed.
+
+For a short check, select Demo Counter, Español, and type `Un agua con hielo extra y unas papas fritas, por favor.` Or select 简体中文 and type `请给我一杯加冰的水和一份薯条。` Both local real-Gemini browser journeys produced water with its ice note plus fries at $4.50, then a reviewed simulated receipt. Evidence: `evals/runs/languages-live-2026-09-12.json`. Browser voice tests are mocked; have a person repeat one utterance using the microphone before claiming live multilingual speech works.
+
 ## Current meal and dietary milestone — September 12
 
 API 2 / menu `cmu-meal-2026-09-12` retains the eleven selected campus venues and adds a separate **Demo Counter · fictional recipes** for the requested meal/recipe demonstration. The complete script is [meal-demo.md](meal-demo.md). Start with “I have twelve dollars. Get me a main, a side, and a drink. Keep the fries and lemonade.” The calculated accepted subtotal is $12. Requesting chicken proposes $14 while preserving the accepted meal; only an explicit current choice raises the budget. Review and confirm a simulated receipt.

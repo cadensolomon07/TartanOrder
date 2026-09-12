@@ -235,7 +235,7 @@ export function buildSystemInstruction(req?: ParseRequest): string {
     `An order has at most ${LIMITS.lines} rows and ${LIMITS.totalUnits} units; engine validation determines final limits.`,
     'UNDO must be the ONLY operation in its batch. Requests to review, confirm, pay or change prices are unavailable to this parser: reject UNSUPPORTED and direct the customer to the app controls.',
     `Questions, messages and choice labels are friendly and specific, at most ${LIMITS.messageChars} characters for questions/messages. Do not claim an operation succeeded: the engine has not accepted it yet.`,
-    "Understand any language, but return canonical menu IDs and English labels. Use clarify for uncertain meaning; never manufacture a confident interpretation.",
+    `LANGUAGE: ${req?.language ?? "en-US"}. Understand the customer's language. Return questions, choice labels, rejection messages and special notes in this selected language. Keep menu IDs, enum values and JSON keys unchanged. Canonicalize ingredient/allergen names to English for matching the application's food evidence. Never translate an ID or invent an item. Use clarify for uncertain meaning.`,
   ].join("\n");
 }
 
@@ -401,7 +401,7 @@ function normalizeMenuName(value: string): string {
 /** Availability, cart membership and pending choices require authoritative context. */
 function validateSemantics(result: ParseResult, req: ParseRequest): void {
   const selected = req.locationId ?? "demo";
-  if (result.kind === "proposal" && hasRestrictionDeclaration(req.text)) {
+  if (result.kind === "proposal" && (hasRestrictionDeclaration(req.text) || /al[eé]rg|alergia|soy vegan|soy vegetarian|过敏|纯素|素食/iu.test(req.text))) {
     throw invalidOutput("Model output failed validation: a restriction declaration was omitted from ordinary edits.");
   }
   const availableNames = new Set(itemsForLocation(selected).flatMap((item) => [item.id, item.label, ...item.aliases].map(normalizeMenuName)));
@@ -448,16 +448,16 @@ function validateSemantics(result: ParseResult, req: ParseRequest): void {
       // The model cannot invent permission to weaken persistent requirements.
       // These conservative cues reject omissions; they do not calculate a meal.
       const words = req.text.normalize("NFKC").toLowerCase().replace(/[‘’]/g, "'");
-      if (change.type === "SET_BUDGET" && !/\b(?:budget|dollars?|bucks?|spend|limit|maximum)\b|\$/.test(words)) {
+      if (change.type === "SET_BUDGET" && !/\b(?:budget|dollars?|bucks?|spend|limit|maximum|presupuesto|d[oó]lares?|gastar|m[aá]ximo|l[ií]mite)\b|\$|预算|美元|花费/.test(words)) {
         throw invalidOutput("Model output failed validation: budget change lacks an explicit budget instruction.");
       }
-      if (change.type === "UNLOCK_ITEM" && !/\b(?:unlock|stop keeping|remove (?:the )?lock|do not keep|don't keep)\b/.test(words)) {
+      if (change.type === "UNLOCK_ITEM" && !/\b(?:unlock|stop keeping|remove (?:the )?lock|do not keep|don't keep|desbloquea|desbloquear)\b|解除锁定|解锁/.test(words)) {
         throw invalidOutput("Model output failed validation: unlocking lacks an explicit instruction.");
       }
-      if (change.type === "REMOVE_ALLERGY" && !/\b(?:remove|clear|delete|no longer|not allergic|do not have|don't have)\b/.test(words)) {
+      if (change.type === "REMOVE_ALLERGY" && !/\b(?:remove|clear|delete|no longer|not allergic|do not have|don't have|elimina|quita|borra|ya no|no soy al[eé]rgico)\b|删除|移除|不再|不过敏/.test(words)) {
         throw invalidOutput("Model output failed validation: allergy removal lacks an explicit profile instruction.");
       }
-      if (change.type === "SET_DIETARY" && change.preference === "none" && !/\b(?:remove|clear|delete|no longer|not vegan|not vegetarian)\b/.test(words)) {
+      if (change.type === "SET_DIETARY" && change.preference === "none" && !/\b(?:remove|clear|delete|no longer|not vegan|not vegetarian|elimina|quita|borra|ya no)\b|删除|移除|不再|不是素食/.test(words)) {
         throw invalidOutput("Model output failed validation: dietary removal lacks an explicit profile instruction.");
       }
       if (change.type === "SELECT_ITEM" && MENU[change.itemId].locationId !== selected) {

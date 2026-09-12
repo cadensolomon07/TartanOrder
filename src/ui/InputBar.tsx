@@ -1,4 +1,7 @@
 "use client";
+import { T } from "./Language";
+import { useLanguage } from "./Language";
+import { translate } from "@/contracts/languages";
 import { useRef, type KeyboardEvent } from "react";
 import { LIMITS } from "@/contracts";
 import styles from "./Kiosk.module.css";
@@ -41,6 +44,7 @@ function MicIcon() {
 }
 
 export function InputBar(p: InputBarProps) {
+  const language=useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function submit() {
@@ -50,6 +54,8 @@ export function InputBar(p: InputBarProps) {
   }
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
+    // Enter may accept a Chinese IME candidate without submitting the order.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter") {
       e.preventDefault();
       submit();
@@ -60,23 +66,23 @@ export function InputBar(p: InputBarProps) {
   return (
     <section className={styles.inputBar} aria-label="Order input">
       <div className={styles.inputRow}>
-        {p.voiceSupported && (
+        <T>{p.voiceSupported && (
           // One persistent element: Talk becomes Stop in place so keyboard focus survives.
           <button
             type="button"
             className={styles.talkBtn}
             data-testid={p.voiceActive ? "stop-talk" : "talk"}
             aria-pressed={p.voiceActive}
-            aria-label={p.voiceActive ? "Stop — I’m done" : "Talk"}
-            title={p.voiceActive ? "Stop — I’m done" : "Talk"}
+            aria-label={translate(p.voiceActive ? "Stop — I’m done" : "Talk",language)}
+            title={translate(p.voiceActive ? "Stop — I’m done" : "Talk",language)}
             onClick={p.voiceActive ? p.onStopTalking : p.onTalk}
           >
-            {p.voiceActive ? <>■ <span>Stop — I’m done</span></> : <MicIcon />}
+            <T>{p.voiceActive ? <>■ <span><T>Stop — I’m done</T></span></> : <MicIcon />}</T>
           </button>
-        )}
-        <label htmlFor="order-text" className={styles.srOnly}>
+        )}</T>
+        <label htmlFor="order-text" className={styles.srOnly}><T>
           Type your order
-        </label>
+        </T></label>
         <input
           ref={inputRef}
           id="order-text"
@@ -98,51 +104,51 @@ export function InputBar(p: InputBarProps) {
           data-testid="submit"
           disabled={p.voiceActive || p.draft.trim().length === 0}
           onClick={submit}
-        >
+        ><T>
           Submit
-        </button>
+        </T></button>
         {(p.draft.length > 0 || p.draftOpen) && !p.voiceActive && (
-          <button type="button" className={styles.secondaryBtn} data-testid="discard" onClick={p.onDiscard}>
+          <button type="button" className={styles.secondaryBtn} data-testid="discard" onClick={p.onDiscard}><T>
             Discard
-          </button>
+          </T></button>
         )}
-        {p.voiceActive && (
-          <button type="button" className={styles.secondaryBtn} data-testid="cancel-talk" onClick={p.onCancelTalking}>
+        <T>{p.voiceActive && (
+          <button type="button" className={styles.secondaryBtn} data-testid="cancel-talk" onClick={p.onCancelTalking}><T>
             Cancel
-          </button>
-        )}
+          </T></button>
+        )}</T>
       </div>
 
       <div className={styles.transcript} data-testid="transcript" aria-live="polite">
         {p.voiceActive ? (
-          <span className={styles.listeningDot}>
-            Listening… <em>{p.interim || (p.listening ? "say your order" : "starting mic…")}</em>
+          <span className={styles.listeningDot}><T>
+            Listening… </T><em>{p.interim || (p.listening ? "say your order" : "starting mic…")}</em>
           </span>
         ) : p.parsing ? (
-          <span>
-            Working on: “{p.lastTranscript || p.draft}”{" "}
-            <button type="button" className={styles.linkBtn} data-testid="cancel-parsing" onClick={p.onCancelParsing}>
+          <span><T>
+            Working on: “</T>{p.lastTranscript || p.draft}”<T>{" "}</T>
+            <button type="button" className={styles.linkBtn} data-testid="cancel-parsing" onClick={p.onCancelParsing}><T>
               Cancel
-            </button>
+            </T></button>
           </span>
         ) : p.lastTranscript ? (
-          <span>Heard: “{p.lastTranscript}”</span>
+          <span><T>Heard: “</T>{p.lastTranscript}”</span>
         ) : (
-          <span className={styles.muted}>{p.hint ?? "Press the mic and speak, or type a request and press Submit."}</span>
+          <span className={styles.muted}><T>{p.hint ?? "Press the mic and speak, or type a request and press Submit."}</T></span>
         )}
-        {!p.voiceSupported && (
-          <span className={styles.muted} data-testid="voice-unsupported">
+        <T>{!p.voiceSupported && (
+          <span className={styles.muted} data-testid="voice-unsupported"><T>
             Voice isn’t available in this browser — typing works the same.
-          </span>
-        )}
+          </T></span>
+        )}</T>
       </div>
-      {p.micNotice && (
+      <T>{p.micNotice && (
         <div className={styles.voiceRow}>
           <span className={styles.notice} role="status" data-testid="mic-notice">
-            {p.micNotice}
+            <T>{p.micNotice}</T>
           </span>
         </div>
-      )}
+      )}</T>
     </section>
   );
 }

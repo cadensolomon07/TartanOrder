@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { ACTIVE_LOCATION_IDS, CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
+import { LANGUAGES, type Language } from "./languages";
+export const LanguageSchema = z.enum(LANGUAGES.map(language => language.id));
 
 export const API_VERSION = 2 as const;
 export const MENU_VERSION = "cmu-meal-2026-09-12" as const;
@@ -338,6 +340,7 @@ export const OrderContextSchema = z.strictObject({
 export type OrderContext = z.infer<typeof OrderContextSchema>;
 
 export const ParseRequestSchema = z.strictObject({
+  language: LanguageSchema.optional(),
   v: z.literal(API_VERSION),
   requestId: RequestIdSchema,
   baseRevision: RevisionSchema,
@@ -457,6 +460,8 @@ export const HealthResponseSchema = z.strictObject({
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
 export type OrderController = {
+  language: Language;
+  setLanguage(value: Language): void;
   state: OrderView;
   busy: boolean;
   localOnly: boolean;
