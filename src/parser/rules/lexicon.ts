@@ -1,5 +1,5 @@
 import { ModifierIdSchema, type ItemId, type ModifierId } from "@/contracts";
-import { MENU } from "@/contracts/menu";
+import { itemsForLocation } from "@/contracts/menu";
 
 /** One surface form for a menu item: alias tokens (singular or derived plural) → item. */
 export type ItemAlias = { readonly tokens: readonly string[]; readonly itemId: ItemId };
@@ -11,7 +11,7 @@ function pluralOf(alias: string): string | null {
 }
 
 /** Aliases come from the menu module at import time; plurals are derived, never listed by hand. */
-export const ITEM_ALIASES: readonly ItemAlias[] = Object.values(MENU)
+export const ITEM_ALIASES: readonly ItemAlias[] = itemsForLocation("demo")
   .flatMap((item) => item.aliases.flatMap((alias) => {
     const forms = [alias, pluralOf(alias)].filter((form): form is string => form !== null);
     return forms.map((form) => ({ tokens: form.split(" "), itemId: item.id }));
@@ -49,7 +49,7 @@ export const MODIFIER_PHRASES: readonly ModifierPhrase[] = [
 /** When exactly one menu item accepts a modifier, a standalone modifier phrase targets that item (D2). */
 export const SOLE_ITEM_FOR_MODIFIER: Readonly<Partial<Record<ModifierId, ItemId>>> = Object.fromEntries(
   ModifierIdSchema.options.flatMap((modifier) => {
-    const accepting = Object.values(MENU).filter((item) => item.allowedModifiers.includes(modifier));
+    const accepting = itemsForLocation("demo").filter((item) => item.allowedModifiers.includes(modifier));
     return accepting.length === 1 ? [[modifier, accepting[0].id]] : [];
   }),
 );

@@ -9,7 +9,7 @@ import {
   UnavailableNoticeSchema, UnavailableOptionNoticeSchema, ItemIdSchema, ModifierIdSchema,
 } from "../../src/contracts";
 import { FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_REQUEST, FIXTURE_RESPONSE, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION } from "../../src/contracts/fixtures";
-import { DEMO_DISCLOSURE, MENU, MODIFIERS } from "../../src/contracts/menu";
+import { DEMO_DISCLOSURE, DEMO_MENU, MENU, MODIFIERS } from "../../src/contracts/menu";
 
 const addBurger = { type: "ADD", itemId: "burger", qty: 1, modifiers: [] } as const;
 const line = { lineId: "u1:0", itemId: "burger", qty: 1, modifiers: [] };
@@ -20,7 +20,7 @@ const audit = { seq: 1, event: { type: "INPUT_STARTED" }, outcome: "applied", co
 describe("shared strict contract V2", () => {
   it("exports the agreed API and menu versions and honest fixture envelopes", () => {
     expect(API_VERSION).toBe(2);
-    expect(MENU_VERSION).toBe("demo-v2");
+    expect(MENU_VERSION).toBe("cmu-published-2026-09-12");
     expect(ParseRequestSchema.parse(FIXTURE_REQUEST).source).toBe("fixture");
     for (const response of [FIXTURE_RESPONSE, FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION]) {
       expect(ParseResponseSchema.parse(response).parser).toBe("fixture");
@@ -260,8 +260,8 @@ describe("agreed error codes", () => {
 describe("authoritative seeded menu", () => {
   it("has exactly the specified illustrative prices and aliases", () => {
     expect(Object.keys(MENU)).toEqual(ItemIdSchema.options);
-    expect(Object.keys(MENU)).toHaveLength(11);
-    expect(Object.fromEntries(Object.values(MENU).map((item) => [item.id, item.priceCents]))).toEqual({
+    expect(Object.keys(DEMO_MENU)).toHaveLength(11);
+    expect(Object.fromEntries(Object.values(DEMO_MENU).map((item) => [item.id, item.priceCents]))).toEqual({
       burger: 800, chicken_sandwich: 850, veggie_wrap: 750, grilled_cheese: 650,
       fries: 300, onion_rings: 350, side_salad: 400,
       lemonade: 250, iced_tea: 250, cola: 250, water: 150,
@@ -280,9 +280,9 @@ describe("authoritative seeded menu", () => {
   });
 
   it("defines coherent categories and item-specific options with pizza unavailable", () => {
-    expect(Object.values(MENU).filter((item) => item.category === "mains")).toHaveLength(4);
-    expect(Object.values(MENU).filter((item) => item.category === "sides")).toHaveLength(3);
-    expect(Object.values(MENU).filter((item) => item.category === "drinks")).toHaveLength(4);
+    expect(Object.values(DEMO_MENU).filter((item) => item.category === "mains")).toHaveLength(4);
+    expect(Object.values(DEMO_MENU).filter((item) => item.category === "sides")).toHaveLength(3);
+    expect(Object.values(DEMO_MENU).filter((item) => item.category === "drinks")).toHaveLength(4);
     for (const item of Object.values(MENU)) {
       expect(item.description.length).toBeGreaterThan(0);
       expect(item.description.length).toBeLessThanOrEqual(100);

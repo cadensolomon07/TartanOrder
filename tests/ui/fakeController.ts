@@ -48,6 +48,8 @@ export function makeFake(
     state: { ...EMPTY, ...initial },
     busy: false,
     localOnly: false,
+    locationId: "demo",
+    setLocation(value) { fake.locationId = value; onChange(); },
     parser: "fixture",
     notice: null,
     assistant: null,

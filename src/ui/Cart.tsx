@@ -2,6 +2,7 @@
 import type { Line, Op, ItemId } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, modifiersFor } from "./labels";
+import { LinePrice } from "./LinePrice";
 
 export type CartProps = {
   lines: Line[];
@@ -52,6 +53,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps }: CartProps)
                 {isLast && <span className={styles.lastTag}> · last mentioned</span>}
               </span>
             </div>
+            <LinePrice line={line} />
             {line.modifiers.length > 0 && (
               <div className={styles.rowMods}>
                 {line.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}

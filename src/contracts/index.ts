@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
 
 export const API_VERSION = 2 as const;
-export const MENU_VERSION = "demo-v2" as const;
+export const MENU_VERSION = "cmu-published-2026-09-12" as const;
 
 export const LIMITS = {
   lines: 5,
@@ -35,10 +36,13 @@ export const HttpCodeSchema = z.enum(HTTP_CODES);
 export type CoreCode = z.infer<typeof CoreCodeSchema>;
 export type HttpCode = z.infer<typeof HttpCodeSchema>;
 
-export const ItemIdSchema = z.enum([
+export const DEMO_ITEM_IDS = [
   "burger", "chicken_sandwich", "veggie_wrap", "grilled_cheese",
   "fries", "onion_rings", "side_salad", "lemonade", "iced_tea", "cola", "water",
-]);
+] as const;
+export const ItemIdSchema = z.enum([...DEMO_ITEM_IDS, ...CAMPUS_ITEMS.map(item => item.id)]);
+export const LocationIdSchema = z.enum(["demo", ...DINING_LOCATIONS.map(location => location.id)]);
+export type LocationId = z.infer<typeof LocationIdSchema>;
 export const ModifierIdSchema = z.enum([
   "no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice",
 ]);
@@ -186,6 +190,7 @@ export const ParseRequestSchema = z.strictObject({
   source: z.enum(["voice", "text", "fixture"]),
   asrConfidence: z.number().min(0).max(1).nullable(),
   context: OrderContextSchema.optional(),
+  locationId: LocationIdSchema.optional(),
 });
 export type ParseRequest = z.infer<typeof ParseRequestSchema>;
 
@@ -228,7 +233,7 @@ export const UiActionSchema = z.discriminatedUnion("type", [
 export type UiAction = z.infer<typeof UiActionSchema>;
 
 export const AuditEventSchema = z.discriminatedUnion("type", [
-  z.strictObject({ type: z.literal("INPUT_STARTED") }),
+  z.strictObject({ type: z.literal("INPUT_STARTED"), discardContinuation: z.literal(true).optional() }),
   z.strictObject({ type: z.literal("PARSE_RECEIVED"), response: ParseResponseSchema }),
   z.strictObject({ type: z.literal("UI"), action: UiActionSchema }),
 ]);
@@ -269,6 +274,7 @@ export type OrderController = {
   state: OrderView;
   busy: boolean;
   localOnly: boolean;
+  locationId: LocationId;
   parser: "none" | "gemini" | "rules" | "fixture";
   notice: string | null;
   assistant: { id: string; text: string } | null;
@@ -277,6 +283,7 @@ export type OrderController = {
   submit(text: string, source: ParseRequest["source"], asrConfidence: number | null): Promise<void>;
   act(action: UiAction): void;
   setLocalOnly(value: boolean): void;
+  setLocation(value: LocationId): void;
   reset(): void;
   exportLog(): string;
 };

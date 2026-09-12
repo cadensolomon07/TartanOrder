@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { Receipt } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
+import { LinePrice } from "./LinePrice";
 
 export function Ticket({ receipt, onNewOrder }: { receipt: Receipt; onNewOrder: () => void }) {
   // Focus the heading, NOT the reset button: a repeated Enter after Confirm
@@ -30,6 +31,7 @@ export function Ticket({ receipt, onNewOrder }: { receipt: Receipt; onNewOrder: 
               {l.modifiers.length > 0 && (
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
+              <LinePrice line={l} />
             </span>
           </li>
         ))}
@@ -41,6 +43,7 @@ export function Ticket({ receipt, onNewOrder }: { receipt: Receipt; onNewOrder: 
       <button type="button" className={styles.primaryBtn} data-testid="new-order" onClick={onNewOrder}>
         New order
       </button>
+      <p className={styles.muted}>Published or sample menu prices only; no tax or meal-plan discounts applied. Nothing was sent to a dining location.</p>
     </section>
   );
 }

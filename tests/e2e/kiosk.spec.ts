@@ -19,6 +19,7 @@ const FAKE_SR = `
 async function open(page: Page, localOnly = true) {
   await page.addInitScript(FAKE_SR);
   await page.goto("/");
+  await page.getByTestId("dining-location").selectOption("demo");
   await expect(page.getByTestId("disclosure")).toBeVisible();
   if (localOnly) await chooseLocalRules(page);
 }
@@ -156,6 +157,7 @@ const FAKE_SR_NETWORK_THEN_LOCAL = `
 test("cloud speech service unreachable -> same Talk press retried on-device, one submit (recognizer mocked)", async ({ page }) => {
   await page.addInitScript(FAKE_SR_NETWORK_THEN_LOCAL);
   await page.goto("/");
+  await page.getByTestId("dining-location").selectOption("demo");
   await chooseLocalRules(page);
   await page.getByTestId("talk").click();
   await expect(page.getByTestId("cart").locator("li")).toHaveCount(2);
@@ -173,6 +175,7 @@ test("cloud speech service unreachable -> same Talk press retried on-device, one
 test("cloud speech service unreachable and no on-device support -> honest notice, typing works (recognizer mocked)", async ({ page }) => {
   await page.addInitScript(`window.SpeechRecognition = window.webkitSpeechRecognition = class { start(){ const s=this; setTimeout(() => { s.onerror && s.onerror({error:'network'}); s.onend && s.onend(); }, 20); } stop(){} abort(){} };`);
   await page.goto("/");
+  await page.getByTestId("dining-location").selectOption("demo");
   await chooseLocalRules(page);
   await page.getByTestId("talk").click();
   await expect(page.getByTestId("mic-notice")).toContainText(/speech service/i);
@@ -186,6 +189,7 @@ test("denied mic -> typed recovery", async ({ page }) => {
   // Override BOTH names: modern Chromium exposes unprefixed SpeechRecognition too.
   await page.addInitScript(`window.SpeechRecognition = window.webkitSpeechRecognition = class { start(){ this.onerror && this.onerror({error:'not-allowed'}); this.onend && this.onend(); } stop(){} abort(){} };`);
   await page.goto("/");
+  await page.getByTestId("dining-location").selectOption("demo");
   await chooseLocalRules(page);
   await page.getByTestId("talk").click();
   await expect(page.getByTestId("mic-notice")).toContainText("blocked");

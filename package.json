@@ -15,7 +15,9 @@
     "build": "next build",
     "start": "next start",
     "test:gemini": "vitest run tests/core/gemini.acceptance.test.ts",
-    "record:demo": "playwright test --config tests/e2e/record.config.ts"
+    "record:demo": "playwright test --config tests/e2e/record.config.ts",
+    "dining:check": "node scripts/check-dining.mjs",
+    "test:campus:live": "node scripts/verify-campus-browser.mjs"
   },
   "dependencies": {
     "next": "16.3.5",

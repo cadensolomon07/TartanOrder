@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  MENU_VERSION,
   ApiErrorSchema,
   ParseResponseSchema,
   type ApiError,
@@ -15,7 +16,7 @@ vi.mock("@/parser/rules", () => ({
       v: 2,
       requestId: req.requestId,
       baseRevision: req.baseRevision,
-      menuVersion: "demo-v2",
+      menuVersion: MENU_VERSION,
       parser: "rules",
       fallbackReason: null,
       result: { kind: "proposal", ops: [{ type: "ADD", itemId: "fries", qty: 1, modifiers: [] }] },
@@ -27,7 +28,7 @@ const request: ParseRequest = {
   v: 2,
   requestId: "r7",
   baseRevision: 3,
-  menuVersion: "demo-v2",
+  menuVersion: MENU_VERSION,
   text: "a burger and fries",
   source: "text",
   asrConfidence: null,
@@ -37,7 +38,7 @@ const geminiResponse: ParseResponse = {
   v: 2,
   requestId: "r7",
   baseRevision: 3,
-  menuVersion: "demo-v2",
+  menuVersion: MENU_VERSION,
   parser: "gemini",
   fallbackReason: null,
   result: {

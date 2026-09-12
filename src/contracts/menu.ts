@@ -1,6 +1,9 @@
 import type { ItemId, ModifierId } from "./index";
+import { DEMO_ITEM_IDS } from "./index";
+import { CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
 
 export const DEMO_DISCLOSURE = "TartanOrder Demo Counter · Seeded menu · No real purchase.";
+export const CAMPUS_DISCLOSURE = "TartanOrder · CMU published menus · No real purchase.";
 export type MenuCategory = "mains" | "sides" | "drinks";
 
 export type MenuItem = {
@@ -11,6 +14,8 @@ export type MenuItem = {
   priceCents: number;
   aliases: readonly string[];
   allowedModifiers: readonly ModifierId[];
+  locationId: string;
+  sourcePage?: number;
 };
 
 export type MenuModifier = {
@@ -19,12 +24,12 @@ export type MenuModifier = {
   priceCents: number;
 };
 
-function item(value: MenuItem): Readonly<MenuItem> {
-  return Object.freeze({ ...value, aliases: Object.freeze([...value.aliases]), allowedModifiers: Object.freeze([...value.allowedModifiers]) });
+function item(value: Omit<MenuItem, "locationId"> & { locationId?: string }): Readonly<MenuItem> {
+  return Object.freeze({ ...value, locationId: value.locationId ?? "demo", aliases: Object.freeze([...value.aliases]), allowedModifiers: Object.freeze([...value.allowedModifiers]) });
 }
 
 /** Illustrative seeded demo prices; these are not official CMU prices. */
-export const MENU: Readonly<Record<ItemId, Readonly<MenuItem>>> = Object.freeze({
+export const DEMO_MENU: Readonly<Record<(typeof DEMO_ITEM_IDS)[number], Readonly<MenuItem>>> = Object.freeze({
   burger: item({
     id: "burger", label: "Burger", category: "mains", priceCents: 800,
     description: "Beef burger with lettuce, onions and mayo.",
@@ -85,6 +90,25 @@ export const MENU: Readonly<Record<ItemId, Readonly<MenuItem>>> = Object.freeze(
     aliases: ["water", "bottled water", "still water"], allowedModifiers: [],
   }),
 });
+
+/** One immutable released catalog. No remote update can reprice a live review or replay. */
+export const MENU: Readonly<Record<ItemId, Readonly<MenuItem>>> = Object.freeze({
+  ...DEMO_MENU,
+  ...Object.fromEntries(CAMPUS_ITEMS.map(entry => [entry.id, item({ ...entry, allowedModifiers: [] })])),
+}) as Readonly<Record<ItemId, Readonly<MenuItem>>>;
+
+export function itemsForLocation(locationId: string): readonly Readonly<MenuItem>[] {
+  return Object.values(MENU).filter(entry => entry.locationId === locationId);
+}
+
+export function locationName(locationId: string): string {
+  return locationId === "demo" ? "Demo Counter" : DINING_LOCATIONS.find(entry => entry.id === locationId)?.name ?? "Unknown location";
+}
+
+export function fullItemLabel(itemId: ItemId): string {
+  const entry = MENU[itemId];
+  return entry.locationId === "demo" ? entry.label : `${entry.label} · ${locationName(entry.locationId)}`;
+}
 
 export const MODIFIERS: Readonly<Record<ModifierId, Readonly<MenuModifier>>> = Object.freeze({
   no_onions: Object.freeze({ id: "no_onions", label: "No onions", priceCents: 0 }),

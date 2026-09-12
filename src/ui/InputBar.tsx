@@ -24,6 +24,7 @@ export type InputBarProps = {
   onCancelTalking: () => void;
   lastTranscript: string;
   micNotice: string | null;
+  example?: string;
 };
 
 export function InputBar(p: InputBarProps) {
@@ -60,7 +61,7 @@ export function InputBar(p: InputBarProps) {
         ) : p.lastTranscript ? (
           <span>Heard: “{p.lastTranscript}”</span>
         ) : (
-          <span className={styles.muted}>Try: “a burger, fries and lemonade” or “make the burger a double”.</span>
+          <span className={styles.muted}>{p.example ?? "Try: “a burger, fries and lemonade” or “make the burger a double”."}</span>
         )}
       </div>
 

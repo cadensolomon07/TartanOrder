@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type { Review } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
+import { LinePrice } from "./LinePrice";
 
 export type ReviewProps = {
   review: Review;
@@ -31,6 +32,7 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
               {l.modifiers.length > 0 && (
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
+              <LinePrice line={l} />
             </span>
           </li>
         ))}
@@ -56,6 +58,7 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
         </button>
       </div>
       <p className={styles.muted}>Talking or editing again cancels this review.</p>
+      <p className={styles.muted}>Total uses listed menu prices. Counter prices, tax and meal-plan discounts may differ. Nothing will be sent to a dining location.</p>
     </section>
   );
 }

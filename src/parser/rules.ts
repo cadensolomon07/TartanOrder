@@ -12,6 +12,7 @@ import { guardTranscript } from "./rules/guards";
 import { MESSAGES, reject, type Rejection } from "./rules/messages";
 import { normalizeText, splitClauses } from "./rules/normalize";
 import { findNearMisses, joinNearMissPhrases } from "./rules/phonetic";
+import { parseCampusText } from "./campus.rules";
 
 export type RulesOptions = { phonetic: boolean };
 export const DEFAULT_RULES_OPTIONS: RulesOptions = { phonetic: true };
@@ -42,8 +43,8 @@ function interpretText(text: string, options: RulesOptions): ParseResult {
 }
 
 /**
- * Pure rules parser: no network, clock, randomness, cart, prices or reference
- * resolution. Throws on an invalid request; every other outcome is a ParseResult.
+ * Pure rules parser: no network, clock, randomness or prices. Campus references
+ * use only supplied cart context. Throws on an invalid request.
  */
 export function parseRulesWith(req: ParseRequest, options: RulesOptions): ParseResponse {
   const request = ParseRequestSchema.parse(req);
@@ -55,7 +56,8 @@ export function parseRulesWith(req: ParseRequest, options: RulesOptions): ParseR
     parser: "rules" as const,
     fallbackReason: null,
   };
-  const checked = ParseResponseSchema.safeParse({ ...envelope, result: interpretText(request.text, options) });
+  const result = (request.locationId ?? "demo") === "demo" ? interpretText(request.text, options) : parseCampusText(request);
+  const checked = ParseResponseSchema.safeParse({ ...envelope, result });
   if (checked.success) return checked.data;
   return { ...envelope, result: reject("INVALID_SCHEMA", MESSAGES.invalidSchema) };
 }

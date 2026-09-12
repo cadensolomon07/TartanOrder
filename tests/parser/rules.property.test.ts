@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { z } from "zod";
-import { ParseResponseSchema, type ParseRequest, type ParseResult } from "@/contracts";
-import { MENU } from "@/contracts/menu";
+import { MENU_VERSION, ParseResponseSchema, type ParseRequest, type ParseResult } from "@/contracts";
+import { itemsForLocation } from "@/contracts/menu";
 import { parseRules } from "@/parser/rules";
 import canonical from "./fixtures/canonical.json";
 
 // Reproduce a run with: npm test -- tests/parser/rules.property.test.ts
 const NUM_RUNS = 300;
-const ALIASES = Object.values(MENU).flatMap((item) => [...item.aliases]);
+const ALIASES = itemsForLocation("demo").flatMap((item) => [...item.aliases]);
 const INJECTION_PATTERNS = [
   "ignore", "instructions", "system", "prompt", "free", "discount", "price", "$", "refund", "admin", "override",
   "developer", "jailbreak", "{", "}", "\"kind\"",
@@ -62,14 +62,14 @@ const validRequest = fc.record({
   v: fc.constant(2 as const),
   requestId: fc.string({ minLength: 1, maxLength: 100 }).filter((id) => id.trim().length > 0),
   baseRevision: fc.nat({ max: 1_000_000 }),
-  menuVersion: fc.constant("demo-v2" as const),
+  menuVersion: fc.constant(MENU_VERSION),
   text: fc.string({ minLength: 1, maxLength: 500 }),
   source: fc.constantFrom("voice" as const, "text" as const, "fixture" as const),
   asrConfidence: fc.oneof(fc.constant(null), fc.double({ min: 0, max: 1, noNaN: true })),
 });
 
 function requestWith(text: string): ParseRequest {
-  return { v: 2, requestId: "p", baseRevision: 0, menuVersion: "demo-v2", text, source: "text", asrConfidence: null };
+  return { v: 2, requestId: "p", baseRevision: 0, menuVersion: MENU_VERSION, text, source: "text", asrConfidence: null };
 }
 
 describe("rules parser properties", () => {

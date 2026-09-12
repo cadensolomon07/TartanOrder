@@ -69,6 +69,7 @@ test("record actual typed Gemini understanding, reversible edits and explicit co
   }
 
   await page.goto("/");
+  await page.getByTestId("dining-location").selectOption("demo");
   await expect(page.getByTestId("disclosure")).toBeVisible();
   await page.getByTestId("eng-toggle").click();
   await expect(page.getByTestId("local-only")).not.toBeChecked();

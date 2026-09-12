@@ -1,12 +1,12 @@
 // Display helpers over A's shared menu. No private copy of names, prices or
 // modifier rules lives here: everything reads from @/contracts/menu.
 import type { ItemId, ModifierId } from "@/contracts";
-import { MENU, MODIFIERS } from "@/contracts/menu";
+import { MENU, MODIFIERS, fullItemLabel } from "@/contracts/menu";
 
 export const ITEM_IDS = Object.keys(MENU) as ItemId[];
 
 export const ITEM_LABEL: Record<ItemId, string> = Object.fromEntries(
-  ITEM_IDS.map((id) => [id, MENU[id].label]),
+  ITEM_IDS.map((id) => [id, fullItemLabel(id)]),
 ) as Record<ItemId, string>;
 
 export const MODIFIER_LABEL: Record<ModifierId, string> = Object.fromEntries(

@@ -622,3 +622,13 @@
     font-size: 22px;
   }
 }
+
+.locationPanel { padding: 20px; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); }
+.locationPanel label { display: block; margin-bottom: 8px; }
+.locationPanel select, .menuSearch input { width: 100%; min-width: 0; padding: 12px; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
+.locationPanel p { font-size: 13px; line-height: 1.45; margin: 9px 0; }
+.sourceLinks { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 13px; }
+.sourceLinks a { color: var(--red); text-underline-offset: 3px; }
+.menuSearch { display: block; margin: 0 0 20px; font-size: 13px; }
+.menuSearch input { display: block; margin-top: 6px; }
+.linePrice { display: block; color: var(--ink-soft); font-size: 12px; font-weight: 400; margin: 4px 0 8px; }

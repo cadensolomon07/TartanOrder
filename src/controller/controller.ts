@@ -1,11 +1,12 @@
-import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, type OrderController, type ParseRequest, type InterpretOptions, type ParseResponse, type UiAction, type ConversationTurn, type OrderView, type Line, type OrderNotice } from "@/contracts";
+import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, LocationIdSchema, type LocationId, type OrderController, type ParseRequest, type InterpretOptions, type ParseResponse, type UiAction, type ConversationTurn, type OrderView, type Line, type OrderNotice } from "@/contracts";
 import { createEngine, reduceEngine, getView, exportLog } from "@/core/engine";
 import { interpret } from "@/parser/client";
-import { MENU, MODIFIERS } from "@/contracts/menu";
+import { MENU, MODIFIERS, fullItemLabel, locationName, itemsForLocation } from "@/contracts/menu";
 
 type Dependencies = {
   interpret?: (request:ParseRequest, options:InterpretOptions)=>Promise<ParseResponse>;
   sessionId?: ()=>string;
+  locationId?: LocationId;
 };
 const messages:Record<string,string> = {
   INVALID_SCHEMA:"That edit did not match the order format. Your cart was not changed.",
@@ -31,6 +32,7 @@ export function createOrderController(deps:Dependencies = {}) {
   let engine = createEngine(makeSession());
   let capture = false;
   let localOnly = false;
+  let locationId = LocationIdSchema.parse(deps.locationId ?? "demo");
   let assistant: OrderController["assistant"] = null;
   let conversation: ConversationTurn[] = [];
   let assistantCounter = 0;
@@ -45,12 +47,16 @@ export function createOrderController(deps:Dependencies = {}) {
   let snapshot:OrderController;
   const cancel = ()=>{ const old=active; active=null; old?.abort.abort(); if(old)remember("assistant", "The previous request was cancelled without applying its edits."); };
   const publish = ()=>{
-    snapshot = {state:getView(engine),busy:capture||active!==null,parser,notice,assistant,localOnly,startInput,endInput,submit,act,setLocalOnly,reset,exportLog:()=>exportLog(engine)};
+    snapshot = {state:getView(engine),busy:capture||active!==null,parser,notice,assistant,localOnly,locationId,startInput,endInput,submit,act,setLocalOnly,setLocation,reset,exportLog:()=>exportLog(engine)};
     for (const listener of listeners) listener();
   };
   const dispatch = (event:Parameters<typeof reduceEngine>[1])=>{
     engine=reduceEngine(engine,event);
     notice=engine.lastCode ? messages[engine.lastCode] ?? engine.lastCode : null;
+    if(engine.lastCode === "OFF_MENU" && locationId !== "demo")notice=itemsForLocation(locationId).length
+      ? `That item isn't in ${locationName(locationId)}'s published menu. Choose an item shown below.`
+      : `We don't have verified item prices for ${locationName(locationId)}. Choose another location to order.`;
+    if(engine.lastCode === "UNSUPPORTED" && locationId !== "demo" && parser === "rules")notice="Local rules accept one exact menu item and quantity at a time, remove, quantity edits and undo. Use the menu buttons or enable Gemini for other wording.";
     if(engine.lastCode==="AMBIGUOUS_REFERENCE"&&engine.lastOutcome==="rejected")notice="Select a cart row or split the request into one edit at a time.";
   };
   function startInput() {
@@ -64,7 +70,7 @@ export function createOrderController(deps:Dependencies = {}) {
     cancel();assistant=null;parser="none";capture=false;dispatch({type:"INPUT_STARTED"});
     const state=getView(engine);
     const context={lines:state.lines,lastLineId:state.lastLineId,pending:state.pending ?? engine.continuation?.pending ?? null,recent:structuredClone(conversation)};
-    const candidate=ParseRequestSchema.safeParse({v:API_VERSION,menuVersion:MENU_VERSION,requestId:`r${++counter}`,baseRevision:state.revision,text:text.trim(),source,asrConfidence,context});
+    const candidate=ParseRequestSchema.safeParse({v:API_VERSION,menuVersion:MENU_VERSION,requestId:`r${++counter}`,baseRevision:state.revision,text:text.trim(),source,asrConfidence,context,locationId});
     if (!candidate.success) {notice=messages.INVALID_SCHEMA;publish();return;}
     remember("user", candidate.data.text);
     const before=state;
@@ -128,6 +134,16 @@ export function createOrderController(deps:Dependencies = {}) {
   function reset() {
     cancel();capture=false;engine=createEngine(makeSession());parser="none";notice=null;assistant=null;conversation=[];publish();
   }
+  function setLocation(value: LocationId) {
+    if(value === locationId)return;
+    if(getView(engine).phase === "committed"){notice=messages.SESSION_COMMITTED;publish();return;}
+    const checked=LocationIdSchema.safeParse(value);
+    if(!checked.success){notice=messages.INVALID_SCHEMA;publish();return;}
+    cancel();capture=false;locationId=checked.data;parser="none";assistant=null;conversation=[];
+    dispatch({type:"INPUT_STARTED",discardContinuation:true});
+    notice=`Ordering from ${locationName(locationId)}. Items already in your cart are kept.`;
+    publish();
+  }
   publish();
   return {
     getSnapshot:()=>snapshot,
@@ -144,7 +160,7 @@ function joinWords(parts: string[]): string {
 
 function describeLine(line: Line): string {
   const options=line.modifiers.map(modifier=>MODIFIERS[modifier].label.toLowerCase());
-  return `${line.qty} ${MENU[line.itemId].label.toLowerCase()}${options.length ? ` (${options.join(", ")})` : ""}`;
+  return `${line.qty} ${fullItemLabel(line.itemId).toLowerCase()}${options.length ? ` (${options.join(", ")})` : ""}`;
 }
 
 /** Only accepted engine snapshots can generate claims about cart changes. */
@@ -168,6 +184,6 @@ export function describeChanges(before: OrderView, after: OrderView, notices: Or
 function describeNotices(notices: OrderNotice[]): string {
   return notices.map(notice=>notice.kind === "unavailable"
     ? `We don't sell ${notice.item}.`
-    : `We can't add ${notice.option} to ${MENU[notice.itemId].label.toLowerCase()}; that option isn't on our demo menu.`
+    : `We can't add ${notice.option} to ${MENU[notice.itemId].label.toLowerCase()}; that option isn't on our ${MENU[notice.itemId].locationId === "demo" ? "demo" : "published"} menu.`
   ).join(" ");
 }

@@ -1,0 +1,388 @@
+{
+  "kind": "real-browser-campus-gemini",
+  "appUrl": "http://127.0.0.1:3000",
+  "recordedAt": "2026-09-12T07:46:33.816Z",
+  "voice": "Typed browser input; no new microphone trial.",
+  "retries": "None",
+  "cases": [
+    {
+      "locationId": "188",
+      "itemId": "cmu_188_smash_d_burger",
+      "text": "I'd like one Smash'd Burger, please.",
+      "expectedCents": 920,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 2,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_188_smash_d_burger",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$9.20",
+      "passed": true
+    },
+    {
+      "locationId": "190",
+      "itemId": "cmu_190_vanilla_milkshake",
+      "text": "I'd like one Vanilla Milkshake, please.",
+      "expectedCents": 755,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_190_vanilla_milkshake",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$7.55",
+      "passed": true
+    },
+    {
+      "locationId": "136",
+      "itemId": "cmu_136_millies-hot-latte-12-oz",
+      "text": "I'd like one Hot Latte (12 oz), please.",
+      "expectedCents": 500,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_136_millies-hot-latte-12-oz",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$5.00",
+      "passed": true
+    },
+    {
+      "locationId": "115",
+      "itemId": "cmu_115_la-prima-rohr-espresso-1-oz",
+      "text": "I'd like one Espresso (1 oz), please.",
+      "expectedCents": 295,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_115_la-prima-rohr-espresso-1-oz",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$2.95",
+      "passed": true
+    },
+    {
+      "locationId": "94",
+      "itemId": "cmu_94_la-prima-wean-espresso-1-oz",
+      "text": "I'd like one Espresso (1 oz), please.",
+      "expectedCents": 295,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_94_la-prima-wean-espresso-1-oz",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$2.95",
+      "passed": true
+    },
+    {
+      "locationId": "186",
+      "itemId": "cmu_186_redhawk-double-espresso",
+      "text": "I'd like one Double Espresso, please.",
+      "expectedCents": 360,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_186_redhawk-double-espresso",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$3.60",
+      "passed": true
+    },
+    {
+      "locationId": "204",
+      "itemId": "cmu_204_de-fer-hunt-double-shot-espresso",
+      "text": "I'd like one Double Shot Espresso, please.",
+      "expectedCents": 360,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_204_de-fer-hunt-double-shot-espresso",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$3.60",
+      "passed": true
+    },
+    {
+      "locationId": "114",
+      "itemId": "cmu_114_samosa-2",
+      "text": "I'd like one Samosa (2), please.",
+      "expectedCents": 550,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_114_samosa-2",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$5.50",
+      "passed": true
+    },
+    {
+      "locationId": "91",
+      "itemId": "cmu_91_chips",
+      "text": "I'd like one Chips, please.",
+      "expectedCents": 190,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_91_chips",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$1.90",
+      "passed": true
+    },
+    {
+      "locationId": "92",
+      "itemId": "cmu_92_the-leonardo",
+      "text": "I'd like one The Leonardo, please.",
+      "expectedCents": 840,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_92_the-leonardo",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$8.40",
+      "passed": true
+    },
+    {
+      "locationId": "201",
+      "itemId": "cmu_201_lamb-curry-8-oz",
+      "text": "I'd like one Lamb Curry - 8 oz, please.",
+      "expectedCents": 899,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_201_lamb-curry-8-oz",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$8.99",
+      "passed": true
+    },
+    {
+      "locationId": "109",
+      "itemId": "cmu_109_chicken-burger",
+      "text": "I'd like one Chicken Burger, please.",
+      "expectedCents": 799,
+      "response": {
+        "v": 2,
+        "requestId": "r1",
+        "baseRevision": 3,
+        "menuVersion": "cmu-published-2026-09-12",
+        "parser": "gemini",
+        "fallbackReason": null,
+        "result": {
+          "kind": "proposal",
+          "ops": [
+            {
+              "type": "ADD",
+              "itemId": "cmu_109_chicken-burger",
+              "qty": 1,
+              "modifiers": []
+            }
+          ]
+        }
+      },
+      "total": "$7.99",
+      "passed": true
+    },
+    {
+      "name": "Stackd combined order and across-turn edit",
+      "steps": [
+        {
+          "v": 2,
+          "requestId": "r1",
+          "baseRevision": 2,
+          "menuVersion": "cmu-published-2026-09-12",
+          "parser": "gemini",
+          "fallbackReason": null,
+          "result": {
+            "kind": "proposal",
+            "ops": [
+              {
+                "type": "ADD",
+                "itemId": "cmu_188_smash_d_burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "type": "ADD",
+                "itemId": "cmu_188_fresh_cut_fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ]
+          }
+        },
+        {
+          "v": 2,
+          "requestId": "r2",
+          "baseRevision": 5,
+          "menuVersion": "cmu-published-2026-09-12",
+          "parser": "gemini",
+          "fallbackReason": null,
+          "result": {
+            "kind": "proposal",
+            "ops": [
+              {
+                "type": "SET_QTY",
+                "ref": {
+                  "by": "line",
+                  "lineId": "r1:1"
+                },
+                "qty": 2
+              }
+            ]
+          }
+        }
+      ],
+      "receipt": "Order placed\nSimulated · no real purchase\n\nTicket dom8zm:receipt:7\n\n1× Smash'd Burger · Stack'd Underground\n$9.20 · published menu price\n1× Fresh Cut Fries · Stack'd Underground\n$3.45 · published menu price\nTotal\n$12.65\nNew order\n\nPublished or sample menu prices only; no tax or meal-plan discounts applied. Nothing was sent to a dining location.",
+      "passed": true
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}

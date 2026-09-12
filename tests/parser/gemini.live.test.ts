@@ -7,7 +7,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ModelParseResultSchema, type ParseRequest } from "@/contracts";
+import { MENU_VERSION, ModelParseResultSchema, type ParseRequest } from "@/contracts";
 import { GeminiError, parseGemini, type GeminiConfig, type GeminiOutcome } from "@/parser/gemini.server";
 
 const apiKey = process.env.GEMINI_API_KEY ?? "";
@@ -45,7 +45,7 @@ function liveConfig(): GeminiConfig {
 }
 
 function requestFor(text: string, index: number): ParseRequest {
-  return { v: 2, requestId: `live-${index}`, baseRevision: 0, menuVersion: "demo-v2", text, source: "fixture", asrConfidence: null };
+  return { v: 2, requestId: `live-${index}`, baseRevision: 0, menuVersion: MENU_VERSION, text, source: "fixture", asrConfidence: null };
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

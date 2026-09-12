@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { CORE_CODES, LIMITS, ItemIdSchema, ModifierIdSchema, type ParseRequest } from "@/contracts";
-import { MENU, MODIFIERS } from "@/contracts/menu";
+import { MENU_VERSION, CORE_CODES, LIMITS, DEMO_ITEM_IDS, ModifierIdSchema, type ParseRequest } from "@/contracts";
+import { MODIFIERS, itemsForLocation } from "@/contracts/menu";
 import {
   GeminiError,
   buildProviderSchema,
@@ -22,7 +22,7 @@ const request: ParseRequest = {
   v: 2,
   requestId: "u1",
   baseRevision: 1,
-  menuVersion: "demo-v2",
+  menuVersion: MENU_VERSION,
   text: TRANSCRIPT,
   source: "text",
   asrConfidence: null,
@@ -140,7 +140,7 @@ describe("buildProviderSchema", () => {
     });
     const flattened = enums.flat();
     expect(flattened).toEqual(expect.arrayContaining(["proposal", "clarify", "reject", "resolve"]));
-    expect(enums).toContainEqual(ItemIdSchema.options);
+    expect(enums).toContainEqual([...DEMO_ITEM_IDS]);
     expect(enums).toContainEqual(ModifierIdSchema.options);
     expect(enums).toContainEqual([...CORE_CODES]);
     expect(enums).toContainEqual(["last"]);
@@ -171,7 +171,7 @@ describe("buildSystemInstruction", () => {
   const instruction = buildSystemInstruction();
 
   it("lists every item id, alias, label, and modifier id", () => {
-    for (const item of Object.values(MENU)) {
+    for (const item of itemsForLocation("demo")) {
       expect(instruction).toContain(item.id);
       expect(instruction).toContain(item.label);
       for (const alias of item.aliases) expect(instruction).toContain(alias);
@@ -227,7 +227,7 @@ describe("provider request", () => {
       contents: { role: string; parts: { text: string }[] }[];
       generationConfig: Record<string, unknown>;
     };
-    expect(JSON.parse(body.contents[0].parts[0].text)).toEqual({ utterance: TRANSCRIPT, context: { lines: [], lastLineId: null, pending: null, recent: [] } });
+    expect(JSON.parse(body.contents[0].parts[0].text)).toEqual({ utterance: TRANSCRIPT, locationId: "demo", context: { lines: [], lastLineId: null, pending: null, recent: [] } });
     expect(body.systemInstruction.parts[0].text).toBe(buildSystemInstruction());
     expect(body.generationConfig.responseMimeType).toBe("application/json");
     expect(body.generationConfig.responseJsonSchema).toEqual(buildProviderSchema());

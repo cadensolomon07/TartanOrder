@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  MENU_VERSION,
   CORE_CODES,
   CoreCodeSchema,
   LIMITS,
@@ -11,7 +12,7 @@ import {
   type ParseRequest,
   type ParseResponse,
 } from "@/contracts";
-import { MENU } from "@/contracts/menu";
+import { MENU, itemsForLocation } from "@/contracts/menu";
 import { FIXTURE_REQUEST, FIXTURE_RESPONSE } from "@/contracts/fixtures";
 import { DEFAULT_RULES_OPTIONS, guardTranscript, parseRules, parseRulesWith } from "@/parser/rules";
 import canonical from "./fixtures/canonical.json";
@@ -27,7 +28,7 @@ type Expectation = z.infer<typeof ExpectationSchema>;
 const ROWS = z.array(RowSchema).parse(canonical);
 
 function request(text: string, overrides: Partial<ParseRequest> = {}): ParseRequest {
-  return { v: 2, requestId: "t1", baseRevision: 0, menuVersion: "demo-v2", text, source: "text", asrConfidence: null, ...overrides };
+  return { v: 2, requestId: "t1", baseRevision: 0, menuVersion: MENU_VERSION, text, source: "text", asrConfidence: null, ...overrides };
 }
 
 function run(text: string): ParseResponse {
@@ -81,7 +82,7 @@ describe("envelope", () => {
   it("echoes requestId, baseRevision and menuVersion with parser rules and no fallback", () => {
     const response = parseRules(request("a burger", { requestId: "echo-42", baseRevision: 17 }));
     expect(response).toMatchObject({
-      v: 2, requestId: "echo-42", baseRevision: 17, menuVersion: "demo-v2", parser: "rules", fallbackReason: null,
+      v: 2, requestId: "echo-42", baseRevision: 17, menuVersion: MENU_VERSION, parser: "rules", fallbackReason: null,
     });
   });
 
@@ -317,7 +318,7 @@ describe("ASR stutters (second C intake, normalize.ts)", () => {
 
 describe("adds and modifiers", () => {
   it("accepts every menu alias, singular and derived plural", () => {
-    for (const item of Object.values(MENU)) {
+    for (const item of itemsForLocation("demo")) {
       for (const alias of item.aliases) {
         expect(opsOf(run(`a ${alias}`))).toEqual([{ type: "ADD", itemId: item.id, qty: 1, modifiers: [] }]);
         const plural = alias.endsWith("s") ? alias : `${alias}s`;

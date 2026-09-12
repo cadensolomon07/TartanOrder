@@ -329,7 +329,7 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
   const event = parsed.data;
   if (event.type === "INPUT_STARTED") {
     if (state.view.phase === "committed") return finish(state, event, "ignored", "SESSION_COMMITTED");
-    const continuation = state.view.pending && state.pendingContext
+    const continuation = event.discardContinuation ? null : state.view.pending && state.pendingContext
       ? { pending: clone(state.view.pending), requestId: state.pendingContext.requestId }
       : state.continuation;
     return finish({ ...invalidate(state), continuation }, event, "applied");

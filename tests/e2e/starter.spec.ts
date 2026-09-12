@@ -6,6 +6,7 @@ test("real local rules reach a reviewed simulated receipt", async ({ page }) => 
   const apiHits: string[] = [];
   page.on("request", (r) => { if (r.url().includes("/api/")) apiHits.push(r.url()); });
   await page.goto("/");
+  await page.getByTestId("dining-location").selectOption("demo");
   await page.getByTestId("eng-toggle").click();
   await page.getByTestId("local-only").check();
   await page.getByTestId("eng-toggle").click();

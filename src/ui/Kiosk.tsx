@@ -4,12 +4,13 @@
 // mutates state or calls an API itself.
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import type { Op, OrderController, UiAction } from "@/contracts";
+import type { Op, OrderController, UiAction, LocationId } from "@/contracts";
 import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useSpeaking, useTtsAvailable } from "@/voice/tts";
 import styles from "./Kiosk.module.css";
 import { Cart } from "./Cart";
 import { MenuButtons } from "./MenuButtons";
+import { DiningLocation } from "./DiningLocation";
 import { InputBar } from "./InputBar";
 import { ClarifyPanel } from "./ClarifyPanel";
 import { ReviewPanel } from "./ReviewPanel";
@@ -18,7 +19,7 @@ import { EngineeringPanel } from "./EngineeringPanel";
 import { useChangedLines } from "./useChangedLines";
 import { reviewToSpeech } from "./reviewSpeech";
 import { formatCents } from "./labels";
-import { DEMO_DISCLOSURE } from "@/contracts/menu";
+import { DEMO_DISCLOSURE, CAMPUS_DISCLOSURE, itemsForLocation } from "@/contracts/menu";
 
 export type KioskProps = {
   controller: OrderController;
@@ -60,7 +61,7 @@ export function micFailureMessage(reason: SpeechFailure, ctx: Pick<FailureContex
 }
 
 export function Kiosk({ controller, replay }: KioskProps) {
-  const { state, busy, parser, notice, localOnly, assistant } = controller;
+  const { state, busy, parser, notice, localOnly, assistant, locationId } = controller;
   const phase = state.phase;
 
   const [draft, setDraft] = useState("");
@@ -136,6 +137,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
       controller.endInput();
     }
   }, [controller, speech]);
+
+  const changeLocation = (id: LocationId) => {
+    if (id === locationId) return;
+    stopAnyCapture();
+    setDraft(""); setDraftStarted(false); setLastTranscript(""); setMicNotice(null);
+    controller.setLocation(id);
+  };
 
   // ---- typed -----------------------------------------------------------
   const onDraftChange = useCallback(
@@ -253,7 +261,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
     <div className={styles.kiosk} data-testid="kiosk" data-phase={phase}>
       <header className={styles.header}>
         <div className={styles.brand}>TartanOrder</div>
-        <div className={styles.subBrand} data-testid="disclosure">{DEMO_DISCLOSURE}</div>
+        <div className={styles.subBrand} data-testid="disclosure">{locationId === "demo" ? DEMO_DISCLOSURE : CAMPUS_DISCLOSURE}</div>
         <div className={styles.badges} aria-label="Current modes">
           <span className={styles.badge} data-testid="badge-parser">
             parser: {parser}
@@ -284,6 +292,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       ) : (
         <main className={styles.main}>
           <div className={styles.left}>
+            <DiningLocation locationId={locationId} onChange={changeLocation} />
             <section className={styles.conversation} aria-label="Order assistant">
               <div className={styles.conversationHeader}>
                 <span className={styles.conversationStatus} data-testid="conversation-status" role="status">{conversationStatus}</span>
@@ -293,6 +302,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
                 {assistant?.text || "What sounds good? Tell me your order, or choose from the menu."}
               </p>
             <InputBar
+              example={locationId === "demo" ? undefined : itemsForLocation(locationId)[0] ? `Try: “one ${itemsForLocation(locationId)[0].label}”. Include the item’s name and size.` : "Choose a location with published prices to add food, or edit items already in your cart."}
               draft={draft}
               draftOpen={draftStarted}
               onDraftChange={onDraftChange}
@@ -311,7 +321,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
               micNotice={micNotice}
             />
             </section>
-            <MenuButtons disabled={!editable} onOps={manual} />
+            <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} />
           </div>
 
           <div className={styles.right}>

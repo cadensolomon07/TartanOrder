@@ -1,5 +1,18 @@
 # Demo and release runbook
 
+## Campus menu candidate — September 12
+
+The campus expansion uses API 2 / `cmu-published-2026-09-12`. Choose a location with the **Order from** list; the initial location is **Stack’d Underground**. Twelve locations have 410 published fixed-price configurations. The other directory entries show why ordering is unavailable and link to CMU. Prices come from dated published PDFs, not a live register. Details and omissions: [dining-data.md](dining-data.md).
+
+Demo path: press **Talk**, say “One Smash’d Burger and fresh cut fries,” then **Stop — I’m done**. With a successful Gemini response the total should be **$12.65**. Review lists the location, items and prices; **Confirm simulated order** creates a receipt without sending anything. Use exact names and sizes when several variants are offered. No newly recorded campus microphone success is claimed until a person performs this test.
+
+Recovery: select **Engineering → Local only**, then type `a smashd burger` and submit; type `fresh cut fries` and submit separately. Expect $12.65, then review and confirm. Campus local rules accept one exact menu item/quantity per input plus remove, quantity edits and undo; menu buttons also work offline. The prebuilt local server at http://127.0.0.1:3000 remains the offline fallback. Discard unfinished text or cancel capture before review. **New order** clears a committed session; changing location keeps existing cart items and cancels unfinished input/review.
+
+For the original recorded demo, choose **Demo Counter — sample prices** before using its burger/fries/lemonade script. Earlier videos and evidence use that sample catalog; do not present them as proof of current campus prices. Export logs are catalog-version-bound: earlier `demo-v2` logs are not automatically imported/repriced. `npm run dining:check` checks directory links/PDF bytes without changing the released catalog.
+
+The notes below retain historical release evidence and setup instructions. The campus section supersedes their old default-menu instructions.
+
+
 ## Current V2 release status
 
 The local candidate uses **API 2 / `demo-v2`**, an eleven-item demonstration menu and online Gemini by default. Real local generation is verified with **`gemini-3.6-flash`**. Gemini 2.5 Flash generation was unavailable for the configured key; do not label this release as using 2.5. The key remains server-only in ignored local configuration and the existing Vercel environment.
