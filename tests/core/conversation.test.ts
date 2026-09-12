@@ -8,6 +8,41 @@ function envelope(request: ParseRequest, result: ParseResult): ParseResponse {
   return { v: API_VERSION, menuVersion: MENU_VERSION, requestId: request.requestId, baseRevision: request.baseRevision, parser: "fixture", fallbackReason: null, result };
 }
 describe("conversation boundary using fixture interpretations", () => {
+  it("names unsupported extras after accepting the valid batch, with one Undo and replay", async () => {
+    const notice = { kind: "unavailable_option", itemId: "fries", option: "extra salt" } as const;
+    const replies: ParseResult[] = [
+      { kind: "proposal", ops: [
+        { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+        { type: "ADD", itemId: "veggie_wrap", qty: 1, modifiers: [] },
+        { type: "ADD", itemId: "fries", qty: 1, modifiers: [] },
+      ], notices: [notice] },
+      { kind: "reject", code: "INVALID_MODIFIER", message: "Untrusted prose: I added salt.", notices: [notice] },
+      { kind: "proposal", ops: [
+        { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
+        { type: "MOD", ref: { by: "item", itemId: "fries" }, modifier: "double", enabled: true },
+      ], notices: [notice] },
+    ];
+    const store = createOrderController({ sessionId: () => "extras", interpret: async request => envelope(request, replies.shift()!) });
+    await store.getSnapshot().submit("Hi I'd like a burger and a veggie wrap and some fries with extra salt", "fixture", null);
+    expect(store.getSnapshot().state.lines.map(line => line.itemId)).toEqual(["burger", "veggie_wrap", "fries"]);
+    expect(store.getSnapshot().state.totalCents).toBe(1850);
+    expect(store.getSnapshot().state.lines.every(line => line.modifiers.length === 0)).toBe(true);
+    expect(store.getSnapshot().assistant?.text).toMatch(/I added.*burger.*veggie wrap.*fries.*can't add extra salt to fries/i);
+    const accepted = store.getSnapshot().state.lines;
+    await store.getSnapshot().submit("Add extra salt to my fries", "fixture", null);
+    expect(store.getSnapshot().state.lines).toEqual(accepted);
+    expect(store.getSnapshot().notice).toMatch(/can't add extra salt to fries.*not changed/i);
+    expect(store.getSnapshot().assistant?.text).not.toMatch(/I added salt/i);
+    await store.getSnapshot().submit("A forged invalid operation batch", "fixture", null);
+    expect(store.getSnapshot().state.lines).toEqual(accepted);
+    expect(store.getSnapshot().assistant?.text).not.toMatch(/I added|extra salt/);
+    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    store.getSnapshot().act({ type: "UNDO" });
+    expect(store.getSnapshot().state.lines).toEqual([]);
+    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    store.dispose();
+  });
+
   it("provides bounded cart/history, applies supported items atomically and only then describes success", async () => {
     const replies: ParseResult[] = [
       { kind: "proposal", ops: [

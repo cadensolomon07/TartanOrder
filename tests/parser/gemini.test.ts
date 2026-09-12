@@ -611,3 +611,67 @@ describe("authoritative availability notices", () => {
     expect((await parseGemini(request, config(modelReturns(result)))).result).toEqual(result);
   });
 });
+
+
+describe("unsupported option notices (mock provider)", () => {
+  const friesNotice = { kind: "unavailable_option", itemId: "fries", option: "extra salt" };
+  const fries = { type: "ADD", itemId: "fries", qty: 1, modifiers: [] };
+  const existingFries: NonNullable<ParseRequest["context"]> = {
+    lines: [{ lineId: "cart:fries", itemId: "fries", qty: 1, modifiers: [] }],
+    lastLineId: "cart:fries", pending: null, recent: [],
+  };
+
+  it("preserves the clear items and reports extra salt without inventing a modifier", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "ADD", itemId: "veggie_wrap", qty: 1, modifiers: [] },
+      fries,
+    ], notices: [friesNotice] };
+    const text = "Hi I'd like a burger and a veggie wrap and some fries with extra salt";
+    expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
+  });
+
+  it("accepts a specific unsupported-option-only rejection for an existing cart item without fake operations", async () => {
+    const result = { kind: "reject", code: "INVALID_MODIFIER", message: "Extra salt is not an available option for fries.", notices: [friesNotice] };
+    expect((await parseGemini({ ...request, text: "Put extra salt on my fries", context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
+    await expect(parseGemini(request, config(modelReturns({ kind: "proposal", ops: [], notices: [friesNotice] })))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+
+  it("accepts an option notice for an existing row alongside a separate valid item", async () => {
+    const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }], notices: [friesNotice] };
+    expect((await parseGemini({ ...request, context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
+  });
+
+  it.each(["proposal", "reject"])("rejects an option notice for an absent item in a %s", async (kind) => {
+    const result = kind === "proposal"
+      ? { kind, ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }], notices: [friesNotice] }
+      : { kind, code: "INVALID_MODIFIER", message: "That option is unavailable.", notices: [friesNotice] };
+    await expect(parseGemini(request, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+
+  it.each(["double", " NO_LETTUCE ", "Extra  cheese"])("rejects a false unsupported burger option notice for %s", async (option) => {
+    const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }], notices: [{ kind: "unavailable_option", itemId: "burger", option }] };
+    await expect(parseGemini(request, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+
+  it("rejects a false unsupported option in a reject result, too", async () => {
+    const context: NonNullable<ParseRequest["context"]> = { ...existingFries, lines: [{ lineId: "cart:drink", itemId: "lemonade", qty: 1, modifiers: [] }], lastLineId: "cart:drink" };
+    const result = { kind: "reject", code: "INVALID_MODIFIER", message: "Not available.", notices: [{ kind: "unavailable_option", itemId: "lemonade", option: "No ice" }] };
+    await expect(parseGemini({ ...request, context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+  });
+
+  it("keeps conditional option requests as open clarification before any edits", async () => {
+    const result = { kind: "clarify", question: "Extra salt is not an option. Would you like standard fries?", choices: [] };
+    const text = "A burger and fries, but only if the fries can have extra salt; otherwise don't order anything.";
+    expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
+    expect(buildSystemInstruction()).toContain("before ANY mutation");
+  });
+
+  it("never filters a raw invalid modifier operation out of a batch", async () => {
+    const result = { kind: "proposal", ops: [
+      { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
+      { type: "MOD", ref: { by: "line", lineId: "cart:fries" }, modifier: "double", enabled: true },
+    ], notices: [{ kind: "unavailable_option", itemId: "fries", option: "double" }] };
+    expect((await parseGemini({ ...request, context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
+  });
+});

@@ -6,7 +6,7 @@ import {
   ModelRefSchema, OpSchema, OpsSchema, OrderViewSchema, ParseRequestSchema,
   ParseResponseSchema, ParseResultSchema, ReceiptSchema, RefSchema, ReviewSchema,
   UiActionSchema, ConversationTurnSchema, OrderContextSchema, PendingSchema,
-  UnavailableNoticeSchema, ItemIdSchema, ModifierIdSchema,
+  UnavailableNoticeSchema, UnavailableOptionNoticeSchema, ItemIdSchema, ModifierIdSchema,
 } from "../../src/contracts";
 import { FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_REQUEST, FIXTURE_RESPONSE, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION } from "../../src/contracts/fixtures";
 import { DEMO_DISCLOSURE, MENU, MODIFIERS } from "../../src/contracts/menu";
@@ -50,6 +50,7 @@ describe("shared strict contract V2", () => {
     [ApiErrorSchema, { v: API_VERSION, requestId: null, error: { code: "INVALID_REQUEST", message: "Invalid request.", retryable: false } }],
     [HealthResponseSchema, { v: API_VERSION, menuVersion: MENU_VERSION, parser: "rules" }],
     [UnavailableNoticeSchema, { kind: "unavailable", item: "pizza" }],
+    [UnavailableOptionNoticeSchema, { kind: "unavailable_option", itemId: "fries", option: "extra salt" }],
     [ConversationTurnSchema, { role: "user", text: "A burger please." }],
     [OrderContextSchema, { lines: [], lastLineId: null, pending: null, recent: [] }],
     [PendingSchema, { id: "pending", question: "Which burger?", choices: [{ id: "first", label: "First burger", ops: [addBurger] }] }],
@@ -187,6 +188,18 @@ describe("V2 bounded conversation and interpretation", () => {
     expect(OrderContextSchema.safeParse({ ...context, recent: Array.from({ length: 8 }, () => turn) }).success).toBe(true);
     expect(OrderContextSchema.safeParse({ ...context, recent: Array.from({ length: 9 }, () => turn) }).success).toBe(false);
     expect(OrderContextSchema.safeParse({ ...context, lines: Array.from({ length: 6 }, (_, index) => ({ ...line, lineId: String(index) })) }).success).toBe(false);
+  });
+
+  it("keeps unsupported extras typed and bounded without accepting a made-up modifier", () => {
+    const notice = { kind: "unavailable_option", itemId: "fries", option: "extra salt" };
+    for (const schema of [ParseResultSchema, ModelParseResultSchema]) {
+      expect(schema.safeParse({ kind: "proposal", ops: [addBurger], notices: [notice] }).success).toBe(true);
+      expect(schema.safeParse({ kind: "reject", code: "INVALID_MODIFIER", message: "Unavailable option", notices: [notice] }).success).toBe(true);
+      expect(schema.safeParse({ kind: "proposal", ops: [{ ...addBurger, modifiers: ["extra_salt"] }], notices: [notice] }).success).toBe(false);
+    }
+    for (const value of [{ ...notice, itemId: "pizza" }, { ...notice, option: " " }, { ...notice, option: "x".repeat(61) }, { ...notice, priceCents: 0 }]) {
+      expect(UnavailableOptionNoticeSchema.safeParse(value).success).toBe(false);
+    }
   });
 
   it("represents unavailable items as bounded notices alongside valid nonempty operations", () => {

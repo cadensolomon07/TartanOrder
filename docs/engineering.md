@@ -16,7 +16,7 @@ The controller owns capture, cancellation and request identity. New input invali
 
 | Boundary | Behavior checked |
 | --- | --- |
-| Atomic edits | Validate all proposed operations on a temporary cart. Independent unavailable items are notices, never invalid cart operations; invalid accepted-operation batches still reject in full. |
+| Atomic edits | Validate all proposed operations on a temporary cart. Independent unavailable items/options are named notices, never invalid cart operations; invalid accepted-operation batches still reject in full. |
 | Ambiguity | Every ADD creates a separate line. Repeated matches produce targeted choices; a conversational answer resolves the chosen batch with revalidation. Open questions can ask for intent without inventing edit choices. |
 | Undo and requests | Undo restores cart and referent while revision/audit advance. Cancelled, stale, duplicate and mismatched responses cannot change the order. |
 | Confirmation | Review copies every line, modifier, quantity and total. Exact ID/revision and idle input are required; repeated confirmation returns one receipt. Committed orders cannot be edited. |
@@ -37,3 +37,5 @@ API **2**, menu **`demo-v2`**: eleven demonstration items across mains, sides an
 **Release status:** V2 is deployed with real hosted Gemini verified; the final C evaluation delta is integrated. A fresh public Chromium run passed five actual Gemini calls through correction, ambiguity and explicit receipt, with no fallback or page errors. Human microphone success is still unverified. Voice lifecycle tests use mocks, and speech recognition is browser/service dependent. No voice accuracy, generalization rate or model-comparison performance is claimed. Fixture tests remain labelled `fixture`.
 
 Production application `3bb09ba` is live at https://tartan-order.vercel.app, verified with a real Gemini response and server-side provider usage. The labelled 149.92-second typed backup was recorded and visually inspected; actual human speech remains a separate unverified gate.
+
+The subsequent unsupported-extras correction adds valid standard items while naming the unsupported extra; conditional requests ask first. Its 490 default tests, 19 browser checks and three targeted real-Gemini requests passed. See the integration record for the exact human-reported sentence and evidence.

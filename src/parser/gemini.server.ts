@@ -107,12 +107,12 @@ export function buildSystemInstruction(): string {
     "MENU (itemId | label | aliases | valid options)", ...items,
     "OPTIONS (modifierId | label)", ...modifiers,
     "RESULT KINDS",
-    `proposal: {kind:'proposal',ops:[...],notices?:[{kind:'unavailable',item:'customer item name'}]}. Use 1..${LIMITS.operations} operations for a clear intent.`,
+    `proposal: {kind:'proposal',ops:[...],notices?:[{kind:'unavailable',item:'customer item name'}|{kind:'unavailable_option',itemId:'menu ID',option:'requested option name'}]}. Use 1..${LIMITS.operations} operations for a clear intent.`,
     `clarify: {kind:'clarify',question:'specific short question',choices:[{id:'c1',label:'clear answer',ops:[...]}]}. At most ${LIMITS.choices} distinct choices. Each choice carries the ENTIRE intended batch, with no change applied until selected.`,
     "resolve: {kind:'resolve',pendingId:'supplied pending ID',choiceId:'supplied choice ID'}. Use only when the new utterance clearly answers a supplied pending choice. Do not invent IDs or substitute fresh operations for that choice.",
     "For an open clarification with no known safe alternatives, return choices:[] and ask the specific missing question. Never invent ADD, REMOVE, or unchanged-order operations just to populate choices.",
     "When context.pending.choices is empty, interpret the answer using its question and recent conversation, then propose the now-clear full intended edits. If still unclear, ask again. Never return resolve for an empty choice list.",
-    `reject: {kind:'reject',code:'one allowed code',message:'short helpful explanation'}. Allowed codes: ${CORE_CODES.join(", ")}.`,
+    `reject: {kind:'reject',code:'one allowed code',message:'short helpful explanation',notices?:[...]}. Allowed codes: ${CORE_CODES.join(", ")}.`,
     "OPERATIONS",
     "ADD {type:'ADD',itemId,qty,modifiers:[]}; REMOVE {type:'REMOVE',ref}; SET_QTY {type:'SET_QTY',ref,qty}; MOD {type:'MOD',ref,modifier,enabled}; UNDO {type:'UNDO'}.",
     'A reference is {"by":"line","lineId":"an existing context cart line ID"}, {"by":"item","itemId":"a menu ID"}, or {"by":"last"}.',
@@ -126,7 +126,11 @@ export function buildSystemInstruction(): string {
     "When a clarification reply also asks for unrelated edits, clarify the complete intended batch instead of silently dropping either request.",
     "An independently requested unavailable food must not erase valid independent requests: include its name in unavailable notices and propose the clear available items. If nothing available is requested, reject OFF_MENU.",
     "An unavailable substitution, alternative, or condition can change the meaning of the entire request: ask a specific clarification with choices:[] before any mutation when the desired alternative is unknown. Never guess a fallback replacement.",
-    "Only use options listed for the target item. An unsupported option rejects INVALID_MODIFIER; never silently omit it. Engine validation independently enforces pairings.",
+    "Only use option IDs listed for the target item. For an ordinary request for available items with an unsupported option, propose the clearly requested standard items and their valid options atomically, plus an unavailable_option notice naming the itemId and requested unsupported option. Never invent a modifier ID or silently omit the requested option without a notice.",
+    "An option notice must refer to an item being added in this proposal or already present in the current cart. Never mark an option unavailable when it is listed as valid for that item.",
+    "When the customer says only if, otherwise do not order, or makes any item/order conditional on an unavailable option, ask a specific clarification with choices:[] before ANY mutation. Do not assume they accept the standard item or apply other parts of a conditional order.",
+    "For an unsupported-option-only edit to an existing cart item, return reject INVALID_MODIFIER with an unavailable_option notice and a specific explanation. There are no valid edits to apply; never invent a no-op, duplicate ADD or unrelated change to make a proposal nonempty.",
+    "The application validates each proposed batch atomically. Invalid modifier pairings in an operation must never be repaired, filtered out or described as successful by the application.",
     "double is the burger option, never quantity two. Add options only when requested. cheeseburger is the burger menu alias.",
     `Quantities must be integers 1..${LIMITS.quantity}. Negative, zero, excessive or fractional quantities must reject QUANTITY_LIMIT or UNSUPPORTED. Never clamp, round, reduce, or silently drop a requested quantity.`,
     `An order has at most ${LIMITS.lines} rows and ${LIMITS.totalUnits} units; engine validation determines final limits.`,
@@ -285,8 +289,28 @@ const AVAILABLE_NAMES = new Set(Object.values(MENU).flatMap((item) =>
 
 /** Availability, cart membership and pending choices require authoritative context. */
 function validateSemantics(result: ParseResult, req: ParseRequest): void {
-  if (result.kind === "proposal" && result.notices?.some((notice) => AVAILABLE_NAMES.has(normalizeMenuName(notice.item)))) {
-    throw invalidOutput("Model output failed validation: an available menu item was marked unavailable.");
+  if (result.kind === "proposal" || result.kind === "reject") {
+    const targetItems = new Set(req.context?.lines.map((line) => line.itemId) ?? []);
+    if (result.kind === "proposal") {
+      for (const op of result.ops) if (op.type === "ADD") targetItems.add(op.itemId);
+    }
+    for (const notice of result.notices ?? []) {
+      if (notice.kind === "unavailable") {
+        if (AVAILABLE_NAMES.has(normalizeMenuName(notice.item))) {
+          throw invalidOutput("Model output failed validation: an available menu item was marked unavailable.");
+        }
+        continue;
+      }
+      if (!targetItems.has(notice.itemId)) {
+        throw invalidOutput("Model output failed validation: an unavailable option names no current or proposed item.");
+      }
+      const option = normalizeMenuName(notice.option);
+      if (MENU[notice.itemId].allowedModifiers.some((modifier) =>
+        normalizeMenuName(modifier) === option || normalizeMenuName(MODIFIERS[modifier].label) === option,
+      )) {
+        throw invalidOutput("Model output failed validation: an available option was marked unavailable.");
+      }
+    }
   }
   if (result.kind === "resolve") {
     const pending = req.context?.pending;

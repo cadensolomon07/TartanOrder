@@ -223,6 +223,30 @@ describe.skipIf(!liveAppUrl)("live app Gemini conversational acceptance", { conc
     }
   }), requestBudgetMs);
 
+  it("adds clear items and specifically names unsupported extras", () => scenario("unsupported-extra-mixed-order", async (harness) => {
+    await harness.send("Hi I'd like a burger and a veggie wrap and some fries with extra salt");
+    expectCart(harness, [
+      { itemId: "burger", qty: 1, modifiers: [] },
+      { itemId: "veggie_wrap", qty: 1, modifiers: [] },
+      { itemId: "fries", qty: 1, modifiers: [] },
+    ], 1850);
+    expect(harness.snapshot().assistant?.text).toMatch(/can't add extra salt to fries/i);
+    const original = structuredClone(harness.snapshot().state.lines);
+    await harness.send("Put extra salt on my fries, please.");
+    expect(harness.snapshot().state.lines).toEqual(original);
+    expect(harness.snapshot().state.audit.at(-1)?.outcome).toBe("rejected");
+    expect(harness.snapshot().assistant?.text).toMatch(/can't add extra salt to fries.*not changed/i);
+    harness.manual({ type: "UNDO" });
+    expect(harness.snapshot().state.lines).toEqual([]);
+  }), requestBudgetMs * 2);
+
+  it("clarifies an order conditional on an unsupported extra before adding anything", () => scenario("unsupported-extra-conditional", async (harness) => {
+    await harness.send("Please order a burger and fries, but only if you can put extra salt on the fries; otherwise don't order anything.");
+    expect(harness.snapshot().state.lines).toEqual([]);
+    expect(harness.snapshot().state.phase).toBe("clarifying");
+    expect(harness.snapshot().assistant?.text).toMatch(/salt/i);
+  }), requestBudgetMs);
+
   it("preserves the cart for negative/excessive quantities and an unsupported pairing", () => scenario("invalid-quantities-and-options", async (harness) => {
     harness.manual({ type: "MANUAL", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }, { type: "ADD", itemId: "fries", qty: 1, modifiers: [] }] });
     const original = structuredClone(harness.snapshot().state.lines);

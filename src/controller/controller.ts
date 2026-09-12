@@ -1,4 +1,4 @@
-import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, type OrderController, type ParseRequest, type InterpretOptions, type ParseResponse, type UiAction, type ConversationTurn, type OrderView, type Line, type UnavailableNotice } from "@/contracts";
+import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, type OrderController, type ParseRequest, type InterpretOptions, type ParseResponse, type UiAction, type ConversationTurn, type OrderView, type Line, type OrderNotice } from "@/contracts";
 import { createEngine, reduceEngine, getView, exportLog } from "@/core/engine";
 import { interpret } from "@/parser/client";
 import { MENU, MODIFIERS } from "@/contracts/menu";
@@ -86,6 +86,10 @@ export function createOrderController(deps:Dependencies = {}) {
         const notices=response.result.kind === "proposal" ? response.result.notices ?? [] : [];
         answer(describeChanges(before, getView(engine), notices));
       } else {
+        if(engine.lastOutcome === "rejected" && response.result.kind === "reject" && response.result.code === "INVALID_MODIFIER") {
+          const options=response.result.notices?.filter(item=>item.kind === "unavailable_option") ?? [];
+          if(options.length)notice=`${describeNotices(options)} Your cart was not changed.`;
+        }
         answer(notice ?? "I couldn't apply that request. Your cart was not changed.");
       }
       if(response.fallbackReason) {
@@ -144,7 +148,7 @@ function describeLine(line: Line): string {
 }
 
 /** Only accepted engine snapshots can generate claims about cart changes. */
-export function describeChanges(before: OrderView, after: OrderView, notices: UnavailableNotice[]): string {
+export function describeChanges(before: OrderView, after: OrderView, notices: OrderNotice[]): string {
   const added=after.lines.filter(line=>!before.lines.some(old=>old.lineId===line.lineId));
   const removed=before.lines.filter(line=>!after.lines.some(next=>next.lineId===line.lineId));
   const changed=after.lines.filter(line=>{
@@ -156,7 +160,14 @@ export function describeChanges(before: OrderView, after: OrderView, notices: Un
   if(removed.length)parts.push(`I removed ${joinWords(removed.map(describeLine))}.`);
   if(changed.length)parts.push(`Updated to ${joinWords(changed.map(describeLine))}.`);
   if(!parts.length)parts.push("Your order is already set that way.");
-  if(notices.length)parts.push(`We don't sell ${joinWords(notices.map(notice=>notice.item))}.`);
+  if(notices.length)parts.push(describeNotices(notices));
   parts.push("Is there anything else I can get you?");
   return parts.join(" ");
+}
+
+function describeNotices(notices: OrderNotice[]): string {
+  return notices.map(notice=>notice.kind === "unavailable"
+    ? `We don't sell ${notice.item}.`
+    : `We can't add ${notice.option} to ${MENU[notice.itemId].label.toLowerCase()}; that option isn't on our demo menu.`
+  ).join(" ");
 }

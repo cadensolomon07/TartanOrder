@@ -125,13 +125,19 @@ export const UnavailableNoticeSchema = z.strictObject({
   kind: z.literal("unavailable"), item: z.string().min(1).max(60),
 });
 export type UnavailableNotice = z.infer<typeof UnavailableNoticeSchema>;
-const NoticesSchema = z.array(UnavailableNoticeSchema).max(5).optional();
+export const UnavailableOptionNoticeSchema = z.strictObject({
+  kind: z.literal("unavailable_option"), itemId: ItemIdSchema, option: z.string().trim().min(1).max(60),
+});
+export type UnavailableOptionNotice = z.infer<typeof UnavailableOptionNoticeSchema>;
+export const OrderNoticeSchema = z.discriminatedUnion("kind", [UnavailableNoticeSchema, UnavailableOptionNoticeSchema]);
+export type OrderNotice = z.infer<typeof OrderNoticeSchema>;
+const NoticesSchema = z.array(OrderNoticeSchema).max(5).optional();
 const ResolveResultSchema = z.strictObject({ kind: z.literal("resolve"), pendingId: IdSchema, choiceId: IdSchema });
 
 export const ParseResultSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("proposal"), ops: OpsSchema, notices: NoticesSchema }),
   z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ChoicesSchema }),
-  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema }),
+  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema, notices: NoticesSchema }),
   ResolveResultSchema,
 ]);
 export type ParseResult = z.infer<typeof ParseResultSchema>;
@@ -141,7 +147,7 @@ export type ParseResult = z.infer<typeof ParseResultSchema>;
 export const ModelParseResultSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("proposal"), ops: ModelOpsSchema, notices: NoticesSchema }),
   z.strictObject({ kind: z.literal("clarify"), question: MessageSchema, choices: ModelChoicesSchema }),
-  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema }),
+  z.strictObject({ kind: z.literal("reject"), code: CoreCodeSchema, message: MessageSchema, notices: NoticesSchema }),
   ResolveResultSchema,
 ]);
 export type ModelParseResult = z.infer<typeof ModelParseResultSchema>;

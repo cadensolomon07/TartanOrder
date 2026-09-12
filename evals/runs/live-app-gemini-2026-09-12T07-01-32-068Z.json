@@ -1,0 +1,708 @@
+{
+  "kind": "live-http-gemini-controller-acceptance",
+  "recordedAt": "2026-09-12T07:01:45.241Z",
+  "appOrigin": "http://127.0.0.1:3000",
+  "apiVersion": 2,
+  "menuVersion": "demo-v2",
+  "evidence": {
+    "transport": "Real HTTP requests through the application interpret client; no injected model responses.",
+    "requiredMode": "Every request must return HTTP 200, parser=gemini and fallbackReason=null.",
+    "engine": "Real local controller and deterministic engine apply each server interpretation.",
+    "voice": "Typed synthetic utterances only. No human microphone or browser speech trial.",
+    "retries": "None; scenarios execute sequentially.",
+    "timings": "Observed request/controller timings for these cases only; not a latency benchmark.",
+    "providerBoundary": "The server-reported mode is asserted; provider credentials and direct provider traffic remain server-side."
+  },
+  "passed": 2,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "unsupported-extra-mixed-order",
+      "actions": [
+        {
+          "afterStep": 2,
+          "action": {
+            "type": "UNDO"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "Hi I'd like a burger and a veggie wrap and some fries with extra salt",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "Hi I'd like a burger and a veggie wrap and some fries with extra salt",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 5504,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "veggie_wrap",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "fries",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ],
+                  "notices": [
+                    {
+                      "kind": "unavailable_option",
+                      "itemId": "fries",
+                      "option": "extra salt"
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "proposal",
+              "ops": [
+                {
+                  "type": "ADD",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "veggie_wrap",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "type": "ADD",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "notices": [
+                {
+                  "kind": "unavailable_option",
+                  "itemId": "fries",
+                  "option": "extra salt"
+                }
+              ]
+            }
+          },
+          "elapsedMs": 5507,
+          "state": {
+            "sessionId": "live-unsupported-extra-mixed-order",
+            "revision": 2,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "veggie_wrap",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:2",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:2",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1850,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "veggie_wrap",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "fries",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ],
+                      "notices": [
+                        {
+                          "kind": "unavailable_option",
+                          "itemId": "fries",
+                          "option": "extra salt"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              }
+            ]
+          },
+          "assistant": "I added 1 burger, 1 veggie wrap and 1 fries. We can't add extra salt to fries; that option isn't on our demo menu. Is there anything else I can get you?"
+        },
+        {
+          "text": "Put extra salt on my fries, please.",
+          "request": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "text": "Put extra salt on my fries, please.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [
+                {
+                  "lineId": "r1:0",
+                  "itemId": "burger",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "lineId": "r1:1",
+                  "itemId": "veggie_wrap",
+                  "qty": 1,
+                  "modifiers": []
+                },
+                {
+                  "lineId": "r1:2",
+                  "itemId": "fries",
+                  "qty": 1,
+                  "modifiers": []
+                }
+              ],
+              "lastLineId": "r1:2",
+              "pending": null,
+              "recent": [
+                {
+                  "role": "user",
+                  "text": "Hi I'd like a burger and a veggie wrap and some fries with extra salt"
+                },
+                {
+                  "role": "assistant",
+                  "text": "I added 1 burger, 1 veggie wrap and 1 fries. We can't add extra salt to fries; that option isn't on our demo menu. Is there anything else I can get you?"
+                }
+              ]
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 3556,
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "INVALID_MODIFIER",
+                  "message": "Extra salt is not a supported option for fries.",
+                  "notices": [
+                    {
+                      "kind": "unavailable_option",
+                      "itemId": "fries",
+                      "option": "extra salt"
+                    }
+                  ]
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r2",
+            "baseRevision": 3,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "reject",
+              "code": "INVALID_MODIFIER",
+              "message": "Extra salt is not a supported option for fries.",
+              "notices": [
+                {
+                  "kind": "unavailable_option",
+                  "itemId": "fries",
+                  "option": "extra salt"
+                }
+              ]
+            }
+          },
+          "elapsedMs": 3557,
+          "state": {
+            "sessionId": "live-unsupported-extra-mixed-order",
+            "revision": 3,
+            "phase": "editing",
+            "lines": [
+              {
+                "lineId": "r1:0",
+                "itemId": "burger",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:1",
+                "itemId": "veggie_wrap",
+                "qty": 1,
+                "modifiers": []
+              },
+              {
+                "lineId": "r1:2",
+                "itemId": "fries",
+                "qty": 1,
+                "modifiers": []
+              }
+            ],
+            "lastLineId": "r1:2",
+            "pending": null,
+            "review": null,
+            "receipt": null,
+            "totalCents": 1850,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "proposal",
+                      "ops": [
+                        {
+                          "type": "ADD",
+                          "itemId": "burger",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "veggie_wrap",
+                          "qty": 1,
+                          "modifiers": []
+                        },
+                        {
+                          "type": "ADD",
+                          "itemId": "fries",
+                          "qty": 1,
+                          "modifiers": []
+                        }
+                      ],
+                      "notices": [
+                        {
+                          "kind": "unavailable_option",
+                          "itemId": "fries",
+                          "option": "extra salt"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 3,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 4,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r2",
+                    "baseRevision": 3,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "reject",
+                      "code": "INVALID_MODIFIER",
+                      "message": "Extra salt is not a supported option for fries.",
+                      "notices": [
+                        {
+                          "kind": "unavailable_option",
+                          "itemId": "fries",
+                          "option": "extra salt"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outcome": "rejected",
+                "code": "INVALID_MODIFIER"
+              }
+            ]
+          },
+          "assistant": "We can't add extra salt to fries; that option isn't on our demo menu. Your cart was not changed."
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-unsupported-extra-mixed-order",
+        "revision": 4,
+        "phase": "editing",
+        "lines": [],
+        "lastLineId": null,
+        "pending": null,
+        "review": null,
+        "receipt": null,
+        "totalCents": 0,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "proposal",
+                  "ops": [
+                    {
+                      "type": "ADD",
+                      "itemId": "burger",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "veggie_wrap",
+                      "qty": 1,
+                      "modifiers": []
+                    },
+                    {
+                      "type": "ADD",
+                      "itemId": "fries",
+                      "qty": 1,
+                      "modifiers": []
+                    }
+                  ],
+                  "notices": [
+                    {
+                      "kind": "unavailable_option",
+                      "itemId": "fries",
+                      "option": "extra salt"
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 3,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 4,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r2",
+                "baseRevision": 3,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "reject",
+                  "code": "INVALID_MODIFIER",
+                  "message": "Extra salt is not a supported option for fries.",
+                  "notices": [
+                    {
+                      "kind": "unavailable_option",
+                      "itemId": "fries",
+                      "option": "extra salt"
+                    }
+                  ]
+                }
+              }
+            },
+            "outcome": "rejected",
+            "code": "INVALID_MODIFIER"
+          },
+          {
+            "seq": 5,
+            "event": {
+              "type": "UI",
+              "action": {
+                "type": "UNDO"
+              }
+            },
+            "outcome": "applied",
+            "code": null
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "name": "unsupported-extra-conditional",
+      "actions": [],
+      "steps": [
+        {
+          "text": "Please order a burger and fries, but only if you can put extra salt on the fries; otherwise don't order anything.",
+          "request": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "text": "Please order a burger and fries, but only if you can put extra salt on the fries; otherwise don't order anything.",
+            "source": "text",
+            "asrConfidence": null,
+            "context": {
+              "lines": [],
+              "lastLineId": null,
+              "pending": null,
+              "recent": []
+            }
+          },
+          "http": [
+            {
+              "status": 200,
+              "elapsedMs": 4090,
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "clarify",
+                  "question": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?",
+                  "choices": []
+                }
+              },
+              "errorCode": null
+            }
+          ],
+          "response": {
+            "v": 2,
+            "requestId": "r1",
+            "baseRevision": 1,
+            "menuVersion": "demo-v2",
+            "parser": "gemini",
+            "fallbackReason": null,
+            "result": {
+              "kind": "clarify",
+              "question": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?",
+              "choices": []
+            }
+          },
+          "elapsedMs": 4091,
+          "state": {
+            "sessionId": "live-unsupported-extra-conditional",
+            "revision": 2,
+            "phase": "clarifying",
+            "lines": [],
+            "lastLineId": null,
+            "pending": {
+              "id": "8subyr:pending:2",
+              "question": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?",
+              "choices": []
+            },
+            "review": null,
+            "receipt": null,
+            "totalCents": 0,
+            "audit": [
+              {
+                "seq": 1,
+                "event": {
+                  "type": "INPUT_STARTED"
+                },
+                "outcome": "applied",
+                "code": null
+              },
+              {
+                "seq": 2,
+                "event": {
+                  "type": "PARSE_RECEIVED",
+                  "response": {
+                    "v": 2,
+                    "requestId": "r1",
+                    "baseRevision": 1,
+                    "menuVersion": "demo-v2",
+                    "parser": "gemini",
+                    "fallbackReason": null,
+                    "result": {
+                      "kind": "clarify",
+                      "question": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?",
+                      "choices": []
+                    }
+                  }
+                },
+                "outcome": "clarify",
+                "code": "AMBIGUOUS_REFERENCE"
+              }
+            ]
+          },
+          "assistant": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?"
+        }
+      ],
+      "finalState": {
+        "sessionId": "live-unsupported-extra-conditional",
+        "revision": 2,
+        "phase": "clarifying",
+        "lines": [],
+        "lastLineId": null,
+        "pending": {
+          "id": "8subyr:pending:2",
+          "question": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?",
+          "choices": []
+        },
+        "review": null,
+        "receipt": null,
+        "totalCents": 0,
+        "audit": [
+          {
+            "seq": 1,
+            "event": {
+              "type": "INPUT_STARTED"
+            },
+            "outcome": "applied",
+            "code": null
+          },
+          {
+            "seq": 2,
+            "event": {
+              "type": "PARSE_RECEIVED",
+              "response": {
+                "v": 2,
+                "requestId": "r1",
+                "baseRevision": 1,
+                "menuVersion": "demo-v2",
+                "parser": "gemini",
+                "fallbackReason": null,
+                "result": {
+                  "kind": "clarify",
+                  "question": "Extra salt is not an available option for fries. Would you still like to order the burger and fries, or skip the order?",
+                  "choices": []
+                }
+              }
+            },
+            "outcome": "clarify",
+            "code": "AMBIGUOUS_REFERENCE"
+          }
+        ]
+      },
+      "outcome": "passed",
+      "failure": null
+    }
+  ]
+}
