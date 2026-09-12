@@ -1,0 +1,78 @@
+import { ModifierIdSchema, type ItemId, type ModifierId } from "@/contracts";
+import { MENU } from "@/contracts/menu";
+
+/** One surface form for a menu item: alias tokens (singular or derived plural) → item. */
+export type ItemAlias = { readonly tokens: readonly string[]; readonly itemId: ItemId };
+export type ModifierChange = { readonly modifier: ModifierId; readonly enabled: boolean };
+export type ModifierPhrase = ModifierChange & { readonly tokens: readonly string[] };
+
+function pluralOf(alias: string): string | null {
+  return alias.endsWith("s") ? null : `${alias}s`;
+}
+
+/** Aliases come from the menu module at import time; plurals are derived, never listed by hand. */
+export const ITEM_ALIASES: readonly ItemAlias[] = Object.values(MENU)
+  .flatMap((item) => item.aliases.flatMap((alias) => {
+    const forms = [alias, pluralOf(alias)].filter((form): form is string => form !== null);
+    return forms.map((form) => ({ tokens: form.split(" "), itemId: item.id }));
+  }))
+  .sort((a, b) => b.tokens.length - a.tokens.length);
+
+export const ALIAS_TOKENS: ReadonlySet<string> = new Set(ITEM_ALIASES.flatMap((alias) => alias.tokens));
+
+/** Spoken modifier phrases, longest first. Pairing validity is the engine's job (D1). */
+export const MODIFIER_PHRASES: readonly ModifierPhrase[] = [
+  { tokens: ["hold", "the", "onions"], modifier: "no_onions", enabled: true },
+  { tokens: ["without", "onions"], modifier: "no_onions", enabled: true },
+  { tokens: ["no", "onions"], modifier: "no_onions", enabled: true },
+  { tokens: ["with", "onions"], modifier: "no_onions", enabled: false },
+  { tokens: ["onions", "back"], modifier: "no_onions", enabled: false },
+  { tokens: ["extra", "cheese"], modifier: "extra_cheese", enabled: true },
+  { tokens: ["with", "cheese"], modifier: "extra_cheese", enabled: true },
+  { tokens: ["add", "cheese"], modifier: "extra_cheese", enabled: true },
+  { tokens: ["double"], modifier: "double", enabled: true },
+];
+
+/** When exactly one menu item accepts a modifier, a standalone modifier phrase targets that item (D2). */
+export const SOLE_ITEM_FOR_MODIFIER: Readonly<Partial<Record<ModifierId, ItemId>>> = Object.fromEntries(
+  ModifierIdSchema.options.flatMap((modifier) => {
+    const accepting = Object.values(MENU).filter((item) => item.allowedModifiers.includes(modifier));
+    return accepting.length === 1 ? [[modifier, accepting[0].id]] : [];
+  }),
+);
+
+/** Correction verbs: "scratch the fries" retracts a pending ADD; only with nothing pending is it a cart REMOVE. */
+export const RETRACT_VERBS: ReadonlySet<string> = new Set(["scratch", "forget"]);
+/** Every verb that names a line to take off; the non-retracting ones are plain sequential commands. */
+export const REMOVE_VERBS: ReadonlySet<string> = new Set(["remove", "drop", "cancel", "delete", ...RETRACT_VERBS]);
+export const DETERMINERS: ReadonlySet<string> = new Set(["the", "a", "an", "my"]);
+export const LAST_PHRASES: readonly (readonly string[])[] = [
+  ["the", "last", "item"], ["the", "last", "one"], ["last", "one"], ["that", "one"], ["that"], ["it"],
+];
+export const UNDO_PHRASES: ReadonlySet<string> = new Set(["undo", "undo that", "undo it", "go back"]);
+
+/** A marker says "what follows replaces what came before" (D3). Longest first. */
+export const CORRECTION_MARKERS: readonly (readonly string[])[] = [
+  ["no", "wait"], ["wait", "no"], ["no", "actually"], ["actually", "no"], ["i", "mean"], ["actually"], ["wait"], ["sorry"],
+];
+/** A correction marker at the end of a clause ("fries instead", "make that two instead"). */
+export const TRAILING_CORRECTION_MARKERS: readonly (readonly string[])[] = [["instead"]];
+/** A drop marker retracts the previous pending clause outright. */
+export const DROP_MARKERS: readonly (readonly string[])[] = [
+  ["scratch", "that"], ["scratch", "it"], ["forget", "that"], ["forget", "it"], ["never", "mind"], ["nevermind"],
+];
+
+const FUNCTION_WORDS = ["a", "an", "the", "my", "with", "without", "on", "for", "to", "of", "like", "and", "then", "plus",
+  "not", "no", "add", "make", "take", "off", "go", "back", "undo"];
+
+/** Every token the grammar can consume; anything else is unknown and fails closed. */
+export const VOCABULARY: ReadonlySet<string> = new Set([
+  ...ALIAS_TOKENS,
+  ...MODIFIER_PHRASES.flatMap((phrase) => phrase.tokens),
+  ...REMOVE_VERBS,
+  ...LAST_PHRASES.flat(),
+  ...CORRECTION_MARKERS.flat(),
+  ...TRAILING_CORRECTION_MARKERS.flat(),
+  ...DROP_MARKERS.flat(),
+  ...FUNCTION_WORDS,
+]);
