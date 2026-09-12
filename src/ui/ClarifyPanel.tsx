@@ -19,7 +19,7 @@ export function ClarifyPanel({ question, choices, onChoose }: ClarifyProps) {
   return (
     <section className={styles.clarify} data-testid="clarify" aria-live="polite">
       <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}>
-        Which one?
+        {choices.length ? "Which one?" : "A quick question"}
       </h2>
       <p className={styles.clarifyQuestion}>{question}</p>
       <div className={styles.choiceList}>
@@ -35,7 +35,7 @@ export function ClarifyPanel({ question, choices, onChoose }: ClarifyProps) {
           </button>
         ))}
       </div>
-      <p className={styles.muted}>Or say or type something else to start over on this change.</p>
+      <p className={styles.muted}>Say or type your answer{choices.length ? ", or choose an option above" : ""}.</p>
     </section>
   );
 }
