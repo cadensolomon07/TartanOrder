@@ -4,11 +4,12 @@
 // mutates state or calls an API itself.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { Op, OrderController, UiAction, LocationId } from "@/contracts";
+import type { Op, OrderController, UiAction, LocationId, Line } from "@/contracts";
 import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useSpeaking, useTtsAvailable } from "@/voice/tts";
 import styles from "./Kiosk.module.css";
 import { Cart } from "./Cart";
+import { NoteDisclosure } from "./ItemNote";
 import { CategoryRail, MenuButtons, type MenuFilter } from "./MenuButtons";
 import { DiningLocation } from "./DiningLocation";
 import { RequirementsPanel, RequirementsSummary } from "./RequirementsPanel";
@@ -74,6 +75,9 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const requirementsDraftOwner = useRef(false);
   const [requirementsDraftActive, setRequirementsDraftActive] = useState(false);
   const [requirementsDraftEpoch, setRequirementsDraftEpoch] = useState(0);
+  const noteDraftOwner = useRef(false);
+  const [noteLineId, setNoteLineId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
   const [inputMode, setInputMode] = useState<"voice" | "text">("text");
   const [lastTranscript, setLastTranscript] = useState("");
   const [lastConf, setLastConf] = useState<number | null>(null);
@@ -94,6 +98,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
     requirementsDraftOwner.current = false;
     setRequirementsDraftActive(false);
     setRequirementsDraftEpoch(value => value + 1);
+    controller.endInput();
+  }, [controller]);
+  const endNoteDraft = useCallback(() => {
+    if (!noteDraftOwner.current) return;
+    noteDraftOwner.current = false;
+    setNoteLineId(null);
+    setNoteText("");
     controller.endInput();
   }, [controller]);
 
@@ -132,6 +143,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
     // re-issue startInput() (extra INPUT_STARTED events) while nothing new opens.
     if (phase === "committed" || speech.active) return;
     endRequirementsDraft();
+    endNoteDraft();
     cancelSpeech();
     setMicNotice(null);
     setInputMode("voice");
@@ -139,7 +151,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
     setDraftStarted(false);
     controller.startInput(); // invalidates review/pending, advances revision
     speech.start();
-  }, [controller, phase, speech, endRequirementsDraft]);
+  }, [controller, phase, speech, endRequirementsDraft, endNoteDraft]);
 
   const cancelTalk = useCallback(() => {
     speech.abort();
@@ -152,12 +164,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const stopAnyCapture = useCallback(() => {
     cancelSpeech();
     endRequirementsDraft();
+    endNoteDraft();
     // `active` covers the gap between start() and the engine's onstart too.
     if (speech.active) {
       speech.abort();
       controller.endInput();
     }
-  }, [controller, speech, endRequirementsDraft]);
+  }, [controller, speech, endRequirementsDraft, endNoteDraft]);
 
   const startRequirementsDraft = useCallback(() => {
     if (requirementsDraftOwner.current) return;
@@ -165,6 +178,16 @@ export function Kiosk({ controller, replay }: KioskProps) {
     setDraft(""); setDraftStarted(false); setMicNotice(null);
     requirementsDraftOwner.current = true;
     setRequirementsDraftActive(true);
+    controller.startInput();
+  }, [controller, stopAnyCapture]);
+
+  const startNoteDraft = useCallback((line: Line) => {
+    stopAnyCapture();
+    setDraft(""); setDraftStarted(false); setMicNotice(null);
+    noteDraftOwner.current = true;
+    setNoteLineId(line.lineId);
+    setNoteText(line.note ?? "");
+    // Opening a note editor is a new input attempt, before any later typing.
     controller.startInput();
   }, [controller, stopAnyCapture]);
 
@@ -187,6 +210,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       if (!draftStarted && (v.trim() !== "" || (offer && v !== "")) && phase !== "committed") {
         cancelSpeech();
         endRequirementsDraft();
+        endNoteDraft();
         controller.startInput();
         setDraftStarted(true);
       } else if (draftStarted && v.trim() === "") {
@@ -195,7 +219,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
       }
       setDraft(v);
     },
-    [controller, phase, draftStarted, offer, endRequirementsDraft],
+    [controller, phase, draftStarted, offer, endRequirementsDraft, endNoteDraft],
   );
 
   const submitDraft = useCallback(() => {
@@ -238,6 +262,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   const manual = useCallback((ops: Op[]) => act({ type: "MANUAL", ops }), [act]);
 
+  const saveNote = useCallback(() => {
+    if (!noteDraftOwner.current || !noteLineId) return;
+    const op: Op = { type: "SET_NOTE", ref: { by: "line", lineId: noteLineId }, note: noteText };
+    endNoteDraft();
+    manual([op]);
+  }, [noteLineId, noteText, endNoteDraft, manual]);
+
   const review = useCallback(() => act({ type: "REVIEW" }), [act]);
 
   const confirm = useCallback(
@@ -258,12 +289,13 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const setLocalOnly = useCallback(
     (v: boolean) => {
       cancelSpeech();
+      endNoteDraft();
       controller.setLocalOnly(v);
     },
-    [controller],
+    [controller, endNoteDraft],
   );
 
-  // Read the review snapshot aloud (menu-generated text only).
+  // Read menu details and clearly labelled requests from the review snapshot.
   const readAloud = useCallback(() => {
     if (state.review) speak(reviewToSpeech(state.review));
   }, [state.review]);
@@ -306,7 +338,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   // ---- derived ---------------------------------------------------------
   // busy covers capture + draft + parsing; only the last one is "working on" text.
-  const parsing = busy && !speech.active && !draftStarted && !requirementsDraftActive;
+  const parsing = busy && !speech.active && !draftStarted && !requirementsDraftActive && !noteLineId;
   const requirementsReady = !state.requirements?.decision && (state.requirements?.checks.every(check => check.status === "match") ?? true);
   const canReview = phase === "editing" && state.lines.length > 0 && !state.pending && !busy && requirementsReady;
   const canConfirm = phase === "reviewing" && !busy && !speech.active && !draftStarted && requirementsReady;
@@ -448,8 +480,10 @@ export function Kiosk({ controller, replay }: KioskProps) {
                   changed={changed}
                   editable={editable}
                   onOps={manual}
+                  noteEditor={{ lineId: noteLineId, text: noteText, start: startNoteDraft, change: setNoteText, save: saveNote, cancel: endNoteDraft }}
                   wait={state.wait}
                 />
+                {state.lines.some(line => line.note) && <NoteDisclosure />}
                 <WaitEstimate wait={state.wait} />
                 <div className={styles.cartFooter}>
                   <div className={styles.totals}>
@@ -511,7 +545,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
             {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
             {busy && (
               <span className={`${styles.badge} ${styles.badgeBusy}`} data-testid="badge-busy">
-                {speech.active ? "listening" : draftStarted || requirementsDraftActive ? "typing" : "working"}
+                {speech.active ? "listening" : draftStarted || requirementsDraftActive || noteLineId ? "typing" : "working"}
               </span>
             )}
           </div>

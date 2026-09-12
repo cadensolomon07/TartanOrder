@@ -195,7 +195,7 @@ function scanBatch(original: CartSnapshot, ops: Op[], requestId: string, allowed
       if (!IdSchema.safeParse(lineId).success || cart.lines.some((line) => line.lineId === lineId)) {
         return { kind: "error", code: "INVALID_SCHEMA" };
       }
-      cart.lines.push({ lineId, itemId: op.itemId, qty: op.qty, modifiers: [...op.modifiers] });
+      cart.lines.push({ lineId, itemId: op.itemId, qty: op.qty, modifiers: [...op.modifiers], ...(op.note ? { note: op.note } : {}) });
       cart.lastLineId = lineId;
     } else {
       const matches = referenceMatches(cart, op.ref);
@@ -207,6 +207,10 @@ function scanBatch(original: CartSnapshot, ops: Op[], requestId: string, allowed
         if (cart.lastLineId === target.lineId) cart.lastLineId = null;
       } else if (op.type === "SET_QTY") {
         target.qty = op.qty;
+        cart.lastLineId = target.lineId;
+      } else if (op.type === "SET_NOTE") {
+        if (op.note) target.note = op.note;
+        else delete target.note;
         cart.lastLineId = target.lineId;
       } else {
         if (!MENU[target.itemId].allowedModifiers.includes(op.modifier)) {
@@ -312,10 +316,12 @@ function decision(state: EngineState, event: AuditEvent, value: Omit<Requirement
     requirements: { ...state.view.requirements!, decision: pending, message: pending.message } } }, event, staff ? "rejected" : "clarify", staff ? "STAFF_REVIEW_REQUIRED" : "REQUIREMENT_CONFLICT");
 }
 
-function rowsForSolution(state: EngineState, solution: MealSolution): Line[] {
+function rowsForSolution(state: EngineState, solution: MealSolution, noteLines: readonly Line[] = state.view.lines): Line[] {
   return solution.selections.map(selection => {
     const previous = state.view.lines.find(line => MENU[line.itemId].category === selection.component && line.qty === 1);
-    return { lineId: previous?.lineId ?? derivedId(state, `meal-${selection.component}`, state.view.audit.length + 1), itemId: selection.itemId, qty: 1, modifiers: [...selection.modifiers] };
+    // A staff request belongs to its item, never to an interchangeable meal slot.
+    const note = noteLines.find(line => line.itemId === selection.itemId && line.qty === 1)?.note;
+    return { lineId: previous?.lineId ?? derivedId(state, `meal-${selection.component}`, state.view.audit.length + 1), itemId: selection.itemId, qty: 1, modifiers: [...selection.modifiers], ...(note ? { note } : {}) };
   });
 }
 
@@ -327,7 +333,7 @@ function changedLocks(state: EngineState, proposedMeal: MealRequirements) {
   });
 }
 
-function mealConflict(state: EngineState, event: AuditEvent, proposedMeal: MealRequirements, proposedLines: Line[], message: string, minimumCents: number | null): EngineState {
+function mealConflict(state: EngineState, event: AuditEvent, proposedMeal: MealRequirements, proposedLines: Line[], message: string, minimumCents: number | null, noteLines: readonly Line[] = state.view.lines): EngineState {
   const withoutBudget = mealCartConflict(proposedLines, { ...proposedMeal, budgetCents: null });
   const conflictingLocks = changedLocks(state, proposedMeal);
   if (!conflictingLocks.length && minimumCents !== null && !withoutBudget && proposedMeal.budgetCents !== null && minimumCents > proposedMeal.budgetCents) {
@@ -338,7 +344,7 @@ function mealConflict(state: EngineState, event: AuditEvent, proposedMeal: MealR
   if (conflictingLocks.length) {
     const relaxed = { ...proposedMeal, lockedItemIds: proposedMeal.lockedItemIds.filter(itemId => !conflictingLocks.includes(itemId)) };
     const alternative = solveMeal(relaxed, state.view.requirements!.profile, state.view.lines);
-    if (alternative.kind === "solved") return decision(state, event, { kind: "locked_item", proposedMeal: relaxed, proposedLines: rowsForSolution(state, alternative), minimumCents: alternative.totalCents,
+    if (alternative.kind === "solved") return decision(state, event, { kind: "locked_item", proposedMeal: relaxed, proposedLines: rowsForSolution(state, alternative, noteLines), minimumCents: alternative.totalCents,
       message: `This changes your locked ${conflictingLocks.map(itemId => MENU[itemId].label).join(" and ")}. Keep the accepted meal, or explicitly replace that locked choice.` },
     { id: "replace_locked", label: "Replace the listed locked choice" });
   }
@@ -366,20 +372,20 @@ function enforceRequirements(state: EngineState, event: AuditEvent, cart: CartSn
     staff ? undefined : { id: "allow_preference", label: "Allow this exact preference exception" }, staff);
   }
   if (cart.meal) {
-    if (changedLocks(state, cart.meal).length) return mealConflict(state, event, cart.meal, cart.lines, "This changes a locked item or its configuration.", totalCents(cart.lines));
+    if (changedLocks(state, cart.meal).length) return mealConflict(state, event, cart.meal, cart.lines, "This changes a locked item or its configuration.", totalCents(cart.lines), cart.lines);
     const conflict = mealCartConflict(cart.lines, cart.meal);
-    if (conflict) return mealConflict(state, event, cart.meal, cart.lines, conflict, totalCents(cart.lines));
+    if (conflict) return mealConflict(state, event, cart.meal, cart.lines, conflict, totalCents(cart.lines), cart.lines);
   }
   return null;
 }
 
-function commitMeal(state: EngineState, event: AuditEvent, meal: MealRequirements): EngineState {
+function commitMeal(state: EngineState, event: AuditEvent, meal: MealRequirements, noteLines: readonly Line[] = state.view.lines): EngineState {
   if (state.allowedLocationIds && !state.allowedLocationIds.includes(meal.locationId)) return finish(requirementsMessage(state, "This counter is outside the current ordering catalog."), event, "rejected", "OFF_MENU");
   const solved = solveMeal(meal, state.view.requirements!.profile, state.view.lines);
   const solving = { ...state, view: { ...state.view, requirements: { ...state.view.requirements!, solver: solved.summary } } };
-  const lines = rowsForSolution(state, solved);
-  if (changedLocks(state, meal).length) return mealConflict(solving, event, meal, lines, "This changes a locked item or its configuration.", solved.totalCents);
-  if (solved.kind !== "solved") return mealConflict(solving, event, meal, lines, solved.reason, solved.totalCents);
+  const lines = rowsForSolution(state, solved, noteLines);
+  if (changedLocks(state, meal).length) return mealConflict(solving, event, meal, lines, "This changes a locked item or its configuration.", solved.totalCents, noteLines);
+  if (solved.kind !== "solved") return mealConflict(solving, event, meal, lines, solved.reason, solved.totalCents, noteLines);
   const next = installCart(solving, { lines, lastLineId: lines.at(-1)?.lineId ?? null, meal }, [...state.history, snapshot(state)]);
   next.view.requirements = { ...next.view.requirements!, solver: solved.summary };
   const remaining = meal.budgetCents === null ? "" : ` ${dollars(meal.budgetCents - totalCents(lines))} remains under your menu-subtotal budget.`;
@@ -434,11 +440,13 @@ function applyRequirements(state: EngineState, event: AuditEvent, locationId: Lo
     message: "Leaving Build my meal removes its budget, component and lock requirements. Your current cart and dietary profile will remain." }, { id: "leave_meal", label: "Leave meal mode; keep cart and profile" });
   if (nextLocation) state = { ...state, view: { ...state.view, requirements: { ...state.view.requirements!, locationId: nextLocation } } };
   if (mealChanged && meal) {
+    let noteLines: readonly Line[] = state.view.lines;
     if (!accepted.meal && (state.view.lines.some(line => line.qty !== 1) || new Set(state.view.lines.map(line => MENU[line.itemId].category)).size !== state.view.lines.length)) return finish(requirementsMessage(state, "Build my meal needs one item per component. Your existing quantities and separate items were kept; edit them explicitly before enabling meal mode."), event, "rejected", "REQUIREMENT_CONFLICT");
     if (ops) {
       const trial = evaluateBatch(snapshot(state), ops, requestId, state.allowedLocationIds);
       if (trial.kind !== "success") return finish(requirementsMessage(state, "The additional item edits could not be applied. Your dietary declaration remains active."), event, "rejected", trial.kind === "error" ? trial.code : "AMBIGUOUS_REFERENCE");
       if (trial.cart.lines.some(line => line.qty !== 1) || new Set(trial.cart.lines.map(line => MENU[line.itemId].category)).size !== trial.cart.lines.length) return finish(requirementsMessage(state, "Build my meal supports one item per component; no requested quantity or separate item was dropped."), event, "rejected", "REQUIREMENT_CONFLICT");
+      noteLines = trial.cart.lines;
       for (const line of trial.cart.lines) {
         const previous = state.view.lines.find(old => old.lineId === line.lineId);
         if (!previous || !sameConfiguration(previous, line)) {
@@ -449,7 +457,7 @@ function applyRequirements(state: EngineState, event: AuditEvent, locationId: Lo
       }
     }
     if (!MealRequirementsSchema.safeParse(meal).success) return finish(requirementsMessage(state, "These meal requirements exceed the supported component or lock limits. Your accepted meal is unchanged; explicitly unlock a choice before replacing it."), event, "rejected", "REQUIREMENT_CONFLICT");
-    return commitMeal(state, event, meal);
+    return commitMeal(state, event, meal, noteLines);
   }
   if (ops) return applyBatch(state, event, ops, requestId);
   const checks = refreshRequirements(state.view).requirements!.checks;

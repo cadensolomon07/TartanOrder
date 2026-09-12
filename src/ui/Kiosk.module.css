@@ -214,6 +214,10 @@
 .cartRow { padding: 10px 0; border-top: 1px solid var(--line); transition: background-color 600ms ease; }
 .cartRow:first-child { border-top: none; }
 .rowChanged { background: var(--flash); }
+.itemNote { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--ink-soft); overflow-wrap: anywhere; white-space: pre-wrap; }
+.noteEditor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--fill); }
+.noteEditor label { display: grid; min-width: 0; gap: 6px; font-size: 12px; font-weight: 600; }
+.noteEditor textarea { width: 100%; min-width: 0; resize: vertical; box-sizing: border-box; padding: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--paper); color: var(--ink); font: inherit; font-size: 14px; font-weight: 400; }
 .rowMain { display: flex; align-items: flex-start; gap: 10px; }
 .thumb {
   width: 38px; height: 38px; border-radius: 4px; flex: none;

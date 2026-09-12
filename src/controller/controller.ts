@@ -206,7 +206,7 @@ function joinWords(parts: string[]): string {
 
 function describeLine(line: Line): string {
   const options=line.modifiers.map(modifier=>MODIFIERS[modifier].label.toLowerCase());
-  return `${line.qty} ${fullItemLabel(line.itemId).toLowerCase()}${options.length ? ` (${options.join(", ")})` : ""}`;
+  return `${line.qty} ${fullItemLabel(line.itemId).toLowerCase()}${options.length ? ` (${options.join(", ")})` : ""}${line.note ? ` with the special request “${line.note}”` : ""}`;
 }
 
 /** Only accepted engine snapshots can generate claims about cart changes. */
@@ -215,12 +215,15 @@ export function describeChanges(before: OrderView, after: OrderView, notices: Or
   const removed=before.lines.filter(line=>!after.lines.some(next=>next.lineId===line.lineId));
   const changed=after.lines.filter(line=>{
     const old=before.lines.find(old=>old.lineId===line.lineId);
-    return old && (old.itemId!==line.itemId || old.qty!==line.qty || [...old.modifiers].sort().join()!==[...line.modifiers].sort().join());
+    return old && (old.itemId!==line.itemId || old.qty!==line.qty || [...old.modifiers].sort().join()!==[...line.modifiers].sort().join() || old.note!==line.note);
   });
   const parts:string[]=[];
   if(added.length)parts.push(`I added ${joinWords(added.map(describeLine))}.`);
   if(removed.length)parts.push(`I removed ${joinWords(removed.map(describeLine))}.`);
   if(changed.length)parts.push(`Updated to ${joinWords(changed.map(describeLine))}.`);
+  const clearedNotes=changed.filter(line=>!line.note && before.lines.find(old=>old.lineId===line.lineId)?.note);
+  if(clearedNotes.length)parts.push(`Removed the special request from ${joinWords(clearedNotes.map(line=>fullItemLabel(line.itemId).toLowerCase()))}.`);
+  if([...added,...changed].some(line=>line.note))parts.push("Special requests and any extra charge need counter confirmation.");
   if(!parts.length)parts.push("Your order is already set that way.");
   if(notices.length)parts.push(describeNotices(notices));
   parts.push("Is there anything else I can get you?");

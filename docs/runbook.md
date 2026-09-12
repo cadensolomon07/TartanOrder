@@ -188,3 +188,10 @@ Refresh the kiosk after deployment to load menu `cmu-shortlist-2026-09-12`. Only
 For new data, select Tahini and order “one falafel pita” ($9.95); select Revolution Noodle and order “one steamed pork bao bun” ($4.19). Exact published names work in Local only, one item per input. The menu buttons always use the same validated cart path. ABP/Capital Grains/Schatz have no complete verified fixed-price items; their previews cannot be added. Hunan entrée previews show the published base price but need included-side eligibility confirmed. No proxy, approximate, starting-at or invented price becomes an orderable total.
 
 The source documents are snapshots, including older CMU-hosted PDFs. Do not describe them as live register prices or the requested order as a measured popularity ranking. Use the current campus demo below; the old recorded Demo Counter video is historical and does not show this catalog.
+
+## Item note recovery
+
+- If a note draft is holding review, choose **Save note** or **Cancel** on that cart row. Empty saved text removes its note. **Undo** restores the prior accepted cart and note together.
+- If speech wording is not understood, use the item's **Add note / Edit note** control. It works without the network parser. For duplicate items, choose the specific cart row.
+- Check the note beneath the correct item in review before confirming. Notes are unverified counter requests; they do not establish ingredient/allergy safety or include possible extra charges. Use the separate food requirements controls for dietary declarations.
+- Refresh the page after a new release to load the matching client and server. Export an order you wish to retain first; refreshing starts a new local session.

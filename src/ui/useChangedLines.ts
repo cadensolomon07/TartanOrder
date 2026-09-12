@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import type { Line } from "@/contracts";
 
 function sig(l: Line): string {
-  return `${l.qty}|${[...l.modifiers].sort().join(",")}`;
+  return JSON.stringify([l.qty, [...l.modifiers].sort(), l.note ?? ""]);
 }
 
 export function useChangedLines(lines: Line[], holdMs = 1500): Set<string> {

@@ -5,6 +5,7 @@ import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
+import { ItemNote, NoteDisclosure } from "./ItemNote";
 
 export type ReviewProps = {
   review: Review;
@@ -35,11 +36,13 @@ export function ReviewPanel({ review, canConfirm, onConfirm, onReadAloud, ttsAva
                 <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
               )}
               <LinePrice line={l} />
+              <ItemNote note={l.note} />
               <WaitEstimate wait={wait} lineId={l.lineId} />
             </span>
           </li>
         ))}
       </ul>
+      {review.lines.some(line => line.note) && <NoteDisclosure />}
       <div className={styles.reviewTotal}>
         <span>Total</span>
         <span data-testid="review-total">{formatCents(review.totalCents)}</span>

@@ -616,26 +616,26 @@ describe("authoritative availability notices", () => {
 
 
 describe("unsupported option notices (mock provider)", () => {
-  const friesNotice = { kind: "unavailable_option", itemId: "fries", option: "extra salt" };
+  const friesNotice = { kind: "unavailable_option", itemId: "fries", option: "lobster topping" };
   const fries = { type: "ADD", itemId: "fries", qty: 1, modifiers: [] };
   const existingFries: NonNullable<ParseRequest["context"]> = {
     lines: [{ lineId: "cart:fries", itemId: "fries", qty: 1, modifiers: [] }],
     lastLineId: "cart:fries", pending: null, recent: [],
   };
 
-  it("preserves the clear items and reports extra salt without inventing a modifier", async () => {
+  it("preserves clear items and an extra-salt note without inventing a modifier", async () => {
     const result = { kind: "proposal", ops: [
       { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
       { type: "ADD", itemId: "veggie_wrap", qty: 1, modifiers: [] },
-      fries,
-    ], notices: [friesNotice] };
+      { ...fries, note: "extra salt" },
+    ] };
     const text = "Hi I'd like a burger and a veggie wrap and some fries with extra salt";
     expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
   });
 
   it("accepts a specific unsupported-option-only rejection for an existing cart item without fake operations", async () => {
-    const result = { kind: "reject", code: "INVALID_MODIFIER", message: "Extra salt is not an available option for fries.", notices: [friesNotice] };
-    expect((await parseGemini({ ...request, text: "Put extra salt on my fries", context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
+    const result = { kind: "reject", code: "INVALID_MODIFIER", message: "Lobster topping is not an available option for fries.", notices: [friesNotice] };
+    expect((await parseGemini({ ...request, text: "Put lobster topping on my fries", context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
     await expect(parseGemini(request, config(modelReturns({ kind: "proposal", ops: [], notices: [friesNotice] })))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
@@ -663,7 +663,7 @@ describe("unsupported option notices (mock provider)", () => {
   });
 
   it("keeps conditional option requests as open clarification before any edits", async () => {
-    const result = { kind: "clarify", question: "Extra salt is not an option. Would you like standard fries?", choices: [] };
+    const result = { kind: "clarify", question: "The extra salt request is unverified. Would you still like the fries if it cannot be fulfilled?", choices: [] };
     const text = "A burger and fries, but only if the fries can have extra salt; otherwise don't order anything.";
     expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
     expect(buildSystemInstruction()).toContain("before ANY mutation");

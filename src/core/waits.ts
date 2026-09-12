@@ -54,6 +54,9 @@ export function swapCandidates(lines: readonly Line[], config: WaitEngineConfig,
   const candidates: Candidate[] = [];
   for (const line of lines) {
     if (!eligibleLineIds.includes(line.lineId)) continue;
+    // Free-text staff requests are unverified. Do not offer a different item
+    // that would either inherit an unchecked request or silently discard it.
+    if (line.note) continue;
     const original = MENU[line.itemId];
     if (allowedLocationIds && !allowedLocationIds.includes(original.locationId as LocationId)) continue;
     const originalWait = vendorWait(config, original.locationId);

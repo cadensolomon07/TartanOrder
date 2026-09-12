@@ -1,11 +1,12 @@
 "use client";
-import type { Line, Op, ItemId, WaitView } from "@/contracts";
+import { LIMITS, type Line, type Op, type ItemId, type WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
 import { ITEM_LABEL, MODIFIER_LABEL, modifiersFor } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
 import { MENU } from "@/contracts/menu";
 import { glyphFor } from "./MenuButtons";
+import { ItemNote } from "./ItemNote";
 
 export type CartProps = {
   lines: Line[];
@@ -14,6 +15,14 @@ export type CartProps = {
   editable: boolean;
   onOps: (ops: Op[]) => void;
   wait?: WaitView;
+  noteEditor?: {
+    lineId: string | null;
+    text: string;
+    start: (line: Line) => void;
+    change: (text: string) => void;
+    save: () => void;
+    cancel: () => void;
+  };
 };
 
 // "Burger (line 2)" when the same item appears more than once, so the
@@ -26,7 +35,7 @@ export function lineLabel(lines: Line[], line: Line): string {
   return `${base} (line ${n})`;
 }
 
-export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: CartProps) {
+export function Cart({ lines, lastLineId, changed, editable, onOps, wait, noteEditor }: CartProps) {
   if (lines.length === 0) {
     return (
       <div className={styles.emptyCart} data-testid="cart-empty">
@@ -63,6 +72,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                     {line.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}
                   </span>
                 )}
+                <ItemNote note={line.note} />
               </span>
               {editable ? (
                 <span className={styles.stepper}>
@@ -114,8 +124,21 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                 >
                   Remove
                 </button>
+                {noteEditor && <button type="button" className={styles.chip} onClick={() => noteEditor.start(line)} aria-label={`${line.note ? "Edit" : "Add"} note for ${lineLabel(lines, line)}`}>
+                  {line.note ? "Edit note" : "Add note"}
+                </button>}
               </div>
             )}
+            {editable && noteEditor?.lineId === line.lineId && <form className={styles.noteEditor} onSubmit={event => { event.preventDefault(); noteEditor.save(); }}>
+              <label>Note for {lineLabel(lines, line)}
+                <textarea autoFocus rows={3} maxLength={LIMITS.noteChars} value={noteEditor.text} onChange={event => noteEditor.change(event.target.value)} placeholder="e.g. extra ice" data-testid="item-note-input" />
+              </label>
+              <p className={styles.muted}>Request only. Extra charges are not included. Clear the text to remove this note.</p>
+              <div className={styles.rowControls}>
+                <button type="submit" className={styles.chip} data-testid="save-item-note">Save note</button>
+                <button type="button" className={styles.removeBtn} onClick={noteEditor.cancel} data-testid="cancel-item-note">Cancel</button>
+              </div>
+            </form>}
           </li>
         );
       })}
