@@ -7,7 +7,7 @@ HackCMU 2026 prototype: a menu-valid, reversible food order with explicit review
 Use Node **22.23.2** (the exact version in `.nvmrc`) and npm.
 
 ```sh
-git clone https://github.com/ClearSky00/TartanOrder.git
+git clone https://github.com/cadensolomon07/TartanOrder.git
 cd TartanOrder
 nvm install
 nvm use
@@ -35,3 +35,5 @@ npm run start
 Playwright browser installation is a one-time setup; CI uses `npx playwright install --with-deps chromium`. Build before running production/e2e. All direct dependencies and the npm lockfile are pinned. No Tailwind, database, payment, authentication, or POS integration.
 
 See [integration instructions](docs/integration.md) for ownership and exports, and the [runbook](docs/runbook.md) for the demo/deadline plan.
+
+Live demo: **https://tartan-order.vercel.app**. The original ClearSky00 repository was transferred to cadensolomon07; its old address redirects to this same repository. No second repository was created.

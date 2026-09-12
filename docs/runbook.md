@@ -59,10 +59,12 @@ An intermediate browser test hit stale assets while the visible server was being
 
 ## Deployment and remaining handoffs
 
-Vercel sign-in verified for `cadensolomon07-8134`. Deployment verification will be recorded below after publishing. Do not purchase a plan. Use the existing GitHub repository, Next.js preset and Node 22. Keep environment variables server-only. Health reports rules until C verifies Gemini integration.
+Vercel sign-in verified for `cadensolomon07-8134`. **Public demo: https://tartan-order.vercel.app**. Implementation SHA `3ca392b219b90d24574bca21aa3f77cba51eb8b5`; deployment `dpl_B1nB1ppEWiriuZMQm8QUdgWziWeE` is READY and its API reports Node 22.x. The project now explicitly uses Node 22.x and `npm ci`. No purchase was made. Keep environment variables server-only. Health reports rules until C verifies Gemini integration.
 
-After deployment, check health and the kiosk in a second logged-out browser context. Record URL, SHA and actual mode; HTTP 200 alone is insufficient UI evidence.
+Public health returned HTTP 200 with `{v:1,menuVersion:'demo-v1',parser:'rules'}`. The deployed receipt journey passed in a fresh logged-out Chromium context; the public page was also visually inspected in the in-app browser. Share the primary public URL above: Vercel's alternate deployment/team URLs require sign-in.
+
+A second deployed browser check also passed the $13.50 → $16.00 → undo journey, second-burger ambiguity and row choice, huge-quantity rejection without cart changes, immediate review invalidation on input, and final explicit receipt. No browser page errors were observed.
 
 B/C received their temporary files with `1676b3d`; A stopped editing them at handoff. The starter client always uses local rules, even with Local only unchecked. C must supply the HTTP client, cancellation-aware fallback, 5-second server / 6-second client deadlines, expanded grammar, provider validation and evals. B must supply voice, review speech and the finished kiosk. No B/C commits were available at this checkpoint. Add C's eval command when that handoff arrives.
 
-Remaining release gates: integrate B/C sequentially, deploy and verify logged-out access, rerun checks after integration. If H3 fails, fix the vertical slice before feature expansion. Cut import/replay UI and visual extras first; preserve atomicity, confirmation and engine/export/replay tests.
+Remaining release gates: integrate B/C sequentially and repeat deployment/browser checks after integration. If H3 fails, fix the vertical slice before feature expansion. Cut import/replay UI and visual extras first; preserve atomicity, confirmation and engine/export/replay tests.

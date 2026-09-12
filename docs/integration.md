@@ -1,6 +1,6 @@
 # Integration — V1 shared starter
 
-Repository: https://github.com/ClearSky00/TartanOrder. One Next.js App Router app in the repository root. Node22.23.2, npm, React, TypeScript, ordinary CSS, Zod, Vitest, fast-check, Playwright; Vercel is the only deployment target.
+Repository: https://github.com/cadensolomon07/TartanOrder. The original ClearSky00 URL redirects here after a repository transfer. One Next.js App Router app in the repository root. Node 22.23.2, npm, React, TypeScript, ordinary CSS, Zod, Vitest, fast-check, Playwright; Vercel is the only deployment target.
 
 ## Ownership and branches
 
@@ -51,3 +51,11 @@ Capture stays active across manual edits and mode changes until B calls `endInpu
 Each handoff records SHA, owned files/exports, checks actually run, runnable example, deployment URL if available, actual parser/input mode, known failures and next dependency. Check remote branches before integrating, and never force-push shared branches.
 
 Scheduled sequential merges: H1.5, H3, H5.5, H8, H11, H14. H3 must show a real rules text-to-receipt journey; if it fails, stop feature expansion. Cut import/replay UI and visual extras first, while keeping engine/export/replay tests, atomicity and explicit confirmation.
+
+## Published A checkpoint
+
+Implementation SHA: `3ca392b219b90d24574bca21aa3f77cba51eb8b5`, merged to main and pushed to work/a-engine. Shared exports above remain authoritative. Live production: https://tartan-order.vercel.app, deployed on Vercel with Node 22.x. Local/CI pin the exact 22.23.2 patch; Vercel manages runtime patch updates.
+
+Checks passed: fresh npm ci, typecheck, lint, 89 unit/contract tests including 1,000 generated sequences (seed 20260912), build, local/deployed Playwright receipt journey, real HTTP health/400/409/413 smoke, physical Wi-Fi-off typed modifier/review/receipt with Wi-Fi restored. See runbook for detail.
+
+Runnable example: `npm ci`, copy `.env.example` to `.env.local` if absent, `npm run dev`, open localhost:3000, type `a burger, fries and lemonade`, review, confirm. Expected total: $13.50, simulated receipt only. Actual mode: text/local rules; no verified Gemini or voice. No current failing automated checks. Next dependency: B/C handoffs in their owned files, followed by sequential integration and C's eval command.
