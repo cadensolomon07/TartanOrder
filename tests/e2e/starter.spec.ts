@@ -1,12 +1,19 @@
-// BOOTSTRAP TEST — B owns tests/e2e after starter handoff.
+// A's bootstrap gate, kept as-is in intent: real local rules reach a reviewed
+// simulated receipt through the finished kiosk (typed input, no voice).
 import { test, expect } from "@playwright/test";
-test("real local rules reach a reviewed simulated receipt", async ({page})=>{
+test("real local rules reach a reviewed simulated receipt", async ({ page }) => {
+  // Local only is on by default: the whole journey must complete with no API traffic.
+  const apiHits: string[] = [];
+  page.on("request", (r) => { if (r.url().includes("/api/")) apiHits.push(r.url()); });
   await page.goto("/");
-  await expect(page.getByText("TartanOrder Demo Counter · Seeded menu · No real purchase.")).toBeVisible();
-  await page.getByLabel("Your order",{exact:true}).fill("a burger, fries and lemonade");
-  await page.getByRole("button",{name:"Apply",exact:true}).click();
-  await expect(page.getByText("$13.50",{exact:true})).toBeVisible();
-  await page.getByRole("button",{name:"Review order",exact:true}).click();
-  await page.getByRole("button",{name:"Confirm simulated order",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Simulated receipt",exact:true})).toBeVisible();
+  await expect(page.getByTestId("disclosure")).toHaveText("TartanOrder Demo Counter · Seeded menu · No real purchase.");
+  await page.getByTestId("text-input").fill("a burger, fries and lemonade");
+  await page.getByTestId("submit").click();
+  await expect(page.getByTestId("total")).toHaveText("$13.50");
+  await expect(page.getByTestId("badge-parser")).toContainText("rules");
+  await page.getByTestId("review").click();
+  await page.getByTestId("confirm").click();
+  await expect(page.getByTestId("ticket")).toBeVisible();
+  await expect(page.getByTestId("ticket")).toContainText("Simulated");
+  expect(apiHits).toEqual([]);
 });

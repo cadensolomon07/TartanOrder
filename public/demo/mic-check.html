@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>TartanOrder mic check</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;font-size:18px;line-height:1.4}
+button{font:inherit;font-size:20px;padding:14px 22px;border-radius:10px;border:2px solid #c41230;background:#c41230;color:#fff}
+button.off{background:#fff;color:#c41230}
+#log{white-space:pre-wrap;background:#faf6ee;border:1px solid #d9cfc1;border-radius:10px;padding:12px;min-height:200px;font-size:15px}
+li{margin:4px 0}
+</style></head><body>
+<h1>Microphone check (hour 0.5)</h1>
+<p>Open this in Chrome on the demo laptop. Press Start, say one phrase, press Start again for the next. Copy the log into your H0.5 report.</p>
+<ol>
+<li>a burger, fries and lemonade</li><li>make the burger a double</li><li>add another burger</li>
+<li>remove the burger</li><li>burger with no onions</li><li>two lemonades</li><li>extra cheese on the burger</li>
+<li>take off the fries</li><li>one cheeseburger</li><li>eighteen thousand lemonades</li>
+</ol>
+<p>Repeat five of them while people talk nearby.</p>
+<button id="b">Start</button> <button id="c" class="off">Copy log</button>
+<div id="log"></div>
+<script>
+const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+const log = document.getElementById('log'); const b = document.getElementById('b');
+function out(s){ log.textContent += s + "\n"; }
+if(!R){ out("NOT SUPPORTED: no SpeechRecognition in this browser. Voice will be typed-only."); b.disabled = true; }
+out("userAgent: " + navigator.userAgent); out("online: " + navigator.onLine);
+let r=null,t0=0,finals=0;
+b.onclick = () => {
+  if (r) { r.stop(); return; }
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  r = new R(); r.lang='en-US'; r.interimResults=true; r.continuous=false; r.maxAlternatives=1; finals=0;
+  r.onstart=()=>{ t0=performance.now(); b.textContent='Stop'; out("--- listening"); };
+  r.onresult=(e)=>{ const res=e.results[e.results.length-1]; const dt=Math.round(performance.now()-t0);
+    if(res.isFinal){ finals++; out(`FINAL#${finals} (${dt}ms, conf ${res[0].confidence.toFixed(2)}): ${res[0].transcript}`); }
+    else out(`interim (${dt}ms): ${res[0].transcript}`); };
+  r.onerror=(e)=>out("ERROR: "+e.error);
+  r.onend=()=>{ out(`ended after ${Math.round(performance.now()-t0)}ms, finals=${finals}${finals>1?"  <-- DUPLICATE FINALS":""}`); r=null; b.textContent='Start'; };
+  r.start();
+};
+document.getElementById('c').onclick=()=>navigator.clipboard.writeText(log.textContent);
+</script></body></html>
