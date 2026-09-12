@@ -1,4 +1,5 @@
 "use client";
+import { T } from "./Language";
 import { useEffect, useRef } from "react";
 import type { Choice } from "@/contracts";
 import styles from "./Kiosk.module.css";
@@ -19,11 +20,11 @@ export function ClarifyPanel({ question, choices, onChoose }: ClarifyProps) {
   return (
     <section className={styles.clarify} data-testid="clarify" aria-live="polite">
       <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}>
-        {choices.length ? "Which one?" : "A quick question"}
+        <T>{choices.length ? "Which one?" : "A quick question"}</T>
       </h2>
-      <p className={styles.clarifyQuestion}>{question}</p>
+      <p className={styles.clarifyQuestion}><T>{question}</T></p>
       <div className={styles.choiceList}>
-        {choices.map((c) => (
+        <T>{choices.map((c) => (
           <button
             key={c.id}
             type="button"
@@ -31,11 +32,11 @@ export function ClarifyPanel({ question, choices, onChoose }: ClarifyProps) {
             data-testid={`choice-${c.id}`}
             onClick={() => onChoose(c.id)}
           >
-            {c.label}
+            <T>{c.label}</T>
           </button>
-        ))}
+        ))}</T>
       </div>
-      <p className={styles.muted}>Say or type your answer{choices.length ? ", or choose an option above" : ""}.</p>
+      <p className={styles.muted}><T>Say or type your answer{choices.length ? ", or choose an option above" : ""}</T>.</p>
     </section>
   );
 }

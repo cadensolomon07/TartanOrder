@@ -1,5 +1,15 @@
 # Demo and release runbook
 
+Main now combines API 3 with sidebar, notes and language selection. The GitHub merge itself does not deploy the database-backed application. For a database-free local rehearsal of main, explicitly run with `CATALOG_SOURCE=bundled ORDER_PERSISTENCE=off`; the source and saving badges disclose that mode. Confirm the public health response before using any historical deployment instructions below.
+
+## Language selector — September 12 release
+
+The header offers English, Español and 简体中文. Select a language before pressing the microphone or typing. Recognition uses en-US, es-ES or zh-CN; spoken reviews use a matching installed voice. If no matching voice exists, read the full review on screen. Microphone support varies by browser; typing always remains available. Changing language cancels capture/drafts and parsing, keeps accepted cart contents, and invalidates an uncommitted review. Review again before confirming. Mandarin composition Enter does not submit unfinished text.
+
+The primary controls, demo item labels and review/receipt labels are translated. Campus menu names, detailed source/evidence descriptions, some dynamic requirement explanations and engineering diagnostics may remain English. Prices and canonical item IDs never change with language. Gemini receives the selected locale and can return native-language questions and special requests. Local rules remain English-only: in an offline Spanish/Chinese session use the translated menu buttons, or select English for simple typed rules. No translation quality or live microphone accuracy metric is claimed.
+
+For a short check, select Demo Counter, Español, and type `Un agua con hielo extra y unas papas fritas, por favor.` Or select 简体中文 and type `请给我一杯加冰的水和一份薯条。` Both local real-Gemini browser journeys produced water with its ice note plus fries at $4.50, then a reviewed simulated receipt. Evidence: `evals/runs/languages-live-2026-09-12.json`. Browser voice tests are mocked; have a person repeat one utterance using the microphone before claiming live multilingual speech works.
+
 ## Current meal and dietary milestone — September 12
 
 The consolidated menu uses API 3 / catalog version `cmu-dietary-2026-09-12`, loaded from the Supabase project and shown in the kiosk footer badges as `Menu: Supabase · cmu-dietary-2026-09-12`; the ranked campus shortlist and the fictional Demo Counter are the selectable locations. Details and omissions: [dining-data.md](dining-data.md).
@@ -208,3 +218,10 @@ Refresh the kiosk after deployment to load menu `cmu-shortlist-2026-09-12`. Only
 For new data, select Tahini and order “one falafel pita” ($9.95); select Revolution Noodle and order “one steamed pork bao bun” ($4.19). Exact published names work in Local only, one item per input. The menu buttons always use the same validated cart path. ABP/Capital Grains/Schatz have no complete verified fixed-price items; their previews cannot be added. Hunan entrée previews show the published base price but need included-side eligibility confirmed. No proxy, approximate, starting-at or invented price becomes an orderable total.
 
 The source documents are snapshots, including older CMU-hosted PDFs. Do not describe them as live register prices or the requested order as a measured popularity ranking. Use the current campus demo below; the old recorded Demo Counter video is historical and does not show this catalog.
+
+## Item note recovery
+
+- If a note draft is holding review, choose **Save note** or **Cancel** on that cart row. Empty saved text removes its note. **Undo** restores the prior accepted cart and note together.
+- If speech wording is not understood, use the item's **Add note / Edit note** control. It works without the network parser. For duplicate items, choose the specific cart row.
+- Check the note beneath the correct item in review before confirming. Notes are unverified counter requests; they do not establish ingredient/allergy safety or include possible extra charges. Use the separate food requirements controls for dietary declarations.
+- Refresh the page after a new release to load the matching client and server. Export an order you wish to retain first; refreshing starts a new local session.

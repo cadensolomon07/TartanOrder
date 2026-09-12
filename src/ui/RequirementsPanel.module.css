@@ -1,15 +1,15 @@
 /* A single, always-mounted requirements surface within the counter board. */
 .panel {
   min-width: 0;
-  padding: 16px 20px;
+  padding: 16px;
   background: var(--paper, #fff);
   color: var(--ink, #1f1f1f);
-  border-bottom: 1px solid var(--line, #e3e3e3);
+  border-top: 1px solid var(--line, #e3e3e3);
   scroll-margin-top: 16px;
   font-size: 13px;
   line-height: 1.45;
 }
-.heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .heading h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
 .heading > span { color: var(--ink-soft, #6b6b6b); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
 .note { margin: 6px 0 12px; color: var(--ink-soft, #6b6b6b); font-size: 12px; line-height: 1.45; }
@@ -37,8 +37,8 @@
 .chips:empty { display: none; }
 .chips button { min-height: 30px; border-color: var(--line, #e3e3e3); background: var(--fill, #f0f0f0); padding: 5px 8px; max-width: 100%; overflow-wrap: anywhere; }
 .chips button.allergyChip, .summaryChips span.allergyChip { background: var(--red-soft, #fbe9ec); color: var(--red-dark, #971424); border-color: #e7bcc2; }
-.forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px 16px; }
-.inlineForm { display: flex; align-items: end; gap: 6px; min-width: 0; margin: 0; }
+.forms { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.inlineForm { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0; margin: 0; }
 .inlineForm label { display: grid; gap: 5px; flex: 1; min-width: 0; font-size: 12px; font-weight: 600; }
 .inlineForm button { min-height: 38px; flex-shrink: 0; background: var(--red, #b91c2c); border-color: var(--red, #b91c2c); color: #fff; }
 .inlineForm button:hover:not(:disabled) { background: var(--red-dark, #971424); border-color: var(--red-dark, #971424); }
@@ -51,7 +51,7 @@
 .mealSummary { display: flex; flex-wrap: wrap; gap: 6px; margin: 3px 0 12px; }
 .mealSummary strong, .mealSummary span { padding: 5px 8px; border: 1px solid var(--line, #e3e3e3); border-radius: 4px; background: var(--fill, #f0f0f0); font-size: 12px; }
 .mealSummary strong { color: var(--ink, #1f1f1f); }
-.mealControls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px 20px; align-items: end; margin-bottom: 9px; }
+.mealControls { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 9px; }
 .componentField { min-width: 0; }
 .fieldLabel { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 600; }
 .components { min-height: 38px; align-items: center; column-gap: 14px; }
@@ -63,14 +63,14 @@
 .message, .warning, .decision, .staff { margin: 14px 0 0; font-size: 13px; line-height: 1.45; }
 .message { padding: 10px 12px; border-left: 2px solid var(--line-strong, #cfcfcf); background: var(--fill, #f0f0f0); }
 .warning { padding: 12px; border-left: 2px solid var(--red, #b91c2c); background: #fff8f3; }
-.decision { padding: 14px; border: 1px solid var(--red, #b91c2c); border-radius: var(--radius, 6px); background: var(--paper, #fff); }
+.decision { padding: 10px; border: 1px solid var(--red, #b91c2c); border-radius: var(--radius, 6px); background: var(--paper, #fff); }
 .panel h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
 .decision h3 { color: var(--red, #b91c2c); }
 .warning p, .decision p, .staff p { margin: 7px 0; overflow-wrap: anywhere; }
 .buttons { margin-top: 10px; gap: 8px; }
 .decision .buttons button { flex: 1 1 160px; min-height: 40px; border-color: var(--red, #b91c2c); color: var(--red, #b91c2c); }
 .decision .buttons button:hover:not(:disabled) { background: var(--red-soft, #fbe9ec); }
-.proposal { margin: 12px 0; border: 1px solid var(--line-strong, #cfcfcf); border-radius: 4px; background: #faf9f6; padding: 12px; }
+.proposal { margin: 12px 0; border: 1px solid var(--line-strong, #cfcfcf); border-radius: 4px; background: #faf9f6; padding: 8px; }
 .proposal > strong { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--red-dark, #971424); }
 .proposal ul { list-style: none; margin: 8px 0; padding: 0; }
 .proposal li { border-bottom: 1px solid var(--line, #e3e3e3); padding: 6px 0; overflow-wrap: anywhere; }

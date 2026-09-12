@@ -523,3 +523,13 @@ describe("useSpeech (mocked engine)", () => {
     expect(onFail.mock.calls[0][0]).toBe("unsupported");
   });
 });
+
+it("rechecks the selected locale rather than reusing another language's installed pack (mocked)", async () => {
+  FakeRecognition.available = vi.fn(async ({ langs }) => langs[0] === "es-ES" ? "available" : "unavailable");
+  FakeRecognition.install = vi.fn(async () => true);
+  const { result, rerender } = renderHook(({ lang }) => useSpeech({ lang, onFinal: vi.fn(), onFail: vi.fn() }), { initialProps: { lang: "es-ES" } });
+  await act(async () => { expect(await result.current.installOnDevice()).toBe("available"); });
+  rerender({ lang: "zh-CN" });
+  await act(async () => { expect(await result.current.installOnDevice()).toBe("unavailable"); });
+  expect(FakeRecognition.available).toHaveBeenCalledWith({ langs: ["zh-CN"], processLocally: true });
+});

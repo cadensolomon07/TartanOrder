@@ -68,6 +68,8 @@ export function swapCandidates(
   const candidates: Candidate[] = [];
   for (const line of lines) {
     if (!eligibleLineIds.includes(line.lineId)) continue;
+    // Item-specific notes must never transfer to a suggested replacement.
+    if (line.note) continue;
     const original = menu.item(line.itemId);
     if (!original) continue;
     if (allowedLocationIds && !allowedLocationIds.includes(original.locationId)) continue;

@@ -6,7 +6,7 @@ This prototype creates simulated orders only: no payment, purchase or restaurant
 
 ## Finding the controls in the new kiosk
 
-On desktop, **Your food requirements** sits above the menu cards; the accepted cart and active requirement summary are on the right. Category buttons and **Order from** are on the left. On a phone these sections stack, and the cart's **Edit requirements** link jumps to the controls. A pending decision appears first in the requirements panel. The microphone icon visibly changes to **Stop — I’m done** while listening; **Submit** also accepts dietary declarations and corrections.
+On desktop, **Your food requirements** is in the left sidebar, below the category buttons and before **Order from** and the location details. The main column starts immediately with the menu; the accepted cart and active requirement summary remain on the right. On narrow screens these sections stack, and the cart's **Edit requirements** link jumps to the existing controls. A pending decision appears first in the requirements panel. The microphone icon visibly changes to **Stop — I’m done** while listening; **Submit** also accepts dietary declarations and corrections.
 
 ## Two-to-three-minute meal and dietary demonstration
 
@@ -33,3 +33,11 @@ Deliberate live checks are opt-in: `npm run test:meal:live` exercises the real b
 If voice fails, type. If the network/provider fails, use **Engineering → Local only**, then the manual requirement controls/menu buttons or simple rules-supported text. Campus local rules accept one exact menu item and quantity per input plus basic edits. The prebuilt local server supports the manual meal/dietary journey without HTTP; do not rebuild during the demonstration. Keep a fresh review and explicit confirmation. [Runbook](runbook.md) has recovery details.
 
 Requirements and conversation are held in session memory. Export only through an explicit local download; exported logs contain food requirements and transcripts and must not be shared unintentionally. Reload/reset is not recoverable through importing into the live cart. Previous recordings are historical; no new meal/dietary microphone recording is claimed. Never present recorded, fixture or rules output as live Gemini.
+
+## Special requests on individual items
+
+At the Demo Counter, say or type: “A water with extra ice and fries with extra salt.” Each request appears beneath its own cart item. Use **Add note** or **Edit note** on a cart row for other wording; **Save note** applies it, **Cancel** discards the draft, and saving empty text clears the note. Undo restores the previous accepted note.
+
+Review shows each note before confirmation and reads it back as a special request. The simulated receipt retains it. Notes do not confirm that the counter can fulfill a request or waive an extra charge; listed customizations such as a double burger still use their menu price. Dietary restrictions stay separate and are not overridden by note text.
+
+Offline, use the row editor, or explicit local wording such as “water with extra ice,” “fries, note: extra sauce if available,” and “add note to my fries: put in a separate bag.” Local wording is intentionally narrower than Gemini. Nothing is sent to a counter.

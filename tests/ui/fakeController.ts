@@ -45,6 +45,8 @@ export function makeFake(
   overrides: Partial<OrderController> = {},
 ): FakeController {
   const fake: FakeController = {
+    language: "en-US",
+    setLanguage(value) { fake.language=value; onChange(); },
     calls: [],
     state: { ...EMPTY, ...initial },
     busy: false,

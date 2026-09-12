@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { LANGUAGES, type Language } from "./languages";
+export const LanguageSchema = z.enum(LANGUAGES.map(language => language.id));
 
 // V3: the catalog is runtime data (see docs/adr-supabase-persistence.md). Item, location and
 // menu-version identifiers are bounded strings validated against the loaded catalog.
@@ -19,6 +21,7 @@ export const LIMITS = {
   idChars: 100,
   labelChars: 100,
   messageChars: 300,
+  noteChars: 160,
   serverTimeoutMs: 15000,
   clientTimeoutMs: 17000,
 } as const;
@@ -68,6 +71,9 @@ export const RevisionSchema = z.number().int().nonnegative();
 export const QuantitySchema = z.number().int().min(1).max(LIMITS.quantity);
 export const MessageSchema = z.string().min(1).max(LIMITS.messageChars);
 export const LabelSchema = z.string().min(1).max(LIMITS.labelChars);
+/** Unverified staff request; an empty SET_NOTE clears the line's note. */
+export const NoteSchema = z.string().trim().max(LIMITS.noteChars);
+export type Note = z.infer<typeof NoteSchema>;
 const CodeSchema = z.enum([...CORE_CODES, ...HTTP_CODES]);
 const CentsSchema = z.number().int().nonnegative();
 
@@ -248,6 +254,7 @@ export type Ref = z.infer<typeof RefSchema>;
 
 const AddOpSchema = z.strictObject({
   type: z.literal("ADD"), itemId: ItemIdSchema, qty: QuantitySchema, modifiers: ModifiersSchema,
+  note: NoteSchema.min(1).optional(),
 });
 const UndoOpSchema = z.strictObject({ type: z.literal("UNDO") });
 
@@ -255,6 +262,7 @@ export const OpSchema = z.discriminatedUnion("type", [
   AddOpSchema,
   z.strictObject({ type: z.literal("REMOVE"), ref: RefSchema }),
   z.strictObject({ type: z.literal("SET_QTY"), ref: RefSchema, qty: QuantitySchema }),
+  z.strictObject({ type: z.literal("SET_NOTE"), ref: RefSchema, note: NoteSchema }),
   z.strictObject({ type: z.literal("MOD"), ref: RefSchema, modifier: ModifierIdSchema, enabled: z.boolean() }),
   UndoOpSchema,
 ]);
@@ -264,6 +272,7 @@ export const ModelOpSchema = z.discriminatedUnion("type", [
   AddOpSchema,
   z.strictObject({ type: z.literal("REMOVE"), ref: ModelRefSchema }),
   z.strictObject({ type: z.literal("SET_QTY"), ref: ModelRefSchema, qty: QuantitySchema }),
+  z.strictObject({ type: z.literal("SET_NOTE"), ref: ModelRefSchema, note: NoteSchema }),
   z.strictObject({ type: z.literal("MOD"), ref: ModelRefSchema, modifier: ModifierIdSchema, enabled: z.boolean() }),
   UndoOpSchema,
 ]);
@@ -311,6 +320,7 @@ const ResolveResultSchema = z.strictObject({ kind: z.literal("resolve"), pending
 
 export const LineSchema = z.strictObject({
   lineId: IdSchema, itemId: ItemIdSchema, qty: QuantitySchema, modifiers: ModifiersSchema,
+  note: NoteSchema.min(1).optional(),
 });
 export type Line = z.infer<typeof LineSchema>;
 export const LinesSchema = z.array(LineSchema).max(LIMITS.lines).superRefine((lines, ctx) => {
@@ -442,6 +452,7 @@ export const OrderContextSchema = z.strictObject({
 export type OrderContext = z.infer<typeof OrderContextSchema>;
 
 export const ParseRequestSchema = z.strictObject({
+  language: LanguageSchema.optional(),
   v: z.literal(API_VERSION),
   requestId: RequestIdSchema,
   baseRevision: RevisionSchema,
@@ -603,6 +614,8 @@ export const HealthResponseSchema = z.strictObject({
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
 export type OrderController = {
+  language: Language;
+  setLanguage(value: Language): void;
   state: OrderView;
   busy: boolean;
   localOnly: boolean;

@@ -15,6 +15,8 @@ import { normalizeText, splitClauses } from "./rules/normalize";
 import { findNearMisses, joinNearMissPhrases } from "./rules/phonetic";
 import { parseCampusText } from "./campus.rules";
 import { parseRequirementsText } from "./requirements.rules";
+import { parseNoteText } from "./notes";
+import { translate } from "@/contracts/languages";
 
 export type RulesOptions = { phonetic: boolean };
 export const DEFAULT_RULES_OPTIONS: RulesOptions = { phonetic: true };
@@ -59,7 +61,9 @@ export function parseRulesWith(req: ParseRequest, options: RulesOptions, catalog
     parser: "rules" as const,
     fallbackReason: null,
   };
-  const result = parseRequirementsText(request, catalog) ?? ((request.locationId ?? "demo") === "demo" ? interpretText(request.text, options, lexicon) : parseCampusText(request, catalog));
+  const ordinary = (input: ParseRequest) => (input.locationId ?? "demo") === "demo" ? interpretText(input.text, options, lexicon) : parseCampusText(input, catalog);
+  if(request.language && request.language!=="en-US")return {...envelope,result:{kind:"reject",code:"UNSUPPORTED",message:translate("Local rules understand simple English orders. Use the menu buttons offline.",request.language)}};
+  const result = parseRequirementsText(request, catalog) ?? parseNoteText(request, ordinary, catalog) ?? ordinary(request);
   const checked = ParseResponseSchema.safeParse({ ...envelope, result });
   if (checked.success) return checked.data;
   return { ...envelope, result: reject("INVALID_SCHEMA", MESSAGES.invalidSchema) };

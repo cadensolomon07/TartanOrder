@@ -1,0 +1,57 @@
+{
+  "baseURL": "http://127.0.0.1:3201",
+  "completed": true,
+  "results": [
+    {
+      "language": "es-ES",
+      "text": "Un agua con hielo extra y unas papas fritas, por favor.",
+      "status": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "water",
+            "qty": 1,
+            "modifiers": [],
+            "note": "hielo extra"
+          },
+          {
+            "type": "ADD",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          }
+        ]
+      }
+    },
+    {
+      "language": "zh-CN",
+      "text": "请给我一杯加冰的水和一份薯条。",
+      "status": 200,
+      "parser": "gemini",
+      "fallbackReason": null,
+      "result": {
+        "kind": "proposal",
+        "ops": [
+          {
+            "type": "ADD",
+            "itemId": "water",
+            "qty": 1,
+            "modifiers": [],
+            "note": "加冰"
+          },
+          {
+            "type": "ADD",
+            "itemId": "fries",
+            "qty": 1,
+            "modifiers": []
+          }
+        ]
+      }
+    }
+  ],
+  "pageErrors": []
+}

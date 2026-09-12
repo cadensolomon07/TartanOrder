@@ -3,6 +3,8 @@ import { createEngine, reduceEngine, getView, exportLog } from "@/core/engine";
 import { interpret } from "@/parser/client";
 import { indexCatalog, type CatalogIndex } from "@/catalog/lookup";
 import type { PersistOutcome, PersistPort } from "@/persistence/port";
+import { LanguageSchema } from "@/contracts";
+import { translate, type Language } from "@/contracts/languages";
 
 export type Dependencies = {
   /** The loaded, validated catalog this session prices and parses against. Required. */
@@ -58,6 +60,7 @@ export function createOrderController(deps:Dependencies) {
   let run: PersistRun = newRun();
   let persistence: PersistenceStatus = PERSISTENCE_OFF;
   let capture = false;
+  let language: Language = "en-US";
   let localOnly = false;
   let locationId = LocationIdSchema.parse(deps.locationId ?? "demo");
   if (!menu.location(locationId))throw new Error("The selected location is not in the loaded catalog.");
@@ -76,7 +79,7 @@ export function createOrderController(deps:Dependencies) {
   let snapshot:OrderController;
   const cancel = ()=>{ const old=active; active=null; old?.abort.abort(); if(old)remember("assistant", "The previous request was cancelled without applying its edits."); };
   const publish = ()=>{
-    snapshot = {state:getView(engine),busy:capture||active!==null,parser,notice,assistant,localOnly,locationId,startInput,endInput,submit,act,setLocalOnly,setLocation,reset,exportLog:()=>exportLog(engine),persistence,retryPersistence};
+    snapshot = {state:getView(engine),language,setLanguage,busy:capture||active!==null,parser,notice:notice ? translate(notice,language) : null,assistant,localOnly,locationId,startInput,endInput,submit,act,setLocalOnly,setLocation,reset,exportLog:()=>exportLog(engine),persistence,retryPersistence};
     for (const listener of listeners) listener();
   };
   // ---- write-behind persistence -------------------------------------------
@@ -171,7 +174,7 @@ export function createOrderController(deps:Dependencies) {
     const state=getView(engine);
     const context={lines:state.lines,lastLineId:state.lastLineId,pending:state.pending ?? engine.continuation?.pending ?? null,recent:structuredClone(conversation),
       ...(state.requirements ? {requirements:{...state.requirements, decision:state.requirements.decision ?? engine.requirementsContinuation ?? null}} : {})};
-    const candidate=ParseRequestSchema.safeParse({v:API_VERSION,menuVersion,requestId:`r${++counter}`,baseRevision:state.revision,text:text.trim(),source,asrConfidence,context,locationId});
+    const candidate=ParseRequestSchema.safeParse({v:API_VERSION,menuVersion,requestId:`r${++counter}`,baseRevision:state.revision,text:text.trim(),source,asrConfidence,context,locationId,...(language!=="en-US"?{language}:{})});
     if (!candidate.success) {notice=messages.INVALID_SCHEMA;publish();return;}
     remember("user", candidate.data.text);
     const before=state;
@@ -192,16 +195,17 @@ export function createOrderController(deps:Dependencies) {
         answer(getView(engine).requirements?.decision?.message ?? getView(engine).requirements?.message ?? getView(engine).pending?.question ?? "Which item did you mean?");
       } else if(engine.lastOutcome === "applied") {
         const notices=response.result.kind === "proposal" ? response.result.notices ?? [] : [];
-        answer(requirementReply(before, getView(engine), notices, menu));
+        answer(localReply(before, getView(engine), notices, language, menu));
       } else {
         if(engine.lastOutcome === "rejected" && response.result.kind === "reject" && response.result.code === "INVALID_MODIFIER") {
           const options=response.result.notices?.filter(item=>item.kind === "unavailable_option") ?? [];
           if(options.length)notice=`${describeNotices(options, menu)} Your cart was not changed.`;
         }
-        answer(notice ?? "I couldn't apply that request. Your cart was not changed.");
+        if(language!=="en-US" && response.result.kind==="reject")notice=response.result.message;
+        answer(translate(notice ?? "I couldn't apply that request. Your cart was not changed.",language));
       }
       if(response.fallbackReason) {
-        notice=`Using local rules (${response.fallbackReason}). Try a simple item or use the menu.`;
+        notice=language==="en-US" ? `Using local rules (${response.fallbackReason}). Try a simple item or use the menu.` : translate("Local rules understand simple English orders. Use the menu buttons offline.",language);
       }
     } catch(error) {
       if(active===ticket&&!ticket.abort.signal.aborted) {
@@ -233,7 +237,7 @@ export function createOrderController(deps:Dependencies) {
       // Wait recommendations stay out of the model's conversation context.
       // Only the accepted food/vendor change is remembered.
       if(action.type === "ACCEPT_SWAP" && before.swapOffer)locationId=before.swapOffer.alternative.vendorId;
-      answer(requirementReply(before,getView(engine),[],menu));
+      answer(localReply(before,getView(engine),[],language,menu));
     }
     else if(engine.lastOutcome === "rejected" && notice)answer(notice);
     publish();
@@ -248,6 +252,13 @@ export function createOrderController(deps:Dependencies) {
   function reset() {
     cancel();capture=false;engine=createEngine(makeSession(), engineOptions);parser="none";notice=null;assistant=null;conversation=[];
     run=newRun();schedulePersist();publish();
+  }
+  function setLanguage(value: Language) {
+    const checked=LanguageSchema.safeParse(value);
+    if(!checked.success || checked.data===language)return;
+    cancel(); capture=false; assistant=null; conversation=[]; language=checked.data;
+    if(getView(engine).phase!=="committed")dispatch({type:"INPUT_STARTED",discardContinuation:true});
+    notice=translate("Language changed. Review your order again before confirming.",language);publish();
   }
   function setLocation(value: LocationId) {
     if(value === locationId)return;
@@ -287,7 +298,7 @@ function joinWords(parts: string[]): string {
 
 function describeLine(line: Line, menu: CatalogIndex): string {
   const options=line.modifiers.map(modifier=>(menu.modifier(modifier)?.label ?? modifier).toLowerCase());
-  return `${line.qty} ${menu.fullItemLabel(line.itemId).toLowerCase()}${options.length ? ` (${options.join(", ")})` : ""}`;
+  return `${line.qty} ${menu.fullItemLabel(line.itemId).toLowerCase()}${options.length ? ` (${options.join(", ")})` : ""}${line.note ? ` with the special request “${line.note}”` : ""}`;
 }
 
 /** Only accepted engine snapshots can generate claims about cart changes. */
@@ -296,13 +307,16 @@ export function describeChanges(before: OrderView, after: OrderView, notices: Or
   const removed=before.lines.filter(line=>!after.lines.some(next=>next.lineId===line.lineId));
   const changed=after.lines.filter(line=>{
     const old=before.lines.find(old=>old.lineId===line.lineId);
-    return old && (old.itemId!==line.itemId || old.qty!==line.qty || [...old.modifiers].sort().join()!==[...line.modifiers].sort().join());
+    return old && (old.itemId!==line.itemId || old.qty!==line.qty || [...old.modifiers].sort().join()!==[...line.modifiers].sort().join() || old.note!==line.note);
   });
   const parts:string[]=[];
   const describe=(line: Line)=>describeLine(line, menu);
   if(added.length)parts.push(`I added ${joinWords(added.map(describe))}.`);
   if(removed.length)parts.push(`I removed ${joinWords(removed.map(describe))}.`);
   if(changed.length)parts.push(`Updated to ${joinWords(changed.map(describe))}.`);
+  const clearedNotes=changed.filter(line=>!line.note && before.lines.find(old=>old.lineId===line.lineId)?.note);
+  if(clearedNotes.length)parts.push(`Removed the special request from ${joinWords(clearedNotes.map(line=>menu.fullItemLabel(line.itemId).toLowerCase()))}.`);
+  if([...added,...changed].some(line=>line.note))parts.push("Special requests and any extra charge need counter confirmation.");
   if(!parts.length)parts.push("Your order is already set that way.");
   if(notices.length)parts.push(describeNotices(notices, menu));
   parts.push("Is there anything else I can get you?");
@@ -327,4 +341,17 @@ function requirementReply(before: OrderView, after: OrderView, notices: OrderNot
   if (!changed && requirements.message)return requirements.message;
   const edits = describeChanges(before, after, notices, menu).replace(/ Is there anything else I can get you\?$/, "");
   return [edits, requirements.message].filter(Boolean).join(" ");
+}
+
+function localReply(before: OrderView, after: OrderView, notices: OrderNotice[], language: Language, menu: CatalogIndex): string {
+  if(language==="en-US")return requirementReply(before,after,notices,menu);
+  const format=(line:Line)=>`${line.qty} × ${translate(menu.fullItemLabel(line.itemId),language)}${line.modifiers.length?` (${line.modifiers.map(mod=>translate(menu.modifier(mod)?.label ?? mod,language)).join(", ")})`:""}${line.note?` — ${translate("Special request:",language)} ${line.note}`:""}`;
+  const added=after.lines.filter(line=>!before.lines.some(old=>old.lineId===line.lineId));
+  const changed=after.lines.filter(line=>before.lines.some(old=>old.lineId===line.lineId&&JSON.stringify(old)!==JSON.stringify(line)));
+  const removed=before.lines.filter(line=>!after.lines.some(next=>next.lineId===line.lineId));
+  const parts=([["Added",added],["Updated",changed],["Removed",removed]] as const).filter(([,lines])=>lines.length).map(([label,lines])=>`${translate(label,language)}: ${lines.map(format).join("; ")}.`);
+  if(!parts.length)parts.push(translate("Order updated.",language));
+  if(notices.length)parts.push(describeNotices(notices,menu));
+  if(after.requirements?.message)parts.push(translate("Please check the details below.",language),after.requirements.message);
+  return parts.join(" ");
 }

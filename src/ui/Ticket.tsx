@@ -1,4 +1,5 @@
 "use client";
+import { T } from "./Language";
 import { useEffect, useRef } from "react";
 import type { Receipt, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
@@ -6,6 +7,7 @@ import { useCatalog } from "./CatalogContext";
 import { formatCents, itemLabel, modifierLabel } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
+import { ItemNote, NoteDisclosure } from "./ItemNote";
 
 /** A short, stable display number derived from the receipt id (the full id stays visible below). */
 export function ticketNumber(id: string): string {
@@ -27,43 +29,45 @@ export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewO
       <div className={styles.ticketHero}>
         <span className={styles.ticketCheck} aria-hidden="true">✓</span>
         <div>
-          <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}>
+          <h2 className={styles.panelTitle} tabIndex={-1} ref={heading}><T>
             Simulated receipt
-          </h2>
-          <p className={styles.ticketNumber}>#{ticketNumber(receipt.id)}</p>
-          <p className={styles.ticketPickup}>No purchase or kitchen dispatch</p>
+          </T></h2>
+          <p className={styles.ticketNumber}>#<T>{ticketNumber(receipt.id)}</T></p>
+          <p className={styles.ticketPickup}><T>No purchase or kitchen dispatch</T></p>
         </div>
-        <span className={styles.simTag}>Simulated · no real purchase</span>
+        <span className={styles.simTag}><T>Simulated · no real purchase</T></span>
       </div>
-      <p className={styles.ticketId}>
-        Ticket <code>{receipt.id}</code>
+      <p className={styles.ticketId}><T>
+        Ticket </T><code><T>{receipt.id}</T></code>
       </p>
-      <h3 className={styles.categoryTitle}>Order summary</h3>
+      <h3 className={styles.categoryTitle}><T>Order summary</T></h3>
       <ul className={styles.reviewList}>
         {receipt.lines.map((l) => (
           <li key={l.lineId} className={`${styles.reviewRow} ${styles.sumRow}`}>
             <span>
-              {l.qty}× {itemLabel(menu, l.itemId)}
-              {l.modifiers.length > 0 && (
-                <span className={styles.muted}> — {l.modifiers.map((m) => modifierLabel(menu, m)).join(", ")}</span>
-              )}
+              <T>{l.qty}</T>× <T>{itemLabel(menu, l.itemId)}</T>
+              <T>{l.modifiers.length > 0 && (
+                <span className={styles.muted}> — <T>{l.modifiers.map((m) => modifierLabel(menu, m)).join(", ")}</T></span>
+              )}</T>
               <WaitEstimate wait={wait} lineId={l.lineId} />
+              <ItemNote note={l.note} />
             </span>
             <span className={styles.sumPrice}><LinePrice line={l} /></span>
           </li>
         ))}
       </ul>
+      {receipt.lines.some(line => line.note) && <NoteDisclosure />}
       <div className={styles.reviewTotal}>
-        <span>Menu subtotal</span>
-        <span>{formatCents(receipt.totalCents)}</span>
+        <span><T>Menu subtotal</T></span>
+        <span><T>{formatCents(receipt.totalCents)}</T></span>
       </div>
       <WaitEstimate wait={wait} />
       <div className={styles.reviewActions}>
-        <button type="button" className={styles.primaryBtn} data-testid="new-order" onClick={onNewOrder}>
+        <button type="button" className={styles.primaryBtn} data-testid="new-order" onClick={onNewOrder}><T>
           Start a new order
-        </button>
+        </T></button>
       </div>
-      <p className={styles.muted}>Published or sample menu prices only; no tax or meal-plan discounts applied. Nothing was sent to a dining location.</p>
+      <p className={styles.muted}><T>Published or sample menu prices only; no tax or meal-plan discounts applied. Nothing was sent to a dining location.</T></p>
     </section>
   );
 }

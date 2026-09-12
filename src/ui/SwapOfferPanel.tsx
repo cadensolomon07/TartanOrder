@@ -1,4 +1,5 @@
 import type { SwapOffer, UiAction, WaitView } from "@/contracts";
+import { T } from "./Language";
 import type { CatalogIndex } from "@/catalog/lookup";
 import { useCatalog } from "./CatalogContext";
 import { formatCents, modifierLabel } from "./labels";
@@ -37,19 +38,19 @@ export function SwapOfferPanel({ offer, source, disabled, onAction }: { offer: S
   const { menu } = useCatalog();
   const vendor = menu.locationName(offer.alternative.vendorId);
   return <section className={styles.swapOffer} data-testid="swap-offer" aria-label="Faster item option">
-    <h3>A quicker option for this item</h3>
-    <p><strong>{offer.quantity}× {label(menu, offer.alternative.itemId)}</strong> at <strong>{vendor}</strong></p>
-    <p>Instead of {label(menu, offer.original.itemId)} at {menu.locationName(offer.original.vendorId)}.</p>
-    <p>Item preparation wait: <strong>{offer.original.waitMinutes} → {offer.alternative.waitMinutes} min</strong>. <WaitSource source={source} /></p>
-    <p data-testid="swap-cart-change">{cartChange(offer)} <WaitSource source={source} /></p>
-    <p data-testid="swap-price-change"><strong>{priceChange(offer)}</strong> Price each: {formatCents(offer.original.unitPriceCents)} → {formatCents(offer.alternative.unitPriceCents)}.</p>
-    {offer.differences.length > 0 && <ul>{offer.differences.map((difference, index) => <li key={`${index}:${difference}`}>{difference}</li>)}</ul>}
-    {offer.retainedModifiers.length > 0 && <p>Keeps: {offer.retainedModifiers.map((id) => modifierLabel(menu, id)).join(", ")}.</p>}
-    {offer.removedModifiers.length > 0 && <p><strong>Removes: {offer.removedModifiers.map((id) => modifierLabel(menu, id)).join(", ")}.</strong></p>}
+    <h3><T>A quicker option for this item</T></h3>
+    <p><strong><T>{offer.quantity}</T>× <T>{label(menu, offer.alternative.itemId)}</T></strong><T> at </T><strong><T>{vendor}</T></strong></p>
+    <p><T>Instead of {label(menu, offer.original.itemId)} at {menu.locationName(offer.original.vendorId)}</T>.</p>
+    <p><T>Item preparation wait: </T><strong><T>{offer.original.waitMinutes}</T> → <T>{offer.alternative.waitMinutes} min</T></strong>. <WaitSource source={source} /></p>
+    <p data-testid="swap-cart-change"><T>{cartChange(offer)}</T> <WaitSource source={source} /></p>
+    <p data-testid="swap-price-change"><strong><T>{priceChange(offer)}</T></strong><T> Price each: {formatCents(offer.original.unitPriceCents)}</T> → <T>{formatCents(offer.alternative.unitPriceCents)}</T>.</p>
+    <T>{offer.differences.length > 0 && <ul><T>{offer.differences.map((difference, index) => <li key={`${index}:${difference}`}><T>{difference}</T></li>)}</T></ul>}</T>
+    <T>{offer.retainedModifiers.length > 0 && <p><T>Keeps: {offer.retainedModifiers.map((id) => modifierLabel(menu, id)).join(", ")}</T>.</p>}</T>
+    <T>{offer.removedModifiers.length > 0 && <p><strong><T>Removes: {offer.removedModifiers.map((id) => modifierLabel(menu, id)).join(", ")}</T>.</strong></p>}</T>
     <div className={styles.swapActions}>
-      <button type="button" className={styles.primaryBtn} disabled={disabled} data-testid="accept-swap" onClick={() => onAction({ type: "ACCEPT_SWAP", offerId: offer.offerId, revision: offer.revision })}>Switch to {vendor}</button>
-      <button type="button" className={styles.secondaryBtn} disabled={disabled} data-testid="decline-swap" onClick={() => onAction({ type: "DECLINE_SWAP", offerId: offer.offerId })}>Keep it</button>
+      <button type="button" className={styles.primaryBtn} disabled={disabled} data-testid="accept-swap" onClick={() => onAction({ type: "ACCEPT_SWAP", offerId: offer.offerId, revision: offer.revision })}><T>Switch to {vendor}</T></button>
+      <button type="button" className={styles.secondaryBtn} disabled={disabled} data-testid="decline-swap" onClick={() => onAction({ type: "DECLINE_SWAP", offerId: offer.offerId })}><T>Keep it</T></button>
     </div>
-    <p className={styles.muted}>Preparation only; excludes walking and pickup travel. Nothing is sent to a restaurant.</p>
+    <p className={styles.muted}><T>Preparation only; excludes walking and pickup travel. Nothing is sent to a restaurant.</T></p>
   </section>;
 }
