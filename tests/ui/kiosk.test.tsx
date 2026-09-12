@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Kiosk, micFailureMessage } from "@/ui/Kiosk";
 import { makeFake, type FakeController } from "./fakeController";
 import { editingThree, clarifyingBurgers, reviewingThree, committedThree } from "./fixtures";
+import { withCatalog } from "./withCatalog";
 import type { OrderView } from "@/contracts";
 
 class FakeRecognition {
@@ -33,7 +34,7 @@ function mount(initial: Partial<OrderView> = {}) {
   function Host() {
     const [, bump] = useState(0);
     if (!ctrl) ctrl = makeFake(initial, () => bump((n) => n + 1));
-    return <Kiosk controller={ctrl} />;
+    return withCatalog(<Kiosk controller={ctrl} />);
   }
   const utils = render(<Host />);
   return { ...utils, ctrl: () => ctrl };

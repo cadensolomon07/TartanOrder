@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  MENU_VERSION,
+  API_VERSION,
   CORE_CODES,
   CoreCodeSchema,
   LIMITS,
@@ -12,7 +12,7 @@ import {
   type ParseRequest,
   type ParseResponse,
 } from "@/contracts";
-import { MENU, itemsForLocation } from "@/contracts/menu";
+import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 import { FIXTURE_REQUEST, FIXTURE_RESPONSE } from "@/contracts/fixtures";
 import { DEFAULT_RULES_OPTIONS, guardTranscript, parseRules, parseRulesWith } from "@/parser/rules";
 import canonical from "./fixtures/canonical.json";
@@ -28,11 +28,11 @@ type Expectation = z.infer<typeof ExpectationSchema>;
 const ROWS = z.array(RowSchema).parse(canonical);
 
 function request(text: string, overrides: Partial<ParseRequest> = {}): ParseRequest {
-  return { v: 2, requestId: "t1", baseRevision: 0, menuVersion: MENU_VERSION, text, source: "text", asrConfidence: null, ...overrides };
+  return { v: API_VERSION, requestId: "t1", baseRevision: 0, menuVersion: MENU_VERSION, text, source: "text", asrConfidence: null, ...overrides };
 }
 
 function run(text: string): ParseResponse {
-  return parseRules(request(text));
+  return parseRules(request(text), CATALOG);
 }
 
 function opsOf(response: ParseResponse): Op[] {
@@ -72,7 +72,7 @@ describe("canonical utterances", () => {
   }
 
   it("reproduces the frozen fixture u1 in rules mode", () => {
-    const response = parseRules(FIXTURE_REQUEST);
+    const response = parseRules(FIXTURE_REQUEST, CATALOG);
     expect(response).toEqual({ ...FIXTURE_RESPONSE, parser: "rules" });
     expect(opsOf(response)).toEqual(FIXTURE_RESPONSE.result.kind === "proposal" ? FIXTURE_RESPONSE.result.ops : []);
   });
@@ -80,15 +80,15 @@ describe("canonical utterances", () => {
 
 describe("envelope", () => {
   it("echoes requestId, baseRevision and menuVersion with parser rules and no fallback", () => {
-    const response = parseRules(request("a burger", { requestId: "echo-42", baseRevision: 17 }));
+    const response = parseRules(request("a burger", { requestId: "echo-42", baseRevision: 17 }), CATALOG);
     expect(response).toMatchObject({
-      v: 2, requestId: "echo-42", baseRevision: 17, menuVersion: MENU_VERSION, parser: "rules", fallbackReason: null,
+      v: API_VERSION, requestId: "echo-42", baseRevision: 17, menuVersion: MENU_VERSION, parser: "rules", fallbackReason: null,
     });
   });
 
   it("throws on an invalid request instead of guessing", () => {
-    expect(() => parseRules({ ...request("a burger"), v: 1 } as unknown as ParseRequest)).toThrow();
-    expect(() => parseRules({ ...request("a burger"), extra: true } as unknown as ParseRequest)).toThrow();
+    expect(() => parseRules({ ...request("a burger"), v: 1 } as unknown as ParseRequest, CATALOG)).toThrow();
+    expect(() => parseRules({ ...request("a burger"), extra: true } as unknown as ParseRequest, CATALOG)).toThrow();
   });
 
   it("rejects whitespace-only text with UNSUPPORTED", () => {
@@ -109,7 +109,7 @@ describe("envelope", () => {
   it("does not mutate the request", () => {
     const req = request("a burger, no wait, fries");
     const frozen = structuredClone(req);
-    parseRules(req);
+    parseRules(req, CATALOG);
     expect(req).toEqual(frozen);
   });
 });
@@ -318,7 +318,7 @@ describe("ASR stutters (second C intake, normalize.ts)", () => {
 
 describe("adds and modifiers", () => {
   it("accepts every menu alias, singular and derived plural", () => {
-    for (const item of itemsForLocation("demo")) {
+    for (const item of MENU.itemsForLocation("demo")) {
       for (const alias of item.aliases) {
         expect(opsOf(run(`a ${alias}`))).toEqual([{ type: "ADD", itemId: item.id, qty: 1, modifiers: [] }]);
         const plural = alias.endsWith("s") ? alias : `${alias}s`;
@@ -545,8 +545,8 @@ describe("phonetic near-miss (D11)", () => {
     const response = run(text);
     expect(response.result.kind).toBe("clarify");
     if (response.result.kind !== "clarify") return;
-    expect(response.result.question).toBe(`Did you mean ${MENU[itemId as keyof typeof MENU].label.toLowerCase()}?`);
-    expect(response.result.choices).toEqual([{ id: "option-1", label: MENU[itemId as keyof typeof MENU].label, ops }]);
+    expect(response.result.question).toBe(`Did you mean ${MENU.item(itemId)!.label.toLowerCase()}?`);
+    expect(response.result.choices).toEqual([{ id: "option-1", label: MENU.item(itemId)!.label, ops }]);
   };
 
   it("clarifies curated and key-matched near-misses", () => {
@@ -577,9 +577,9 @@ describe("phonetic near-miss (D11)", () => {
 
   it("is off-menu with phonetics disabled", () => {
     expect(DEFAULT_RULES_OPTIONS).toEqual({ phonetic: true });
-    const response = parseRulesWith(request("a lemonaid"), { phonetic: false });
+    const response = parseRulesWith(request("a lemonaid"), { phonetic: false }, CATALOG);
     expect(rejectionOf(response).code).toBe("OFF_MENU");
-    expect(parseRulesWith(request("a lemonaid"), DEFAULT_RULES_OPTIONS).result.kind).toBe("clarify");
+    expect(parseRulesWith(request("a lemonaid"), DEFAULT_RULES_OPTIONS, CATALOG).result.kind).toBe("clarify");
   });
 
   it("still rejects when the substituted utterance cannot be parsed", () => {

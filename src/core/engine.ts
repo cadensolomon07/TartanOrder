@@ -1,6 +1,5 @@
 import {
   API_VERSION,
-  MENU_VERSION,
   LIMITS,
   AuditEventSchema,
   ExportLogSchema,
@@ -9,6 +8,7 @@ import {
   AllowedLocationIdsSchema,
   type AuditEntry,
   type AuditEvent,
+  type Catalog,
   type Choice,
   type CoreCode,
   type Line,
@@ -19,15 +19,27 @@ import {
   type UiAction,
   type WaitEngineConfig,
 } from "@/contracts";
-import { MENU, MODIFIERS } from "@/contracts/menu";
-import { deriveWaitView, swapCandidates } from "./waits";
+import { indexCatalog, type CatalogIndex } from "@/catalog/lookup";
+import { deriveWaitView, swapCandidates, unitPriceCents } from "./waits";
 
 type CartSnapshot = { lines: Line[]; lastLineId: string | null };
 type PendingContext = { requestId: string };
 type Outcome = AuditEntry["outcome"];
 
+/**
+ * Everything the engine needs beyond the session id. The catalog is the one
+ * immutable released menu version this session prices against; it was validated
+ * at the load boundary and is never re-parsed here.
+ */
+export type EngineOptions = {
+  readonly catalog: Catalog;
+  readonly waitConfig?: WaitEngineConfig;
+  readonly allowedLocationIds?: readonly LocationId[];
+};
+
 /** Opaque application state. Use getView to expose a detached UI snapshot. */
 export type EngineState = {
+  readonly catalog: Catalog;
   readonly view: OrderView;
   readonly history: readonly CartSnapshot[];
   readonly seenRequestIds: readonly string[];
@@ -48,10 +60,13 @@ type BatchResult = Success | Failure | { kind: "clarify"; question: string; choi
 
 const clone = <T>(value: T): T => structuredClone(value);
 
-export function totalCents(lines: readonly Line[]): number {
-  return lines.reduce((total, line) => total + line.qty * (
-    MENU[line.itemId].priceCents + line.modifiers.reduce((sum, modifier) => sum + MODIFIERS[modifier].priceCents, 0)
-  ), 0);
+export function totalCents(lines: readonly Line[], catalog: Catalog): number {
+  const menu = indexCatalog(catalog);
+  return lines.reduce((total, line) => {
+    const item = menu.item(line.itemId);
+    if (!item) throw new Error(`INVALID_SCHEMA: item ${line.itemId} is not in catalog ${catalog.versionId}.`);
+    return total + line.qty * unitPriceCents(menu, item, line.modifiers);
+  }, 0);
 }
 
 // Session IDs are supplied by the controller; every derived ID is deterministic.
@@ -68,11 +83,17 @@ function derivedId(state: EngineState, kind: string, number: number): string {
   return `${sessionKey(state.view.sessionId)}:${kind}:${number}`;
 }
 
-export function createEngine(sessionId: string, config?: WaitEngineConfig, allowedLocationIds?: readonly LocationId[]): EngineState {
+export function createEngine(sessionId: string, options: EngineOptions): EngineState {
   IdSchema.parse(sessionId);
-  const waitConfig = config === undefined ? undefined : WaitEngineConfigSchema.parse(clone(config));
-  const locations = allowedLocationIds === undefined ? undefined : AllowedLocationIdsSchema.parse([...allowedLocationIds]);
+  const { catalog } = options;
+  const menu = indexCatalog(catalog);
+  const waitConfig = options.waitConfig === undefined ? undefined : WaitEngineConfigSchema.parse(clone(options.waitConfig));
+  const locations = options.allowedLocationIds === undefined ? undefined : AllowedLocationIdsSchema.parse([...options.allowedLocationIds]);
+  for (const locationId of locations ?? []) {
+    if (!menu.location(locationId)) throw new Error(`INVALID_SCHEMA: allowed location ${locationId} is not in catalog ${catalog.versionId}.`);
+  }
   return {
+    catalog,
     view: {
       sessionId,
       revision: 0,
@@ -84,7 +105,7 @@ export function createEngine(sessionId: string, config?: WaitEngineConfig, allow
       receipt: null,
       totalCents: 0,
       audit: [],
-      ...(waitConfig ? { wait: deriveWaitView([], waitConfig), swapOffer: null } : {}),
+      ...(waitConfig ? { wait: deriveWaitView([], waitConfig, catalog), swapOffer: null } : {}),
     },
     history: [],
     seenRequestIds: [],
@@ -99,7 +120,7 @@ export function createEngine(sessionId: string, config?: WaitEngineConfig, allow
 }
 
 export function getView(state: EngineState): OrderView {
-  return clone(state.waitConfig ? { ...state.view, wait: deriveWaitView(state.view.lines, state.waitConfig) } : state.view);
+  return clone(state.waitConfig ? { ...state.view, wait: deriveWaitView(state.view.lines, state.waitConfig, state.catalog) } : state.view);
 }
 
 function snapshot(state: EngineState): CartSnapshot {
@@ -139,7 +160,7 @@ function finish(state: EngineState, event: AuditEvent, outcome: Outcome, code: A
     lastCode: code,
     view: {
       ...state.view,
-      ...(state.waitConfig ? { wait: deriveWaitView(state.view.lines, state.waitConfig) } : {}),
+      ...(state.waitConfig ? { wait: deriveWaitView(state.view.lines, state.waitConfig, state.catalog) } : {}),
       audit: [...state.view.audit, {
         seq: state.view.audit.length + 1,
         event: clone(event),
@@ -157,16 +178,18 @@ function referenceMatches(cart: CartSnapshot, ref: Ref): Line[] {
 }
 
 /** Evaluates sequentially on a temporary cart, never on live state. */
-function scanBatch(original: CartSnapshot, ops: Op[], requestId: string, allowedLocationIds?: readonly LocationId[]): Success | Failure | Ambiguity {
+function scanBatch(menu: CatalogIndex, original: CartSnapshot, ops: Op[], requestId: string, allowedLocationIds?: readonly LocationId[]): Success | Failure | Ambiguity {
   const cart = clone(original);
   for (let index = 0; index < ops.length; index += 1) {
     const op = ops[index];
     if (op.type === "UNDO") return { kind: "error", code: "INVALID_SCHEMA" };
     if (op.type === "ADD") {
-      if (allowedLocationIds && !allowedLocationIds.includes(MENU[op.itemId].locationId as LocationId)) {
+      // The schema only bounds the id's shape; membership is decided against the loaded catalog here.
+      const item = menu.item(op.itemId);
+      if (!item || (allowedLocationIds && !allowedLocationIds.includes(item.locationId))) {
         return { kind: "error", code: "OFF_MENU" };
       }
-      if (!op.modifiers.every((modifier) => MENU[op.itemId].allowedModifiers.includes(modifier))) {
+      if (!op.modifiers.every((modifier) => item.allowedModifiers.includes(modifier))) {
         return { kind: "error", code: "INVALID_MODIFIER" };
       }
       const lineId = `${requestId}:${index}`;
@@ -187,7 +210,9 @@ function scanBatch(original: CartSnapshot, ops: Op[], requestId: string, allowed
         target.qty = op.qty;
         cart.lastLineId = target.lineId;
       } else {
-        if (!MENU[target.itemId].allowedModifiers.includes(op.modifier)) {
+        const item = menu.item(target.itemId);
+        if (!item) return { kind: "error", code: "OFF_MENU" };
+        if (!item.allowedModifiers.includes(op.modifier)) {
           return { kind: "error", code: "INVALID_MODIFIER" };
         }
         if (op.enabled && !target.modifiers.includes(op.modifier)) target.modifiers.push(op.modifier);
@@ -202,8 +227,8 @@ function scanBatch(original: CartSnapshot, ops: Op[], requestId: string, allowed
   return { kind: "success", cart };
 }
 
-function evaluateBatch(original: CartSnapshot, ops: Op[], requestId: string, allowedLocationIds?: readonly LocationId[]): BatchResult {
-  const result = scanBatch(original, ops, requestId, allowedLocationIds);
+function evaluateBatch(menu: CatalogIndex, original: CartSnapshot, ops: Op[], requestId: string, allowedLocationIds?: readonly LocationId[]): BatchResult {
+  const result = scanBatch(menu, original, ops, requestId, allowedLocationIds);
   if (result.kind !== "ambiguous") return result;
   if (result.matches.length > LIMITS.choices) return { kind: "error", code: "AMBIGUOUS_REFERENCE" };
 
@@ -217,17 +242,18 @@ function evaluateBatch(original: CartSnapshot, ops: Op[], requestId: string, all
 
     // Explore the entire batch for every candidate. A second ambiguous reference
     // or an invalid later operation cannot be hidden behind the first choice.
-    const candidate = scanBatch(original, explicit, requestId, allowedLocationIds);
+    const candidate = scanBatch(menu, original, explicit, requestId, allowedLocationIds);
     if (candidate.kind === "ambiguous") return { kind: "error", code: "AMBIGUOUS_REFERENCE" };
     if (candidate.kind === "error") return candidate;
-    const modifiers = target.modifiers.map((modifier) => MODIFIERS[modifier].label).join(", ");
+    const modifiers = target.modifiers.map((modifier) => menu.modifier(modifier)?.label ?? modifier).join(", ");
     choices.push({
       id: `option-${index + 1}`,
-      label: `${MENU[target.itemId].label} ${index + 1}, quantity ${target.qty}${modifiers ? `, ${modifiers}` : ""}`,
+      label: `${menu.item(target.itemId)?.label ?? target.itemId} ${index + 1}, quantity ${target.qty}${modifiers ? `, ${modifiers}` : ""}`,
       ops: explicit,
     });
   }
-  return { kind: "clarify", question: `Which ${MENU[result.matches[0].itemId].label.toLowerCase()} line did you mean?`, choices };
+  const first = result.matches[0];
+  return { kind: "clarify", question: `Which ${(menu.item(first.itemId)?.label ?? first.itemId).toLowerCase()} line did you mean?`, choices };
 }
 
 function installCart(state: EngineState, cart: CartSnapshot, history: readonly CartSnapshot[]): EngineState {
@@ -240,7 +266,7 @@ function installCart(state: EngineState, cart: CartSnapshot, history: readonly C
       phase: "editing",
       lines: clone(cart.lines),
       lastLineId: cart.lastLineId,
-      totalCents: totalCents(cart.lines),
+      totalCents: totalCents(cart.lines, state.catalog),
       pending: null,
       review: null,
     },
@@ -271,7 +297,7 @@ function applyBatch(state: EngineState, event: AuditEvent, ops: Op[], requestId:
     return finish(installCart(state, previous, state.history.slice(0, -1)), event, "applied");
   }
   const before = snapshot(state);
-  const result = evaluateBatch(before, ops, requestId, state.allowedLocationIds);
+  const result = evaluateBatch(indexCatalog(state.catalog), before, ops, requestId, state.allowedLocationIds);
   if (result.kind === "error") return finish(state, event, "rejected", result.code);
   if (result.kind === "clarify") {
     return finish(enterPending(state, requestId, result.question, result.choices), event, "clarify", "AMBIGUOUS_REFERENCE");
@@ -279,7 +305,7 @@ function applyBatch(state: EngineState, event: AuditEvent, ops: Op[], requestId:
   let installed = installCart(state, result.cart, [...state.history, before]);
   if (state.waitConfig) {
     const addedIds = result.cart.lines.filter(line => !before.lines.some(previous => previous.lineId === line.lineId) && !state.suppressedLineIds.includes(line.lineId)).map(line => line.lineId);
-    const candidate = swapCandidates(result.cart.lines, state.waitConfig, addedIds, state.allowedLocationIds)[0];
+    const candidate = swapCandidates(result.cart.lines, state.waitConfig, addedIds, state.catalog, state.allowedLocationIds)[0];
     if (candidate) installed = {
       ...installed,
       view: { ...installed.view, swapOffer: { ...candidate, offerId: derivedId(installed, "swap", state.view.audit.length + 1), revision: installed.view.revision } },
@@ -327,7 +353,7 @@ function reduceUi(state: EngineState, event: AuditEvent & { type: "UI" }, action
         offer.waitSnapshotId !== state.waitConfig.snapshot.id || state.suppressedLineIds.includes(offer.originalLineId)) {
       return finish(next, event, "rejected", "STALE_OFFER");
     }
-    const candidate = swapCandidates(state.view.lines, state.waitConfig, [offer.originalLineId], state.allowedLocationIds).find(candidate => candidate.alternative.itemId === offer.alternative.itemId);
+    const candidate = swapCandidates(state.view.lines, state.waitConfig, [offer.originalLineId], state.catalog, state.allowedLocationIds).find(candidate => candidate.alternative.itemId === offer.alternative.itemId);
     if (!candidate || JSON.stringify({ ...candidate, offerId: offer.offerId, revision: offer.revision }) !== JSON.stringify(offer)) {
       return finish(next, event, "rejected", "STALE_OFFER");
     }
@@ -396,7 +422,7 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
   }
   if (event.type === "UI") return reduceUi({ ...state, continuation: null }, event, event.action);
   const response = event.response;
-  if (state.seenRequestIds.includes(response.requestId) || response.baseRevision !== state.view.revision || response.menuVersion !== MENU_VERSION) {
+  if (state.seenRequestIds.includes(response.requestId) || response.baseRevision !== state.view.revision || response.menuVersion !== state.catalog.versionId) {
     return finish({ ...state, seenRequestIds: [...new Set([...state.seenRequestIds, response.requestId])] }, event, "ignored", "STALE_RESPONSE");
   }
   const admitted: EngineState = { ...state, seenRequestIds: [...state.seenRequestIds, response.requestId] };
@@ -418,8 +444,13 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
   }
   const next = invalidate(admitted);
   if (response.result.kind === "clarify") {
-    if (state.allowedLocationIds && response.result.choices.some(choice => choice.ops.some(op =>
-      op.type === "ADD" && !state.allowedLocationIds!.includes(MENU[op.itemId].locationId as LocationId)))) {
+    const menu = indexCatalog(state.catalog);
+    // Every choice is checked against the catalog and the venue policy before any choice is displayed.
+    if (response.result.choices.some(choice => choice.ops.some(op => {
+      if (op.type !== "ADD") return false;
+      const item = menu.item(op.itemId);
+      return !item || (state.allowedLocationIds !== undefined && !state.allowedLocationIds.includes(item.locationId));
+    }))) {
       return finish(next, event, "rejected", "OFF_MENU");
     }
     return finish(enterPending(next, response.requestId, response.result.question, response.result.choices), event, "clarify", "AMBIGUOUS_REFERENCE");
@@ -430,7 +461,7 @@ export function reduceEngine(state: EngineState, candidate: AuditEvent): EngineS
 export function exportLog(state: EngineState): string {
   return JSON.stringify({
     v: API_VERSION,
-    menuVersion: MENU_VERSION,
+    menuVersion: state.catalog.versionId,
     sessionId: state.view.sessionId,
     audit: state.view.audit,
     ...(state.waitConfig ? { waitConfig: state.waitConfig } : {}),
@@ -438,10 +469,17 @@ export function exportLog(state: EngineState): string {
   }, null, 2);
 }
 
-/** Offline reconstruction only: no controller, recognition, API, or live order. */
-export function replayLog(json: string): OrderView {
+/**
+ * Offline reconstruction only: no controller, recognition, API, or live order.
+ * A log is replayed only against the exact catalog version it was recorded under;
+ * an older or newer catalog is refused rather than silently repricing the order.
+ */
+export function replayLog(json: string, catalog: Catalog): OrderView {
   const log = ExportLogSchema.parse(JSON.parse(json));
-  let state = createEngine(log.sessionId, log.waitConfig, log.allowedLocationIds);
+  if (log.menuVersion !== catalog.versionId) {
+    throw new Error(`MENU_VERSION_MISMATCH: log recorded under ${log.menuVersion}, catalog is ${catalog.versionId}.`);
+  }
+  let state = createEngine(log.sessionId, { catalog, waitConfig: log.waitConfig, allowedLocationIds: log.allowedLocationIds });
   for (const entry of log.audit) {
     if (entry.seq !== state.view.audit.length + 1) throw new Error("INVALID_SCHEMA: audit sequence is not contiguous.");
     state = reduceEngine(state, entry.event);

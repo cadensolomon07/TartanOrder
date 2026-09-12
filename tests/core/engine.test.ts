@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { MENU_VERSION, OrderViewSchema, type AuditEvent, type Op, type ParseResponse, type UiAction } from "@/contracts";
-import { createEngine, exportLog, getView, reduceEngine, replayLog, type EngineState } from "@/core/engine";
+import { API_VERSION, CatalogSchema, OrderViewSchema, type AuditEvent, type Op, type ParseResponse, type UiAction } from "@/contracts";
+import { createEngine, exportLog, getView, reduceEngine, replayLog, totalCents, type EngineState } from "@/core/engine";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 
 const add = (itemId: "burger" | "fries" | "lemonade", qty = 1): Op => ({ type: "ADD", itemId, qty, modifiers: [] });
 const ui = (state: EngineState, action: UiAction) => reduceEngine(state, { type: "UI", action });
 const manual = (state: EngineState, ...ops: Op[]) => ui(state, { type: "MANUAL", ops });
 const input = (state: EngineState) => reduceEngine(state, { type: "INPUT_STARTED" });
 const response = (state: EngineState, requestId: string, ops: Op[]): ParseResponse => ({
-  v: 2, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
+  v: API_VERSION, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
   parser: "rules", fallbackReason: null, result: { kind: "proposal", ops },
 });
 const receive = (state: EngineState, result: ParseResponse) => reduceEngine(state, { type: "PARSE_RECEIVED", response: result });
 
 function order(): EngineState {
-  const initial = input(createEngine("test-session"));
+  const initial = input(createEngine("test-session", { catalog: CATALOG }));
   return receive(initial, response(initial, "u1", [add("burger"), add("fries"), add("lemonade")]));
 }
 
@@ -52,15 +53,15 @@ describe("pure order transactions", () => {
       const next = manual(state, op as Op);
       expect(next.lastOutcome).toBe("rejected");
       expect(next.view.lines).toEqual(state.view.lines);
-      expect(replayLog(exportLog(next))).toEqual(getView(next));
+      expect(replayLog(exportLog(next), CATALOG)).toEqual(getView(next));
     }
   });
 
   it("keeps quantities at most five, cart at most five lines and ten total units", () => {
-    const two = manual(createEngine("bounds"), add("burger", 5), add("fries", 5));
+    const two = manual(createEngine("bounds", { catalog: CATALOG }), add("burger", 5), add("fries", 5));
     expect(two.view.lines).toHaveLength(2);
     expect(manual(two, add("lemonade")).lastCode).toBe("CART_LIMIT");
-    const five = manual(createEngine("lines"), ...Array.from({ length: 5 }, () => add("fries")));
+    const five = manual(createEngine("lines", { catalog: CATALOG }), ...Array.from({ length: 5 }, () => add("fries")));
     expect(five.view.lines).toHaveLength(5);
     expect(manual(five, add("fries")).lastCode).toBe("CART_LIMIT");
     const replace = manual(two, { type: "SET_QTY", ref: { by: "last" }, qty: 1 }, add("lemonade", 4));
@@ -68,7 +69,7 @@ describe("pure order transactions", () => {
   });
 
   it("resolves references sequentially on the temporary cart", () => {
-    const state = manual(createEngine("sequential"), add("burger"), {
+    const state = manual(createEngine("sequential", { catalog: CATALOG }), add("burger"), {
       type: "MOD", ref: { by: "last" }, modifier: "double", enabled: true,
     }, { type: "SET_QTY", ref: { by: "item", itemId: "burger" }, qty: 2 });
     expect(state.view.lines).toEqual([{ lineId: "sequential:ui:1:0", itemId: "burger", qty: 2, modifiers: ["double"] }]);
@@ -76,7 +77,7 @@ describe("pure order transactions", () => {
   });
 
   it("rejects zero matches and never guesses the last referent", () => {
-    const state = createEngine("references");
+    const state = createEngine("references", { catalog: CATALOG });
     for (const ref of [{ by: "last" }, { by: "item", itemId: "burger" }, { by: "line", lineId: "missing" }] as const) {
       expect(manual(state, { type: "REMOVE", ref }).lastCode).toBe("UNKNOWN_REFERENCE");
     }
@@ -100,7 +101,7 @@ describe("pure order transactions", () => {
   });
 
   it("preserves original ADD operation IDs when an entire ambiguous batch is selected", () => {
-    let state = manual(createEngine("choice-ids"), add("burger"), add("burger"));
+    let state = manual(createEngine("choice-ids", { catalog: CATALOG }), add("burger"), add("burger"));
     state = input(state);
     state = receive(state, response(state, "ambiguous-request", [
       add("fries"), { type: "REMOVE", ref: { by: "item", itemId: "burger" } },
@@ -111,11 +112,11 @@ describe("pure order transactions", () => {
     expect(pending.choices[0].ops).toHaveLength(3);
     state = ui(state, { type: "CHOOSE", pendingId: pending.id, choiceId: pending.choices[0].id });
     expect(state.view.lines.at(-1)).toEqual({ lineId: "ambiguous-request:0", itemId: "fries", qty: 2, modifiers: [] });
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
   });
 
   it("rejects multiple ambiguities and more than three matching lines", () => {
-    const state = manual(createEngine("multi"), add("burger"), add("burger"), add("fries"), add("fries"));
+    const state = manual(createEngine("multi", { catalog: CATALOG }), add("burger"), add("burger"), add("fries"), add("fries"));
     const next = manual(state,
       { type: "REMOVE", ref: { by: "item", itemId: "burger" } },
       { type: "REMOVE", ref: { by: "item", itemId: "fries" } },
@@ -123,12 +124,12 @@ describe("pure order transactions", () => {
     expect(next.lastCode).toBe("AMBIGUOUS_REFERENCE");
     expect(next.view.pending).toBeNull();
     expect(next.view.lines).toEqual(state.view.lines);
-    const four = manual(createEngine("four"), ...Array.from({ length: 4 }, () => add("burger")));
+    const four = manual(createEngine("four", { catalog: CATALOG }), ...Array.from({ length: 4 }, () => add("burger")));
     expect(manual(four, { type: "REMOVE", ref: { by: "item", itemId: "burger" } }).lastOutcome).toBe("rejected");
   });
 
   it("checks the full batch beyond ambiguity, rejecting a hidden invalid pairing", () => {
-    const state = manual(createEngine("hidden"), add("burger"), add("burger"), add("lemonade"));
+    const state = manual(createEngine("hidden", { catalog: CATALOG }), add("burger"), add("burger"), add("lemonade"));
     const next = manual(state,
       { type: "REMOVE", ref: { by: "item", itemId: "burger" } },
       { type: "MOD", ref: { by: "item", itemId: "lemonade" }, modifier: "double", enabled: true },
@@ -156,7 +157,7 @@ describe("pure order transactions", () => {
   });
 
   it("can resolve one engine reference ambiguity after a parser choice but rejects two", () => {
-    const state = manual(createEngine("nested"), add("burger"), add("burger"), add("fries"), add("fries"));
+    const state = manual(createEngine("nested", { catalog: CATALOG }), add("burger"), add("burger"), add("fries"), add("fries"));
     const clarify = response(state, "nested-request", [add("burger")]);
     clarify.result = { kind: "clarify", question: "Which edit?", choices: [
       { id: "single", label: "Remove a burger", ops: [{ type: "REMOVE", ref: { by: "item", itemId: "burger" } }] },
@@ -173,7 +174,7 @@ describe("pure order transactions", () => {
     expect(single.view.lines).toEqual(state.view.lines);
     const resolved = ui(single, { type: "CHOOSE", pendingId: single.view.pending!.id, choiceId: "option-2" });
     expect(resolved.view.lines).toHaveLength(3);
-    expect(replayLog(exportLog(resolved))).toEqual(getView(resolved));
+    expect(replayLog(exportLog(resolved), CATALOG)).toEqual(getView(resolved));
     const multiple = ui(pendingState, { type: "CHOOSE", pendingId: pending.id, choiceId: "multiple" });
     expect(multiple.lastOutcome).toBe("rejected");
     expect(multiple.lastCode).toBe("AMBIGUOUS_REFERENCE");
@@ -181,7 +182,7 @@ describe("pure order transactions", () => {
   });
 
   it("advances revision on entering and resolving clarification", () => {
-    let state = manual(createEngine("revisions"), add("burger"), add("burger"));
+    let state = manual(createEngine("revisions", { catalog: CATALOG }), add("burger"), add("burger"));
     const before = state.view.revision;
     state = manual(state, { type: "REMOVE", ref: { by: "item", itemId: "burger" } });
     expect(state.view.revision).toBe(before + 1);
@@ -211,7 +212,7 @@ describe("pure order transactions", () => {
   });
 
   it("does not restore stale review on undo and handles empty undo", () => {
-    expect(ui(createEngine("undo"), { type: "UNDO" }).lastCode).toBe("NO_UNDO");
+    expect(ui(createEngine("undo", { catalog: CATALOG }), { type: "UNDO" }).lastCode).toBe("NO_UNDO");
     let state = ui(order(), { type: "REVIEW" });
     state = manual(state, add("fries"));
     state = ui(state, { type: "UNDO" });
@@ -220,7 +221,7 @@ describe("pure order transactions", () => {
   });
 
   it("deduplicates applied, rejected, and stale response IDs", () => {
-    const state = input(createEngine("dedup"));
+    const state = input(createEngine("dedup", { catalog: CATALOG }));
     const proposal = response(state, "request", [add("burger")]);
     const accepted = receive(state, proposal);
     const duplicate = receive(accepted, proposal);
@@ -237,9 +238,9 @@ describe("pure order transactions", () => {
   });
 
   it("ignores stale responses after manual edits, new input, and reset", () => {
-    const state = input(createEngine("old-session"));
+    const state = input(createEngine("old-session", { catalog: CATALOG }));
     const late = response(state, "late", [add("burger")]);
-    for (const changed of [input(state), manual(state, add("fries")), createEngine("new-session")]) {
+    for (const changed of [input(state), manual(state, add("fries")), createEngine("new-session", { catalog: CATALOG })]) {
       const next = receive(changed, late);
       expect(next.lastCode).toBe("STALE_RESPONSE");
       expect(next.view.lines).toEqual(changed.view.lines);
@@ -247,15 +248,20 @@ describe("pure order transactions", () => {
   });
 
   it("rejects malformed envelopes and generated line IDs over the 100-character cap", () => {
-    const state = input(createEngine("malformed"));
-    for (const patch of [{ v: 999 }, { menuVersion: "different" }, { balances: 100 }, { requestId: "" }]) {
+    const state = input(createEngine("malformed", { catalog: CATALOG }));
+    for (const patch of [{ v: 999 }, { menuVersion: "Not A Version!" }, { balances: 100 }, { requestId: "" }]) {
       const next = receive(state, { ...response(state, "valid", [add("burger")]), ...patch } as ParseResponse);
       expect(next.lastCode).toBe("INVALID_SCHEMA");
       expect(next.view.lines).toEqual([]);
-      expect(replayLog(exportLog(next))).toEqual(getView(next));
+      expect(replayLog(exportLog(next), CATALOG)).toEqual(getView(next));
     }
+    // A well-formed but different catalog version is a stale response, never an edit.
+    const foreign = receive(state, { ...response(state, "foreign", [add("burger")]), menuVersion: "other-version" });
+    expect(foreign.lastOutcome).toBe("ignored");
+    expect(foreign.lastCode).toBe("STALE_RESPONSE");
+    expect(foreign.view.lines).toEqual([]);
     expect(receive(state, response(state, "a".repeat(100), [add("burger")])).lastCode).toBe("INVALID_SCHEMA");
-    const longest = manual(createEngine("s".repeat(100)), add("burger"));
+    const longest = manual(createEngine("s".repeat(100), { catalog: CATALOG }), add("burger"));
     expect(longest.lastCode).toBe("INVALID_SCHEMA");
     expect(OrderViewSchema.safeParse(longest.view).success).toBe(true);
   });
@@ -263,7 +269,7 @@ describe("pure order transactions", () => {
 
 describe("review and simulated confirmation", () => {
   it("requires a nonempty cart and an explicit review", () => {
-    const empty = createEngine("empty");
+    const empty = createEngine("empty", { catalog: CATALOG });
     expect(ui(empty, { type: "REVIEW" }).lastCode).toBe("EMPTY_CART");
     expect(ui(order(), { type: "CONFIRM", reviewId: "invented", revision: 2 }).lastCode).toBe("REVIEW_REQUIRED");
     let ambiguous = manual(order(), add("burger"));
@@ -291,7 +297,7 @@ describe("review and simulated confirmation", () => {
       expect(next.view.review).toBeNull();
       expect(next.view.lines).toEqual(reviewed.view.lines);
       expect(next.view.revision).toBeGreaterThan(reviewed.view.revision);
-      expect(replayLog(exportLog(next))).toEqual(getView(next));
+      expect(replayLog(exportLog(next), CATALOG)).toEqual(getView(next));
     }
   });
 
@@ -313,7 +319,7 @@ describe("review and simulated confirmation", () => {
     expect(second.view.revision).toBe(first.view.revision);
     expect(ui(second, { ...confirm, reviewId: "wrong" }).lastCode).toBe("REVIEW_REQUIRED");
     expect(ui(second, { ...confirm, revision: review.revision + 1 }).lastCode).toBe("REVIEW_REQUIRED");
-    expect(replayLog(exportLog(second))).toEqual(getView(second));
+    expect(replayLog(exportLog(second), CATALOG)).toEqual(getView(second));
   });
 
   it("does not allow committed sessions to be edited, undone, or cleared", () => {
@@ -332,18 +338,18 @@ describe("review and simulated confirmation", () => {
       expect(next.view.lines).toEqual(committed.view.lines);
       expect(next.view.revision).toBe(committed.view.revision);
     }
-    expect(createEngine("next-session").view.phase).toBe("editing");
+    expect(createEngine("next-session", { catalog: CATALOG }).view.phase).toBe("editing");
   });
 });
 
 describe("audit export and deterministic read-only replay", () => {
   it("derives manual ADD IDs from session and recorded audit sequence", () => {
-    let state = input(createEngine("deterministic"));
+    let state = input(createEngine("deterministic", { catalog: CATALOG }));
     state = manual(state, add("burger"));
     state = manual(state, add("fries"));
     expect(state.view.lines.map((line) => line.lineId)).toEqual(["deterministic:ui:2:0", "deterministic:ui:3:0"]);
     const before = getView(state);
-    expect(replayLog(exportLog(state))).toEqual(before);
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(before);
     expect(getView(state)).toEqual(before);
   });
 
@@ -357,16 +363,16 @@ describe("audit export and deterministic read-only replay", () => {
     ]) {
       const changed = structuredClone(raw);
       alter(changed);
-      expect(() => replayLog(JSON.stringify(changed))).toThrow();
+      expect(() => replayLog(JSON.stringify(changed), CATALOG)).toThrow();
     }
   });
 
   it("refuses a different allowed rejection code even when the recorded outcome is unchanged", () => {
-    const rejected = manual(createEngine("code-check"), {type:"REMOVE",ref:{by:"last"}});
+    const rejected = manual(createEngine("code-check", { catalog: CATALOG }), {type:"REMOVE",ref:{by:"last"}});
     const log = JSON.parse(exportLog(rejected));
     expect(log.audit[0]).toMatchObject({outcome:"rejected",code:"UNKNOWN_REFERENCE"});
     log.audit[0].code = "NO_UNDO";
-    expect(() => replayLog(JSON.stringify(log))).toThrow(/audit outcome differs/);
+    expect(() => replayLog(JSON.stringify(log), CATALOG)).toThrow(/audit outcome differs/);
   });
 
   it("never mutates its incoming state or event", () => {
@@ -380,5 +386,30 @@ describe("audit export and deterministic read-only replay", () => {
     if (event.action.type === "MANUAL") event.action.ops[0] = add("fries");
     expect(next.view.lines.at(-1)?.itemId).toBe("burger");
     expect(next.view.audit.at(-1)?.event).toEqual(beforeEvent);
+  });
+});
+
+describe("catalog membership and version binding", () => {
+  it("rejects an ADD whose id is well-formed but absent from the loaded catalog", () => {
+    const state = manual(createEngine("unknown-item", { catalog: CATALOG }), add("burger"), { type: "ADD", itemId: "cmu_188_invented_burger", qty: 1, modifiers: [] });
+    expect(state.lastOutcome).toBe("rejected");
+    expect(state.lastCode).toBe("OFF_MENU");
+    expect(state.view.lines).toEqual([]);
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
+  });
+
+  it("replays a log only against the catalog version it was recorded under", () => {
+    const state = order();
+    const log = exportLog(state);
+    expect(JSON.parse(log).menuVersion).toBe(CATALOG.versionId);
+    const other = CatalogSchema.parse({ ...CATALOG, versionId: "other-version" });
+    expect(() => replayLog(log, other)).toThrow(/MENU_VERSION_MISMATCH/);
+    expect(replayLog(log, CATALOG)).toEqual(getView(state));
+  });
+
+  it("prices every line from the injected catalog and refuses unknown ids or options", () => {
+    expect(totalCents([{ lineId: "a", itemId: "burger", qty: 2, modifiers: ["double"] }], CATALOG)).toBe(2100);
+    expect(() => totalCents([{ lineId: "a", itemId: "cmu_188_invented_burger", qty: 1, modifiers: [] }], CATALOG)).toThrow(/not in catalog/);
+    expect(() => createEngine("unknown-venue", { catalog: CATALOG, allowedLocationIds: ["999"] })).toThrow(/not in catalog/);
   });
 });

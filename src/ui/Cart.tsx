@@ -1,7 +1,9 @@
 "use client";
-import type { Line, Op, ItemId, WaitView } from "@/contracts";
+import type { Line, Op, WaitView } from "@/contracts";
+import type { CatalogIndex } from "@/catalog/lookup";
 import styles from "./Kiosk.module.css";
-import { ITEM_LABEL, MODIFIER_LABEL, modifiersFor } from "./labels";
+import { useCatalog } from "./CatalogContext";
+import { itemLabel, modifierLabel, modifiersFor } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
 
@@ -16,15 +18,16 @@ export type CartProps = {
 
 // "Burger (line 2)" when the same item appears more than once, so the
 // audience can follow an ambiguity question like "which burger?".
-export function lineLabel(lines: Line[], line: Line): string {
+export function lineLabel(menu: CatalogIndex, lines: Line[], line: Line): string {
   const same = lines.filter((l) => l.itemId === line.itemId);
-  const base = ITEM_LABEL[line.itemId];
+  const base = itemLabel(menu, line.itemId);
   if (same.length < 2) return base;
   const n = same.findIndex((l) => l.lineId === line.lineId) + 1;
   return `${base} (line ${n})`;
 }
 
 export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: CartProps) {
+  const { menu } = useCatalog();
   if (lines.length === 0) {
     return (
       <div className={styles.emptyCart} data-testid="cart-empty">
@@ -51,7 +54,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                 {line.qty}×
               </span>
               <span className={styles.rowTitle}>
-                {lineLabel(lines, line)}
+                {lineLabel(menu, lines, line)}
                 {isLast && <span className={styles.lastTag}> · last mentioned</span>}
               </span>
             </div>
@@ -59,7 +62,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
             <WaitEstimate wait={wait} lineId={line.lineId} />
             {line.modifiers.length > 0 && (
               <div className={styles.rowMods}>
-                {line.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}
+                {line.modifiers.map((m) => modifierLabel(menu, m)).join(", ")}
               </div>
             )}
             {editable && (
@@ -67,7 +70,7 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                 <button
                   type="button"
                   className={styles.smallBtn}
-                  aria-label={`Decrease ${lineLabel(lines, line)}`}
+                  aria-label={`Decrease ${lineLabel(menu, lines, line)}`}
                   disabled={line.qty <= 1}
                   onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty - 1 }])}
                 >
@@ -76,13 +79,13 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                 <button
                   type="button"
                   className={styles.smallBtn}
-                  aria-label={`Increase ${lineLabel(lines, line)}`}
+                  aria-label={`Increase ${lineLabel(menu, lines, line)}`}
                   disabled={line.qty >= 5}
                   onClick={() => onOps([{ type: "SET_QTY", ref, qty: line.qty + 1 }])}
                 >
                   +
                 </button>
-                {modifiersFor(line.itemId as ItemId).map((m) => {
+                {modifiersFor(menu, line.itemId).map((m) => {
                   const on = line.modifiers.includes(m);
                   return (
                     <button
@@ -92,14 +95,14 @@ export function Cart({ lines, lastLineId, changed, editable, onOps, wait }: Cart
                       aria-pressed={on}
                       onClick={() => onOps([{ type: "MOD", ref, modifier: m, enabled: !on }])}
                     >
-                      {MODIFIER_LABEL[m]}
+                      {modifierLabel(menu, m)}
                     </button>
                   );
                 })}
                 <button
                   type="button"
                   className={`${styles.smallBtn} ${styles.removeBtn}`}
-                  aria-label={`Remove ${lineLabel(lines, line)}`}
+                  aria-label={`Remove ${lineLabel(menu, lines, line)}`}
                   onClick={() => onOps([{ type: "REMOVE", ref }])}
                 >
                   Remove

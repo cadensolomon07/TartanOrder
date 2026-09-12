@@ -2,13 +2,15 @@
 import { useEffect, useRef } from "react";
 import type { Receipt, WaitView } from "@/contracts";
 import styles from "./Kiosk.module.css";
-import { ITEM_LABEL, MODIFIER_LABEL, formatCents } from "./labels";
+import { useCatalog } from "./CatalogContext";
+import { formatCents, itemLabel, modifierLabel } from "./labels";
 import { LinePrice } from "./LinePrice";
 import { WaitEstimate } from "./WaitEstimate";
 
 export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewOrder: () => void; wait?: WaitView }) {
   // Focus the heading, NOT the reset button: a repeated Enter after Confirm
   // must not wipe the receipt before anyone reads it.
+  const { menu } = useCatalog();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus();
@@ -28,9 +30,9 @@ export function Ticket({ receipt, onNewOrder, wait }: { receipt: Receipt; onNewO
         {receipt.lines.map((l) => (
           <li key={l.lineId} className={styles.reviewRow}>
             <span>
-              {l.qty}× {ITEM_LABEL[l.itemId]}
+              {l.qty}× {itemLabel(menu, l.itemId)}
               {l.modifiers.length > 0 && (
-                <span className={styles.muted}> — {l.modifiers.map((m) => MODIFIER_LABEL[m]).join(", ")}</span>
+                <span className={styles.muted}> — {l.modifiers.map((m) => modifierLabel(menu, m)).join(", ")}</span>
               )}
               <LinePrice line={l} />
               <WaitEstimate wait={wait} lineId={l.lineId} />

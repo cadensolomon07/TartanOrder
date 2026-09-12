@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  API_VERSION, MENU_VERSION, type InterpretOptions, type ItemId, type LocationId, type Op,
+  API_VERSION, type InterpretOptions, type ItemId, type LocationId, type Op,
   type ParseRequest, type ParseResponse, type ParseResult,
 } from "@/contracts";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 import { createOrderController } from "@/controller/controller";
 import { createEngine, exportLog, getView, reduceEngine, replayLog } from "@/core/engine";
 
@@ -21,7 +22,7 @@ afterEach(() => { stores.splice(0).forEach(store => store.dispose()); });
 function deferredController(locationId: LocationId = "188") {
   const calls: { request: ParseRequest; options: InterpretOptions; resolve: (response: ParseResponse) => void }[] = [];
   const store = createOrderController({
-    sessionId: () => "campus-controller", locationId,
+    catalog: CATALOG, sessionId: () => "campus-controller", locationId,
     interpret: (request, options) => new Promise<ParseResponse>(resolve => { calls.push({ request, options, resolve }); }),
   });
   stores.push(store);
@@ -30,7 +31,7 @@ function deferredController(locationId: LocationId = "188") {
 
 describe("campus order transaction", () => {
   it("reviews, confirms once, and deterministically replays a $12.65 Stack'd burger and fries", () => {
-    let engine = createEngine("campus-receipt");
+    let engine = createEngine("campus-receipt", { catalog: CATALOG });
     engine = reduceEngine(engine, { type: "UI", action: { type: "MANUAL", ops: [add(burger), add(fries)] } });
     expect(getView(engine).totalCents).toBe(1265);
     expect(getView(engine).lines.map(line => line.itemId)).toEqual([burger, fries]);
@@ -44,11 +45,11 @@ describe("campus order transaction", () => {
     engine = reduceEngine(engine, confirm);
     expect(getView(engine).receipt).toEqual(receipt);
     expect(getView(engine).phase).toBe("committed");
-    expect(replayLog(exportLog(engine))).toEqual(getView(engine));
+    expect(replayLog(exportLog(engine), CATALOG)).toEqual(getView(engine));
   });
 
   it("rejects a forged campus double modifier without applying an earlier valid operation in its batch", () => {
-    let engine = createEngine("campus-atomic");
+    let engine = createEngine("campus-atomic", { catalog: CATALOG });
     engine = reduceEngine(engine, { type: "UI", action: { type: "MANUAL", ops: [add(burger)] } });
     const before = getView(engine);
     engine = reduceEngine(engine, { type: "UI", action: { type: "MANUAL", ops: [
@@ -59,13 +60,13 @@ describe("campus order transaction", () => {
     expect(getView(engine).lines).toEqual(before.lines);
     expect(getView(engine).lastLineId).toBe(before.lastLineId);
     expect(getView(engine).totalCents).toBe(920);
-    expect(replayLog(exportLog(engine))).toEqual(getView(engine));
+    expect(replayLog(exportLog(engine), CATALOG)).toEqual(getView(engine));
     engine = reduceEngine(engine, { type: "UI", action: { type: "UNDO" } });
     expect(getView(engine).lines).toEqual([]);
   });
 
   it("keeps equal food names from different counters as distinct items with their own published prices", () => {
-    let engine = createEngine("campus-water");
+    let engine = createEngine("campus-water", { catalog: CATALOG });
     engine = reduceEngine(engine, { type: "UI", action: { type: "MANUAL", ops: [
       add("cmu_114_bottled-water"), add("cmu_92_bottled-water"),
     ] } });
@@ -74,7 +75,7 @@ describe("campus order transaction", () => {
     engine = reduceEngine(engine, { type: "UI", action: { type: "MANUAL", ops: [{ type: "REMOVE", ref: { by: "item", itemId: "cmu_114_bottled-water" } }] } });
     expect(getView(engine).totalCents).toBe(235);
     expect(getView(engine).lines.map(line => line.itemId)).toEqual(["cmu_92_bottled-water"]);
-    expect(replayLog(exportLog(engine))).toEqual(getView(engine));
+    expect(replayLog(exportLog(engine), CATALOG)).toEqual(getView(engine));
   });
 
   it("preserves the cart while a counter change cancels capture, invalidates review, and ignores a late parse", async () => {
@@ -110,7 +111,7 @@ describe("campus order transaction", () => {
     store.getSnapshot().setLocation("188");
     expect(store.getSnapshot().busy).toBe(false);
     expect(store.getSnapshot().state.lines).toEqual(before.lines);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
   });
 
   it("cannot revive a pending choice after switching away and back, including a hidden draft continuation", async () => {
@@ -136,11 +137,11 @@ describe("campus order transaction", () => {
     expect(store.getSnapshot().state.pending).toBeNull();
     expect(store.getSnapshot().state.audit.at(-1)).toMatchObject({ outcome: "rejected", code: "NO_PENDING" });
     expect(store.getSnapshot().state.audit.filter(entry => entry.event.type === "INPUT_STARTED" && entry.event.discardContinuation)).toHaveLength(2);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
   });
 
   it("rejects an unknown counter at construction and on runtime selection without changing a valid review", () => {
-    expect(() => createOrderController({ locationId: "invented-counter" as LocationId })).toThrow();
+    expect(() => createOrderController({ catalog: CATALOG, locationId: "invented-counter" as LocationId })).toThrow();
     const { store, calls } = deferredController();
     store.getSnapshot().act({ type: "MANUAL", ops: [add(burger)] });
     store.getSnapshot().act({ type: "REVIEW" });

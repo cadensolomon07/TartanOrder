@@ -2,11 +2,10 @@ import {
   API_VERSION,
   ApiErrorSchema,
   LIMITS,
-  MENU_VERSION,
-  PublicParseRequestSchema,
   ParseResponseSchema,
   RequestIdSchema,
   type ApiError,
+  type Catalog,
   type HttpCode,
   type ParseRequest,
   type ParseResponse,
@@ -16,8 +15,8 @@ import { raceAbort } from "@/parser/abort";
 import { GeminiError, parseGemini, type GeminiUsage } from "@/parser/gemini.server";
 import { resolveParserMode, type ParserMode } from "@/parser/mode.server";
 import { parseRules } from "@/parser/rules";
-import { ACTIVE_LOCATION_IDS } from "@/contracts/campus";
-import { MENU } from "@/contracts/menu";
+import { loadCatalogConfig } from "@/catalog/config.server";
+import { catalogGuard, type CatalogGuard } from "@/catalog/lookup";
 
 /**
  * POST /api/interpret — validates a ParseRequest with the shared schemas, runs the
@@ -39,19 +38,28 @@ import { MENU } from "@/contracts/menu";
  *   INVALID_MODEL_OUTPUT (not retryable) so an adapter bug never triggers retry storms.
  * - A client that disconnected — while still sending the body or mid-call — gets a bare
  *   499; nobody is listening.
+ * - The catalog is loaded per request (memoised per version) and everything — menu version
+ *   check, public request schema, parsers, active-shortlist check — is bound to it. No
+ *   catalog is a 503 PROVIDER_UNAVAILABLE (not retryable): the kiosk falls back to its own copy.
  */
 export async function POST(request: Request): Promise<Response> {
   const start = performance.now();
   const mode = resolveMode();
   const lifecycle = startLifecycle(request, start);
   try {
-    const admission = await admit(request, lifecycle);
+    const catalog = await loadCatalog();
+    if (catalog === null) {
+      const timing: Timing = { start, validateMs: performance.now() - start, providerMs: 0 };
+      return failureResponse(refuse(503, "PROVIDER_UNAVAILABLE", null, CATALOG_UNAVAILABLE), mode, timing);
+    }
+    const guard = catalogGuard(catalog);
+    const admission = await admit(request, lifecycle, guard);
     const timing: Timing = { start, validateMs: performance.now() - start, providerMs: 0 };
     if (admission.kind === "disconnected") return disconnectedResponse();
     if (admission.kind === "failure") return failureResponse(admission.failure, mode, timing);
-    if (mode === "rules") return rulesModeResponse(admission.request, timing);
+    if (mode === "rules") return rulesModeResponse(admission.request, timing, catalog);
     // `await` matters: a bare `return promise` would run `finally` (and disarm the deadline) at once.
-    return await geminiModeResponse(lifecycle, admission.request, timing);
+    return await geminiModeResponse(lifecycle, admission.request, timing, guard);
   } finally {
     lifecycle.dispose();
   }
@@ -103,9 +111,10 @@ type LogInput = {
 const DEFAULT_MODEL = "gemini-3.6-flash";
 const PROVIDER_TIMEOUT_MS = 14000;
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 503, 504]);
+const CATALOG_UNAVAILABLE = "The menu catalog is unavailable.";
 const MESSAGES: Readonly<Record<HttpCode, string>> = {
-  INVALID_REQUEST: "The request did not match the V2 interpret format. Your cart was not changed.",
-  MENU_VERSION_MISMATCH: `This kiosk serves menu ${MENU_VERSION}. Reload to sync the menu.`,
+  INVALID_REQUEST: "The request did not match the V3 interpret format. Your cart was not changed.",
+  MENU_VERSION_MISMATCH: "This kiosk serves a different menu version. Reload to sync the menu.",
   INPUT_TOO_LARGE: `The request exceeds ${LIMITS.requestBytes} bytes.`,
   INVALID_MODEL_OUTPUT: "The model response was rejected. Your cart was not changed.",
   PROVIDER_UNAVAILABLE: "The language model is unavailable. Local rules still work.",
@@ -116,6 +125,15 @@ const MESSAGES: Readonly<Record<HttpCode, string>> = {
 /** The configured mode drives the route: gemini without a key is an honest 503, not a silent switch. */
 function resolveMode(): Mode {
   return resolveParserMode().configured;
+}
+
+/** A loader failure is reported like a missing catalog; it is never replaced by bundled data here. */
+async function loadCatalog(): Promise<Catalog | null> {
+  try {
+    return (await loadCatalogConfig()).catalog;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +163,7 @@ function disconnectedResponse(): Response {
 // blank transcript.
 // ---------------------------------------------------------------------------
 
-async function admit(request: Request, lifecycle: Lifecycle): Promise<Admission> {
+async function admit(request: Request, lifecycle: Lifecycle, guard: CatalogGuard): Promise<Admission> {
   if (Number(request.headers.get("content-length")) > LIMITS.requestBytes) {
     return failed(refuse(413, "INPUT_TOO_LARGE", null));
   }
@@ -155,15 +173,17 @@ async function admit(request: Request, lifecycle: Lifecycle): Promise<Admission>
   }
   if (read.kind === "oversize") return failed(refuse(413, "INPUT_TOO_LARGE", null));
   if (read.kind === "unreadable") return failed(refuse(400, "INVALID_REQUEST", null, "The request body could not be read."));
-  return validate(read.text);
+  return validate(read.text, guard);
 }
 
-function validate(text: string): Admission {
+function validate(text: string, guard: CatalogGuard): Admission {
   const json = parseJson(text);
   if (!json.ok) return failed(refuse(400, "INVALID_REQUEST", null, "The request body is not valid JSON."));
   const requestId = extractRequestId(json.value);
-  if (hasForeignMenuVersion(json.value)) return failed(refuse(409, "MENU_VERSION_MISMATCH", requestId));
-  const parsed = PublicParseRequestSchema.safeParse(json.value);
+  if (hasForeignMenuVersion(json.value, guard.catalog.versionId)) {
+    return failed(refuse(409, "MENU_VERSION_MISMATCH", requestId, `This kiosk serves menu ${guard.catalog.versionId}. Reload to sync the menu.`));
+  }
+  const parsed = guard.publicParseRequestSchema.safeParse(json.value);
   if (!parsed.success) return failed(refuse(400, "INVALID_REQUEST", requestId));
   if (parsed.data.text.trim().length === 0) {
     return failed(refuse(400, "INVALID_REQUEST", requestId, "The transcript is blank."));
@@ -226,8 +246,8 @@ function extractRequestId(body: unknown): string | null {
   return candidate.success ? candidate.data : null;
 }
 
-function hasForeignMenuVersion(body: unknown): boolean {
-  return typeof body === "object" && body !== null && "menuVersion" in body && body.menuVersion !== MENU_VERSION;
+function hasForeignMenuVersion(body: unknown, versionId: string): boolean {
+  return typeof body === "object" && body !== null && "menuVersion" in body && body.menuVersion !== versionId;
 }
 
 function refuse(status: number, code: HttpCode, requestId: string | null, message?: string): Failure {
@@ -242,20 +262,20 @@ function transient(status: number, code: HttpCode, requestId: string | null): Fa
 // Parser modes.
 // ---------------------------------------------------------------------------
 
-function rulesModeResponse(req: ParseRequest, timing: Timing): Response {
-  return successResponse(parseRules(req), { mode: "rules", timing, usage: null, shadow: null });
+function rulesModeResponse(req: ParseRequest, timing: Timing, catalog: Catalog): Response {
+  return successResponse(parseRules(req, catalog), { mode: "rules", timing, usage: null, shadow: null });
 }
 
-async function geminiModeResponse(lifecycle: Lifecycle, req: ParseRequest, timing: Timing): Promise<Response> {
+async function geminiModeResponse(lifecycle: Lifecycle, req: ParseRequest, timing: Timing, guard: CatalogGuard): Promise<Response> {
   const apiKey = (process.env.GEMINI_API_KEY ?? "").trim();
   if (apiKey.length === 0) {
     // A missing key is a deployment fault, not an outage: retrying the same call cannot succeed.
     return failureResponse(refuse(503, "PROVIDER_UNAVAILABLE", req.requestId), "gemini", timing);
   }
-  const call = await callProvider(lifecycle, req, apiKey, timing);
+  const call = await callProvider(lifecycle, req, apiKey, timing, guard.catalog);
   if (call.kind === "disconnected") return disconnectedResponse();
   if (call.kind === "failure") return failureResponse(call.failure, "gemini", call.timing);
-  return deliver(req, "gemini", call.result, { timing: call.timing, usage: call.usage });
+  return deliver(req, "gemini", call.result, { timing: call.timing, usage: call.usage }, guard);
 }
 
 /** Builds and validates the gemini-mode envelope; an invalid result is a 502, never a partial cart. */
@@ -264,6 +284,7 @@ function deliver(
   parser: ParseResponse["parser"],
   result: ParseResult,
   meta: { timing: Timing; usage: GeminiUsage | null },
+  guard: CatalogGuard,
 ): Response {
   const envelope = ParseResponseSchema.safeParse({
     v: API_VERSION,
@@ -279,15 +300,15 @@ function deliver(
   }
   const accepted = envelope.data.result;
   const ops = accepted.kind === "proposal" ? accepted.ops : accepted.kind === "clarify" ? accepted.choices.flatMap(choice => choice.ops) : [];
-  if(ops.some(op => op.type === "ADD" && !ACTIVE_LOCATION_IDS.some(id => id === MENU[op.itemId].locationId))) {
+  if (ops.some((op) => op.type === "ADD" && !guard.isActiveItem(op.itemId))) {
     return failureResponse(refuse(502, "INVALID_MODEL_OUTPUT", req.requestId), "gemini", meta.timing);
   }
-  const shadow = shadowAgreement(req, envelope.data.result);
+  const shadow = shadowAgreement(req, envelope.data.result, guard.catalog);
   return successResponse(envelope.data, { mode: "gemini", timing: meta.timing, usage: meta.usage, shadow });
 }
 
 /** The provider gets whatever is left of the single lifecycle deadline, capped at `PROVIDER_TIMEOUT_MS`. */
-async function callProvider(lifecycle: Lifecycle, req: ParseRequest, apiKey: string, timing: Timing): Promise<ProviderCall> {
+async function callProvider(lifecycle: Lifecycle, req: ParseRequest, apiKey: string, timing: Timing, catalog: Catalog): Promise<ProviderCall> {
   const remaining = Math.max(0, LIMITS.serverTimeoutMs - (performance.now() - lifecycle.start));
   const started = performance.now();
   const timed = (): Timing => ({ ...timing, providerMs: performance.now() - started });
@@ -298,7 +319,7 @@ async function callProvider(lifecycle: Lifecycle, req: ParseRequest, apiKey: str
       timeoutMs: Math.min(PROVIDER_TIMEOUT_MS, remaining),
       signal: lifecycle.signal,
     };
-    const outcome = await raceAbort(parseGemini(req, config), lifecycle.signal);
+    const outcome = await raceAbort(parseGemini(req, config, catalog), lifecycle.signal);
     return { kind: "ok", result: outcome.result, usage: outcome.usage, timing: timed() };
   } catch (error) {
     if (lifecycle.disconnected()) return { kind: "disconnected" };
@@ -319,8 +340,8 @@ function providerFailure(error: unknown, requestId: string): Failure {
 // Shadow agreement (gemini mode only): server-side log, response untouched.
 // ---------------------------------------------------------------------------
 
-function shadowAgreement(req: ParseRequest, result: ParseResult): Shadow {
-  const rules = parseRules(req).result;
+function shadowAgreement(req: ParseRequest, result: ParseResult, catalog: Catalog): Shadow {
+  const rules = parseRules(req, catalog).result;
   return { shadowAgree: agrees(result, rules), shadowKind: rules.kind };
 }
 

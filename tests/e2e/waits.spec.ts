@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 const sandwich = "cmu_188_nashville_sandwich_southern_style_fried_chicken";
 

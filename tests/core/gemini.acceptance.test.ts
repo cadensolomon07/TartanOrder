@@ -5,14 +5,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  API_VERSION, MENU_VERSION, LIMITS, ApiErrorSchema, ParseResponseSchema,
+  API_VERSION, LIMITS, ApiErrorSchema, ParseResponseSchema,
   type ItemId, type ModifierId, type OrderView, type ParseRequest, type ParseResponse, type UiAction,
 } from "../../src/contracts";
-import { MENU } from "../../src/contracts/menu";
 import { ACTIVE_LOCATION_IDS } from "../../src/contracts/campus";
 import { createOrderController } from "../../src/controller/controller";
 import { interpretWith } from "../../src/parser/client";
 import { replayLog } from "../../src/core/engine";
+import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 
 const liveAppUrl = (process.env.LIVE_APP_URL ?? "").trim();
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -70,6 +70,7 @@ async function saveEvidence() {
 function createHarness(record: CaseEvidence) {
   let currentStep: StepEvidence | null = null;
   const store = createOrderController({
+    catalog: CATALOG,
     sessionId: () => `live-${record.name.replace(/[^a-z0-9]+/gi, "-").slice(0, 70)}`,
     locationId: "188", allowedLocationIds: ACTIVE_LOCATION_IDS,
     interpret: async (request, options) => {
@@ -198,7 +199,7 @@ describe.skipIf(!liveAppUrl)("live app Gemini conversational acceptance", { conc
     expect(receipt).toMatchObject({ lines: review.lines, totalCents: 2530, simulated: true });
     harness.manual({ type: "CONFIRM", reviewId: review.id, revision: review.revision });
     expect(harness.snapshot().state.receipt).toEqual(receipt);
-    expect(replayLog(harness.snapshot().exportLog())).toEqual(harness.snapshot().state);
+    expect(replayLog(harness.snapshot().exportLog(), CATALOG)).toEqual(harness.snapshot().state);
   }), requestBudgetMs * 2);
 
   it("adds a clear available subset and explains the unavailable pizza", () => scenario("mixed-available-and-unavailable", async (harness) => {
@@ -308,6 +309,6 @@ describe.skipIf(!liveAppUrl)("live app Gemini conversational acceptance", { conc
   it.each(paraphrases)("applies a campus correction within one utterance: $name", ({ name, text, expected, totalCents }) => scenario(name, async (harness) => {
     await harness.send(text);
     expectCart(harness, expected, totalCents);
-    for (const line of expected) expect(harness.snapshot().assistant?.text.toLowerCase()).toContain(MENU[line.itemId].label.toLowerCase());
+    for (const line of expected) expect(harness.snapshot().assistant?.text.toLowerCase()).toContain(MENU.item(line.itemId)!.label.toLowerCase());
   }), requestBudgetMs);
 });

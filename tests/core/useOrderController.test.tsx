@@ -7,6 +7,7 @@ import { replayLog } from "../../src/core/engine";
 import { FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_REQUEST, FIXTURE_RESPONSE } from "../../src/contracts/fixtures";
 import type { InterpretOptions, ParseRequest, ParseResponse } from "../../src/contracts";
 import { interpret } from "../../src/parser/client";
+import { CATALOG } from "../helpers/catalog";
 
 vi.mock("../../src/parser/client", () => ({ interpret: vi.fn() }));
 
@@ -40,9 +41,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("useOrderController persistence wiring", () => {
+  it("keeps saving off by default and uses an injected port in supabase mode without any fetch", async () => {
+    const off = renderHook(() => useOrderController(CATALOG), { wrapper: StrictMode });
+    expect(off.result.current.persistence.state).toBe("off");
+    const createSession = vi.fn(async () => ({ ok: true as const, savedSeq: 0 }));
+    const port = { createSession, appendEvents: vi.fn(async () => ({ ok: true as const, savedSeq: 1 })), saveReceipt: vi.fn(async () => ({ ok: true as const, savedSeq: 1 })) };
+    const on = renderHook(() => useOrderController(CATALOG, "demo", undefined, undefined, { mode: "supabase", port }), { wrapper: StrictMode });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ sessionId: on.result.current.state.sessionId }));
+    expect(on.result.current.persistence.state).toBe("saved");
+    act(() => on.result.current.act({ type: "MANUAL", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }] }));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(port.appendEvents).toHaveBeenCalledTimes(1);
+    expect(on.result.current.persistence).toEqual({ state: "saved", savedSeq: 1, pendingCount: 0, message: null });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("useOrderController React lifecycle", () => {
   it("publishes fixture input, invalidates review, and keeps cancellation/export/replay isolated from live actions", async () => {
-    const { result } = renderHook(() => useOrderController(), { wrapper: StrictMode });
+    const { result } = renderHook(() => useOrderController(CATALOG), { wrapper: StrictMode });
     let submission!: Promise<void>;
     act(() => {
       submission = result.current.submit(FIXTURE_REQUEST.text, "fixture", null);
@@ -83,7 +102,7 @@ describe("useOrderController React lifecycle", () => {
     });
     expect(result.current).toBe(afterCancellation);
     expect(result.current.exportLog()).toBe(cancelledExport);
-    expect(replayLog(cancelledExport)).toEqual(result.current.state);
+    expect(replayLog(cancelledExport, CATALOG)).toEqual(result.current.state);
     expect(interpretMock).toHaveBeenCalledTimes(2);
 
     act(() => result.current.act({ type: "REVIEW" }));
@@ -93,7 +112,7 @@ describe("useOrderController React lifecycle", () => {
     expect(result.current.state.receipt).toMatchObject({ reviewId: review.id, lines: review.lines, totalCents: 1350, simulated: true });
     const committed = result.current;
     const exported = result.current.exportLog();
-    const replay = replayLog(exported);
+    const replay = replayLog(exported, CATALOG);
     expect(replay).toEqual(committed.state);
     replay.lines[0].qty = 5;
     replay.audit.length = 0;
@@ -108,7 +127,7 @@ describe("useOrderController React lifecycle", () => {
     let oldRenders = 0;
     const previous = renderHook(() => {
       oldRenders += 1;
-      return useOrderController();
+      return useOrderController(CATALOG);
     }, { wrapper: StrictMode });
     let oldSubmission!: Promise<void>;
     act(() => { oldSubmission = previous.result.current.submit(FIXTURE_REQUEST.text, "fixture", null); });
@@ -124,7 +143,7 @@ describe("useOrderController React lifecycle", () => {
     let newRenders = 0;
     const current = renderHook(() => {
       newRenders += 1;
-      return useOrderController();
+      return useOrderController(CATALOG);
     }, { wrapper: StrictMode });
     expect(current.result.current.state.sessionId).not.toBe(oldSessionId);
     expect(current.result.current.state.lines).toEqual([]);

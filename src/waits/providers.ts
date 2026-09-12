@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { LocationIdSchema } from "@/contracts";
 import { WaitTimeSnapshotSchema, type WaitTimeSnapshot } from "@/contracts/waits";
 import seed from "../../config/wait-times.seed.json";
 
@@ -25,10 +24,9 @@ export const NO_API_WAIT_DATA = "The dining API does not publish wait times. No 
 const DirectorySchema = z.array(z.object({ conceptId: z.string().min(1), name: z.string().min(1) })).min(1).max(500);
 const MAX_DIRECTORY_BYTES = 256 * 1024;
 
+/** No vendor is enumerated: a vendor absent from the snapshot is unknown to the engine, never zero. */
 export function unavailableSnapshot(asOf: string, id = "dining-api-waits-unavailable"): WaitTimeSnapshot {
-  return WaitTimeSnapshotSchema.parse({ id, source: "api", asOf,
-    waits: Object.fromEntries(LocationIdSchema.options.map((vendorId) => [vendorId, null])),
-  });
+  return WaitTimeSnapshotSchema.parse({ id, source: "api", asOf, waits: {} });
 }
 
 type DiningApiOptions = { fetchImpl?: typeof fetch; now?: () => Date; timeoutMs?: number };

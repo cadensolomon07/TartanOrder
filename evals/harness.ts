@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { API_VERSION, MENU_VERSION, type ParseRequest, type ParseResponse } from "@/contracts";
+import { API_VERSION, type ParseRequest, type ParseResponse } from "@/contracts";
+import { bundledCatalog } from "@/catalog/bundled";
 import { createEngine, getView, reduceEngine, type EngineState } from "@/core/engine";
 import { parseCaseFile, type CaseExpect, type EvalCase } from "./cases/schema";
 import { judge, toCaseLines } from "./lib/compare";
@@ -30,6 +31,8 @@ const KNOWN_SPLITS: readonly Split[] = ["dev", "heldout", "adversarial"];
 /** Held-out is frozen until H8: it is never part of the default run. */
 const DEFAULT_SPLITS: readonly Split[] = ["dev", "adversarial"];
 const SOURCE: Record<EvalCase["source"], ParseRequest["source"]> = { typed: "text", voice: "voice", fixture: "fixture" };
+/** Every case runs against the released bundled catalog; the parser under test and the engine share it. */
+const CATALOG = bundledCatalog();
 
 const isSplit = (value: string): value is Split => (KNOWN_SPLITS as readonly string[]).includes(value);
 
@@ -73,7 +76,7 @@ async function timeAsync<T>(now: Clock, run: () => Promise<T>): Promise<Timed<T>
 
 /** Setup is explicit ops (D8), so it never depends on the parser under test; then the utterance begins. */
 function applySetup(evalCase: EvalCase): Setup {
-  const initial = createEngine(`eval-${evalCase.id}`);
+  const initial = createEngine(`eval-${evalCase.id}`, { catalog: CATALOG });
   const result = evalCase.setupBatches.reduce<Setup>((setup, ops, index) => {
     if (!setup.ok) return setup;
     const state = reduceEngine(setup.state, { type: "UI", action: { type: "MANUAL", ops } });
@@ -90,7 +93,7 @@ function buildRequest(evalCase: EvalCase, state: EngineState): ParseRequest {
     v: API_VERSION,
     requestId: `${evalCase.id}:r`,
     baseRevision: state.view.revision,
-    menuVersion: MENU_VERSION,
+    menuVersion: CATALOG.versionId,
     text: evalCase.transcript,
     source: SOURCE[evalCase.source],
     asrConfidence: evalCase.asrConfidence,
@@ -172,7 +175,7 @@ async function runParserCase(
   now: Clock,
 ): Promise<CaseRecord> {
   const start = now();
-  const parse = await timeAsync(now, () => parserCallFor(transport)(request));
+  const parse = await timeAsync(now, () => parserCallFor(transport, CATALOG)(request));
   if (!parse.ok) return recordOf(draft, evalCase.expect, null, parse.error, { parse: parse.ms, engine: 0, total: now() - start });
   const response = parse.value;
   const expected = resolveExpected(evalCase, response.parser);

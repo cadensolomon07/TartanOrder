@@ -1,11 +1,13 @@
 // A's starter gate: real local rules reach a reviewed simulated campus receipt.
 // This is typed input and makes no API request; it does not exercise a microphone.
-import { test, expect } from "@playwright/test";
-import { CAMPUS_DISCLOSURE } from "../../src/contracts/menu";
+import { test, expect } from "./fixtures";
+import { CAMPUS_DISCLOSURE } from "../../src/contracts/index";
 
 test("real local rules reach a reviewed simulated receipt", async ({ page }) => {
+  // No interpretation request may leave the page; server-side order saving
+  // (/api/sessions) is a separate concern and is allowed to happen.
   const apiHits: string[] = [];
-  page.on("request", request => { if (request.url().includes("/api/")) apiHits.push(request.url()); });
+  page.on("request", request => { if (request.url().includes("/api/interpret")) apiHits.push(request.url()); });
   await page.goto("/");
   await expect(page.getByTestId("dining-location")).toHaveValue("188");
   await page.getByTestId("eng-toggle").click();

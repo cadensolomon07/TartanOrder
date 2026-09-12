@@ -46,6 +46,8 @@ async function execute(transport: EvalTransport, label: string): Promise<Run> {
   const cases = loadCases(SPLITS);
   const startedAt = new Date().toISOString();
   const quiet = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  // In-process route cases run against the released bundled catalog, never the database.
+  if (transport.kind === "in-process") vi.stubEnv("CATALOG_SOURCE", "bundled");
   try {
     const records = await runCases(cases, transport);
     const finishedAt = new Date().toISOString();
@@ -53,6 +55,7 @@ async function execute(transport: EvalTransport, label: string): Promise<Run> {
     return { run, caseCount: cases.length };
   } finally {
     quiet.mockRestore();
+    vi.unstubAllEnvs();
   }
 }
 

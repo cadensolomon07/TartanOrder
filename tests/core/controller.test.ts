@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOrderController } from "../../src/controller/controller";
-import { ExportLogSchema, type InterpretOptions, type Op, type ParseRequest, type ParseResponse, type UiAction } from "../../src/contracts";
+import { API_VERSION, ExportLogSchema, type InterpretOptions, type Op, type ParseRequest, type ParseResponse, type UiAction } from "../../src/contracts";
 import { replayLog } from "../../src/core/engine";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 
 type Deferred<T> = { promise: Promise<T>; resolve(value: T): void; reject(error: unknown): void };
 function deferred<T>(): Deferred<T> {
@@ -23,13 +24,13 @@ function harness() {
     calls.push({ request, options, deferred: result });
     return result.promise;
   });
-  const controller = createOrderController({ interpret, sessionId: () => `test-session-${++sessions}` });
+  const controller = createOrderController({ catalog: CATALOG, interpret, sessionId: () => `test-session-${++sessions}` });
   liveControllers.push(controller);
   return { ...controller, calls, interpret };
 }
 
 function proposal(request: ParseRequest, ops: Op[] = [burger]): ParseResponse {
-  return { v: 2, requestId: request.requestId, baseRevision: request.baseRevision, menuVersion: "cmu-shortlist-2026-09-12", parser: "rules", fallbackReason: null, result: { kind: "proposal", ops } };
+  return { v: API_VERSION, requestId: request.requestId, baseRevision: request.baseRevision, menuVersion: MENU_VERSION, parser: "rules", fallbackReason: null, result: { kind: "proposal", ops } };
 }
 
 function seedReview(controller: ReturnType<typeof harness>) {
@@ -43,6 +44,17 @@ function seedReview(controller: ReturnType<typeof harness>) {
 
 afterEach(() => {
   for (const controller of liveControllers.splice(0)) controller.dispose();
+});
+
+describe("controller persistence default", () => {
+  it("reports server saving as off and makes retry a no-op when no port is injected", () => {
+    const controller = harness();
+    expect(controller.getSnapshot().persistence).toEqual({ state: "off", savedSeq: 0, pendingCount: 0, message: "Server saving is off" });
+    controller.getSnapshot().act({ type: "MANUAL", ops: [burger] });
+    controller.getSnapshot().retryPersistence();
+    expect(controller.getSnapshot().persistence.state).toBe("off");
+    expect(controller.getSnapshot().state.lines).toHaveLength(1);
+  });
 });
 
 describe("controller capture and review gates", () => {
@@ -104,7 +116,8 @@ describe("controller capture and review gates", () => {
     const submission = controller.getSnapshot().submit("  fries  ", "voice", 0.62);
     expect(controller.calls).toHaveLength(1);
     const call = controller.calls[0];
-    expect(call.request).toMatchObject({ v: 2, menuVersion: "cmu-shortlist-2026-09-12", text: "fries", source: "voice", asrConfidence: 0.62, baseRevision: inputRevision + 1 });
+    expect(call.request).toMatchObject({ v: API_VERSION, menuVersion: MENU_VERSION, text: "fries", source: "voice", asrConfidence: 0.62, baseRevision: inputRevision + 1 });
+    expect(call.options.catalog).toBe(CATALOG);
     expect(call.options.localOnly).toBe(false);
     expect(call.options.signal?.aborted).toBe(false);
     expect(controller.getSnapshot().busy).toBe(true);
@@ -412,7 +425,7 @@ describe("controller commit, reset and replay", () => {
     const before = controller.getSnapshot();
     const json = before.exportLog();
     expect(ExportLogSchema.safeParse(JSON.parse(json)).success).toBe(true);
-    const replay = replayLog(json);
+    const replay = replayLog(json, CATALOG);
     expect(replay).toEqual(before.state);
     expect(controller.getSnapshot()).toBe(before);
     expect(controller.interpret).toHaveBeenCalledTimes(1);

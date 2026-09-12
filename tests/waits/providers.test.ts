@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LocationIdSchema } from "@/contracts";
-import { MENU } from "@/contracts/menu";
+import { CATALOG, MENU } from "../helpers/catalog";
 import { WaitEngineConfigSchema, WaitTimeSnapshotSchema } from "@/contracts/waits";
 import { loadWaitConfiguration } from "@/waits/config.server";
 import { DINING_LOCATIONS_URL, DiningApiWaitTimes, NO_API_WAIT_DATA, SeededWaitTimes } from "@/waits/providers";
@@ -21,7 +20,7 @@ describe("wait providers (mocked HTTP; no queue observations)", () => {
     first.waits["188"] = 999;
     expect(await provider.getSnapshot()).toEqual(original);
     expect(original).toMatchObject({ id: "seeded-waits-shortlist-v1", source: "seeded", waits: { "188": 14, "109": 4, "115": null, "94": null } });
-    expect(Object.keys(original.waits).sort()).toEqual([...LocationIdSchema.options].sort());
+    expect(Object.keys(original.waits).sort()).toEqual(CATALOG.locations.map((location) => location.id).sort());
     expect(WaitTimeSnapshotSchema.safeParse(original).success).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -60,7 +59,8 @@ describe("wait providers (mocked HTTP; no queue observations)", () => {
     const provider = new DiningApiWaitTimes({ fetchImpl, now, timeoutMs: 20 });
     const pending = provider.getSnapshot();
     await vi.advanceTimersByTimeAsync(20);
-    expect((await pending).waits["188"]).toBeNull();
+    // No vendor is enumerated in an unavailable snapshot; an absent vendor is unknown to the engine.
+    expect((await pending).waits).toEqual({});
     expect(fetchImpl.mock.calls[0][1]?.signal?.aborted).toBe(true);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
@@ -82,7 +82,7 @@ describe("server wait configuration", () => {
     expect(config).toMatchObject({ available: true, unavailableReason: null, evaluatedAt: NOW.toISOString(), swapThresholdMinutes: 5, priceToleranceCents: 100 });
     expect(config.groups).toHaveLength(1);
     for (const group of config.groups) {
-      const [left, right] = group.itemIds.map((id) => MENU[id]);
+      const [left, right] = group.itemIds.map((id) => MENU.item(id)!);
       expect(left.locationId).not.toBe(right.locationId);
       expect(Math.abs(left.priceCents - right.priceCents)).toBeLessThanOrEqual(config.priceToleranceCents);
       for (const id of group.itemIds) expect(group.differences[id]).toBeTruthy();

@@ -1,24 +1,29 @@
-import { ModifierIdSchema, type ItemId, type ModifierId } from "@/contracts";
-import { itemsForLocation } from "@/contracts/menu";
+import { ModifierIdSchema, type Catalog, type ItemId, type ModifierId } from "@/contracts";
+import { indexCatalog, type CatalogIndex } from "@/catalog/lookup";
 
 /** One surface form for a menu item: alias tokens (singular or derived plural) → item. */
 export type ItemAlias = { readonly tokens: readonly string[]; readonly itemId: ItemId };
 export type ModifierChange = { readonly modifier: ModifierId; readonly enabled: boolean };
 export type ModifierPhrase = ModifierChange & { readonly tokens: readonly string[] };
 
+/**
+ * The menu-derived half of the grammar, built from a loaded catalog (its Demo Counter items)
+ * instead of at import time. Everything else in this module is a fixed table of English.
+ */
+export type Lexicon = {
+  readonly menu: CatalogIndex;
+  /** Alias forms, longest first, so "french fries" wins over "fries". */
+  readonly itemAliases: readonly ItemAlias[];
+  readonly aliasTokens: ReadonlySet<string>;
+  /** When exactly one menu item accepts a modifier, a standalone modifier phrase targets that item (D2). */
+  readonly soleItemForModifier: Readonly<Partial<Record<ModifierId, ItemId>>>;
+  /** Every token the grammar can consume; anything else is unknown and fails closed. */
+  readonly vocabulary: ReadonlySet<string>;
+};
+
 function pluralOf(alias: string): string | null {
   return alias.endsWith("s") ? null : `${alias}s`;
 }
-
-/** Aliases come from the menu module at import time; plurals are derived, never listed by hand. */
-export const ITEM_ALIASES: readonly ItemAlias[] = itemsForLocation("demo")
-  .flatMap((item) => item.aliases.flatMap((alias) => {
-    const forms = [alias, pluralOf(alias)].filter((form): form is string => form !== null);
-    return forms.map((form) => ({ tokens: form.split(" "), itemId: item.id }));
-  }))
-  .sort((a, b) => b.tokens.length - a.tokens.length);
-
-export const ALIAS_TOKENS: ReadonlySet<string> = new Set(ITEM_ALIASES.flatMap((alias) => alias.tokens));
 
 /** Spoken modifier phrases, longest first. Pairing validity is the engine's job (D1). */
 export const MODIFIER_PHRASES: readonly ModifierPhrase[] = [
@@ -45,14 +50,6 @@ export const MODIFIER_PHRASES: readonly ModifierPhrase[] = [
   { tokens: ["add", "cheese"], modifier: "extra_cheese", enabled: true },
   { tokens: ["double"], modifier: "double", enabled: true },
 ];
-
-/** When exactly one menu item accepts a modifier, a standalone modifier phrase targets that item (D2). */
-export const SOLE_ITEM_FOR_MODIFIER: Readonly<Partial<Record<ModifierId, ItemId>>> = Object.fromEntries(
-  ModifierIdSchema.options.flatMap((modifier) => {
-    const accepting = itemsForLocation("demo").filter((item) => item.allowedModifiers.includes(modifier));
-    return accepting.length === 1 ? [[modifier, accepting[0].id]] : [];
-  }),
-);
 
 /** Correction verbs: "scratch the fries" retracts a pending ADD; only with nothing pending is it a cart REMOVE. */
 export const RETRACT_VERBS: ReadonlySet<string> = new Set(["scratch", "forget"]);
@@ -83,14 +80,38 @@ export const STUTTER_COMMAND_VERBS: ReadonlySet<string> = new Set(["make", "remo
 const FUNCTION_WORDS = ["a", "an", "the", "my", "with", "without", "on", "for", "to", "of", "like", "and", "then", "plus",
   "not", "no", "add", "make", "take", "off", "go", "back", "undo"];
 
-/** Every token the grammar can consume; anything else is unknown and fails closed. */
-export const VOCABULARY: ReadonlySet<string> = new Set([
-  ...ALIAS_TOKENS,
-  ...MODIFIER_PHRASES.flatMap((phrase) => phrase.tokens),
-  ...REMOVE_VERBS,
-  ...LAST_PHRASES.flat(),
-  ...CORRECTION_MARKERS.flat(),
-  ...TRAILING_CORRECTION_MARKERS.flat(),
-  ...DROP_MARKERS.flat(),
-  ...FUNCTION_WORDS,
-]);
+const LEXICONS = new WeakMap<Catalog, Lexicon>();
+
+/** Aliases come from the loaded catalog's Demo Counter; plurals are derived, never listed by hand. Memoised per catalog. */
+export function buildLexicon(catalog: Catalog): Lexicon {
+  const cached = LEXICONS.get(catalog);
+  if (cached) return cached;
+  const menu = indexCatalog(catalog);
+  const demo = menu.itemsForLocation("demo");
+  const itemAliases: readonly ItemAlias[] = demo
+    .flatMap((item) => item.aliases.flatMap((alias) => {
+      const forms = [alias, pluralOf(alias)].filter((form): form is string => form !== null);
+      return forms.map((form) => ({ tokens: form.split(" "), itemId: item.id }));
+    }))
+    .sort((a, b) => b.tokens.length - a.tokens.length);
+  const aliasTokens: ReadonlySet<string> = new Set(itemAliases.flatMap((alias) => alias.tokens));
+  const soleItemForModifier: Readonly<Partial<Record<ModifierId, ItemId>>> = Object.fromEntries(
+    ModifierIdSchema.options.flatMap((modifier) => {
+      const accepting = demo.filter((item) => item.allowedModifiers.includes(modifier));
+      return accepting.length === 1 ? [[modifier, accepting[0].id]] : [];
+    }),
+  );
+  const vocabulary: ReadonlySet<string> = new Set([
+    ...aliasTokens,
+    ...MODIFIER_PHRASES.flatMap((phrase) => phrase.tokens),
+    ...REMOVE_VERBS,
+    ...LAST_PHRASES.flat(),
+    ...CORRECTION_MARKERS.flat(),
+    ...TRAILING_CORRECTION_MARKERS.flat(),
+    ...DROP_MARKERS.flat(),
+    ...FUNCTION_WORDS,
+  ]);
+  const lexicon: Lexicon = { menu, itemAliases, aliasTokens, soleItemForModifier, vocabulary };
+  LEXICONS.set(catalog, lexicon);
+  return lexicon;
+}

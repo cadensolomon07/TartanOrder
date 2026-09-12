@@ -10,8 +10,8 @@ describe("strict wait contracts", () => {
     expect(UiActionSchema.safeParse({ type: "DECLINE_SWAP", offerId: "offer" }).success).toBe(true);
     expect(ModelOpSchema.safeParse({ type: "ACCEPT_SWAP", offerId: "offer", revision: 2 }).success).toBe(false);
   });
-  it("rejects nonfinite, negative, arbitrary vendor and extra snapshot fields", () => {
-    for (const waits of [{ "188": -1 }, { "188": Infinity }, { "188": NaN }, { arbitrary: 4 }]) {
+  it("rejects nonfinite, negative, malformed vendor keys and extra snapshot fields", () => {
+    for (const waits of [{ "188": -1 }, { "188": Infinity }, { "188": NaN }, { "Not-A-Vendor": 4 }]) {
       expect(WaitTimeSnapshotSchema.safeParse({ ...WAIT_FIXTURE_CONFIG.snapshot, waits }).success).toBe(false);
     }
     expect(WaitTimeSnapshotSchema.safeParse({ ...WAIT_FIXTURE_CONFIG.snapshot, live: true }).success).toBe(false);

@@ -1,8 +1,12 @@
 import { z } from "zod";
-import { ACTIVE_LOCATION_IDS, CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
 
-export const API_VERSION = 2 as const;
-export const MENU_VERSION = "cmu-shortlist-2026-09-12" as const;
+// V3: the catalog is runtime data (see docs/adr-supabase-persistence.md). Item, location and
+// menu-version identifiers are bounded strings validated against the loaded catalog.
+export const API_VERSION = 3 as const;
+
+/** Kiosk disclosures: shown on every screen; the app never sells anything. */
+export const DEMO_DISCLOSURE = "TartanOrder Demo Counter · Seeded menu · No real purchase.";
+export const CAMPUS_DISCLOSURE = "TartanOrder · CMU published menus · No real purchase.";
 
 export const LIMITS = {
   lines: 5,
@@ -40,11 +44,12 @@ export const DEMO_ITEM_IDS = [
   "burger", "chicken_sandwich", "veggie_wrap", "grilled_cheese",
   "fries", "onion_rings", "side_salad", "lemonade", "iced_tea", "cola", "water",
 ] as const;
-export const ItemIdSchema = z.enum([...DEMO_ITEM_IDS, ...CAMPUS_ITEMS.map(item => item.id)]);
-export const LocationIdSchema = z.enum(["demo", ...DINING_LOCATIONS.map(location => location.id)]);
+export const ItemIdSchema = z.string().min(1).max(LIMITS.idChars).regex(/^[a-z0-9][a-z0-9_-]*$/, "Item IDs use lowercase letters, digits, underscores and hyphens.");
+export const LocationIdSchema = z.string().min(1).max(20).regex(/^[a-z0-9]+$/, "Location IDs use lowercase letters and digits.");
 export type LocationId = z.infer<typeof LocationIdSchema>;
-export const ActiveLocationIdSchema = z.enum(ACTIVE_LOCATION_IDS);
-export const AllowedLocationIdsSchema = z.array(LocationIdSchema).min(1).max(46).refine(ids => new Set(ids).size === ids.length, "Location IDs must be unique.");
+/** The kiosk's default counter when the catalog lists it as active; otherwise the first ranked location. */
+export const KIOSK_DEFAULT_LOCATION_ID = "188";
+export const AllowedLocationIdsSchema = z.array(LocationIdSchema).min(1).max(100).refine(ids => new Set(ids).size === ids.length, "Location IDs must be unique.");
 export const ModifierIdSchema = z.enum([
   "no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo", "dressing_on_side", "no_ice",
 ]);
@@ -52,6 +57,8 @@ export type ItemId = z.infer<typeof ItemIdSchema>;
 export type ModifierId = z.infer<typeof ModifierIdSchema>;
 
 export const IdSchema = z.string().min(1).max(LIMITS.idChars);
+/** A released catalog version id, e.g. cmu-shortlist-2026-09-12. Compared, never assumed. */
+export const MenuVersionSchema = z.string().min(1).max(LIMITS.idChars).regex(/^[a-z0-9][a-z0-9_.-]*$/, "Menu versions use lowercase letters, digits, dots, underscores and hyphens.");
 // Generated ADD line IDs must independently fit IdSchema's 100-character bound.
 export const RequestIdSchema = IdSchema;
 export const RevisionSchema = z.number().int().nonnegative();
@@ -66,6 +73,85 @@ export const ModifiersSchema = z.array(ModifierIdSchema).max(ModifierIdSchema.op
     ctx.addIssue({ code: "custom", message: "A modifier may occur only once per unit." });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Catalog (V3): one immutable released menu version, loaded at runtime and
+// threaded into the engine, parsers and UI as data. Never a module constant.
+// ---------------------------------------------------------------------------
+const CatalogTextSchema = z.string().min(1).max(200);
+const CatalogUrlSchema = z.string().min(1).max(1000).nullable();
+const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/).nullable();
+export const CatalogCategorySchema = z.enum(["mains", "sides", "drinks"]);
+export type CatalogCategory = z.infer<typeof CatalogCategorySchema>;
+export const CatalogLocationSchema = z.strictObject({
+  id: LocationIdSchema,
+  name: CatalogTextSchema,
+  location: z.string().max(300),
+  menuUrl: CatalogUrlSchema,
+  directoryMenuUrl: CatalogUrlSchema,
+  detailUrl: CatalogUrlSchema,
+  sourceSha256: Sha256Schema,
+  sourceNote: z.string().max(500).nullable(),
+  /** 1-based public shortlist order; null means archived (not selectable). */
+  activeRank: z.number().int().positive().nullable(),
+});
+export type CatalogLocation = z.infer<typeof CatalogLocationSchema>;
+export const CatalogItemSchema = z.strictObject({
+  id: ItemIdSchema,
+  locationId: LocationIdSchema,
+  label: CatalogTextSchema,
+  category: CatalogCategorySchema,
+  description: z.string().max(1000),
+  priceCents: CentsSchema,
+  aliases: z.array(CatalogTextSchema).max(50),
+  allowedModifiers: ModifiersSchema,
+  sourcePage: z.number().int().positive().nullable(),
+});
+export type CatalogItem = z.infer<typeof CatalogItemSchema>;
+export const CatalogPreviewSchema = z.strictObject({
+  locationId: LocationIdSchema,
+  label: CatalogTextSchema,
+  description: z.string().max(1000),
+  priceCents: CentsSchema.nullable(),
+  sourceUrl: CatalogUrlSchema,
+  sourcePage: z.number().int().positive().nullable(),
+  sourceSha256: Sha256Schema,
+});
+export type CatalogPreview = z.infer<typeof CatalogPreviewSchema>;
+export const CatalogModifierSchema = z.strictObject({ id: ModifierIdSchema, label: CatalogTextSchema, priceCents: CentsSchema });
+export type CatalogModifier = z.infer<typeof CatalogModifierSchema>;
+export const CatalogSnapshotSchema = z.strictObject({
+  checkedAt: z.iso.date(),
+  directoryUrl: z.string().min(1).max(1000),
+  sourceRepository: z.string().min(1).max(1000),
+});
+export const CatalogSchema = z.strictObject({
+  versionId: MenuVersionSchema,
+  snapshot: CatalogSnapshotSchema,
+  locations: z.array(CatalogLocationSchema).min(1).max(1000),
+  items: z.array(CatalogItemSchema).max(10000),
+  previews: z.array(CatalogPreviewSchema).max(10000),
+  modifiers: z.array(CatalogModifierSchema).max(ModifierIdSchema.options.length),
+}).superRefine((catalog, ctx) => {
+  const locationIds = new Set(catalog.locations.map((location) => location.id));
+  if (locationIds.size !== catalog.locations.length) ctx.addIssue({ code: "custom", path: ["locations"], message: "Location IDs must be unique." });
+  const itemIds = new Set(catalog.items.map((item) => item.id));
+  if (itemIds.size !== catalog.items.length) ctx.addIssue({ code: "custom", path: ["items"], message: "Item IDs must be unique." });
+  const modifierIds = new Set(catalog.modifiers.map((modifier) => modifier.id));
+  if (modifierIds.size !== catalog.modifiers.length) ctx.addIssue({ code: "custom", path: ["modifiers"], message: "Modifier IDs must be unique." });
+  catalog.items.forEach((item, index) => {
+    if (!locationIds.has(item.locationId)) ctx.addIssue({ code: "custom", path: ["items", index, "locationId"], message: "Item location is not in the catalog." });
+    if (item.allowedModifiers.some((modifier) => !modifierIds.has(modifier))) ctx.addIssue({ code: "custom", path: ["items", index, "allowedModifiers"], message: "Item allows a modifier the catalog does not define." });
+  });
+  catalog.previews.forEach((preview, index) => {
+    if (!locationIds.has(preview.locationId)) ctx.addIssue({ code: "custom", path: ["previews", index, "locationId"], message: "Preview location is not in the catalog." });
+  });
+  const ranks = catalog.locations.flatMap((location) => location.activeRank === null ? [] : [location.activeRank]).sort((a, b) => a - b);
+  if (ranks.some((rank, index) => rank !== index + 1)) ctx.addIssue({ code: "custom", path: ["locations"], message: "Active ranks must be unique and contiguous from 1." });
+});
+export type Catalog = z.infer<typeof CatalogSchema>;
+export const CatalogSourceSchema = z.enum(["supabase", "bundled", "unavailable"]);
+export type CatalogSource = z.infer<typeof CatalogSourceSchema>;
 
 const WaitMinutesSchema = z.number().finite().nonnegative();
 export const WaitTimeSnapshotSchema = z.strictObject({
@@ -241,7 +327,7 @@ export const ParseRequestSchema = z.strictObject({
   v: z.literal(API_VERSION),
   requestId: RequestIdSchema,
   baseRevision: RevisionSchema,
-  menuVersion: z.literal(MENU_VERSION),
+  menuVersion: MenuVersionSchema,
   text: z.string().min(1).max(LIMITS.transcriptChars),
   source: z.enum(["voice", "text", "fixture"]),
   asrConfidence: z.number().min(0).max(1).nullable(),
@@ -250,24 +336,14 @@ export const ParseRequestSchema = z.strictObject({
 });
 export type ParseRequest = z.infer<typeof ParseRequestSchema>;
 
-// Public HTTP accepts only the selected campus shortlist. Internal parser/core
-// fixtures retain the wider archive schema; no request field can enable it.
-const activeItemIds = new Set<string>(CAMPUS_ITEMS.filter(item => ACTIVE_LOCATION_IDS.some(id => id === item.locationId)).map(item => item.id));
-export const PublicParseRequestSchema = ParseRequestSchema.extend({
-  locationId: ActiveLocationIdSchema.default("188"),
-}).superRefine((request, ctx) => {
-  const ids = [
-    ...(request.context?.lines.map(line => line.itemId) ?? []),
-    ...(request.context?.pending?.choices.flatMap(choice => choice.ops.flatMap(op => op.type === "ADD" ? [op.itemId] : "ref" in op && op.ref.by === "item" ? [op.ref.itemId] : [])) ?? []),
-  ];
-  if(ids.some(id => !activeItemIds.has(id)))ctx.addIssue({ code: "custom", message: "Cart context contains an item outside the active campus catalog." });
-});
+// Public HTTP accepts only the loaded catalog's active shortlist: see
+// catalogGuard(catalog).publicParseRequestSchema in src/catalog/lookup.ts.
 
 export const ParseResponseSchema = z.strictObject({
   v: z.literal(API_VERSION),
   requestId: RequestIdSchema,
   baseRevision: RevisionSchema,
-  menuVersion: z.literal(MENU_VERSION),
+  menuVersion: MenuVersionSchema,
   parser: z.enum(["gemini", "rules", "fixture"]),
   fallbackReason: HttpCodeSchema.nullable(),
   result: ParseResultSchema,
@@ -334,14 +410,72 @@ export const OrderViewSchema = z.strictObject({
 export type OrderView = z.infer<typeof OrderViewSchema>;
 
 export const ExportLogSchema = z.strictObject({
-  v: z.literal(API_VERSION), menuVersion: z.literal(MENU_VERSION), sessionId: IdSchema, audit: z.array(AuditEntrySchema),
+  v: z.literal(API_VERSION), menuVersion: MenuVersionSchema, sessionId: IdSchema, audit: z.array(AuditEntrySchema),
   waitConfig: WaitEngineConfigSchema.optional(),
   allowedLocationIds: AllowedLocationIdsSchema.optional(),
 });
 export type ExportLog = z.infer<typeof ExportLogSchema>;
 
+// ---------------------------------------------------------------------------
+// Order persistence (V3): sessions, append-only audit entries and receipts are
+// written behind the engine, never awaited by ordering. Bodies are validated
+// here before any database call.
+// ---------------------------------------------------------------------------
+export const SessionCreateRequestSchema = z.strictObject({
+  v: z.literal(API_VERSION),
+  sessionId: IdSchema,
+  menuVersion: MenuVersionSchema,
+  waitConfig: WaitEngineConfigSchema.optional(),
+  allowedLocationIds: AllowedLocationIdsSchema.optional(),
+});
+export type SessionCreateRequest = z.infer<typeof SessionCreateRequestSchema>;
+export const SessionEventsRequestSchema = z.strictObject({
+  v: z.literal(API_VERSION),
+  entries: z.array(AuditEntrySchema).min(1).max(200),
+});
+export type SessionEventsRequest = z.infer<typeof SessionEventsRequestSchema>;
+export const SessionReceiptRequestSchema = z.strictObject({
+  v: z.literal(API_VERSION),
+  receipt: ReceiptSchema,
+});
+export type SessionReceiptRequest = z.infer<typeof SessionReceiptRequestSchema>;
+export const PersistenceCodeSchema = z.enum([
+  "INVALID_REQUEST", "MENU_VERSION_MISMATCH", "INPUT_TOO_LARGE",
+  "SESSION_NOT_FOUND", "AUDIT_SEQUENCE_GAP", "SESSION_LIMIT", "PERSISTENCE_UNAVAILABLE",
+]);
+/** Hard cap on stored audit entries per session; a kiosk order is a few dozen. */
+export const MAX_SESSION_AUDIT_ENTRIES = 1000;
+export type PersistenceCode = z.infer<typeof PersistenceCodeSchema>;
+export const PersistenceErrorSchema = z.strictObject({
+  v: z.literal(API_VERSION),
+  sessionId: IdSchema.nullable(),
+  error: z.strictObject({ code: PersistenceCodeSchema, message: MessageSchema, retryable: z.boolean() }),
+});
+export type PersistenceError = z.infer<typeof PersistenceErrorSchema>;
+/** Every successful persistence write acknowledges the highest audit seq the server now holds. */
+export const PersistAckSchema = z.strictObject({
+  v: z.literal(API_VERSION),
+  sessionId: IdSchema,
+  savedSeq: z.number().int().nonnegative(),
+});
+export type PersistAck = z.infer<typeof PersistAckSchema>;
+export const PersistenceStateSchema = z.enum(["off", "saved", "saving", "failed"]);
+export type PersistenceState = z.infer<typeof PersistenceStateSchema>;
+/** What the kiosk shows about server-side saving; ordering never waits on it. */
+export type PersistenceStatus = {
+  readonly state: PersistenceState;
+  /** Highest audit seq the server has acknowledged for this session. */
+  readonly savedSeq: number;
+  readonly pendingCount: number;
+  readonly message: string | null;
+};
+
 export const HealthResponseSchema = z.strictObject({
-  v: z.literal(API_VERSION), menuVersion: z.literal(MENU_VERSION), parser: z.enum(["rules", "gemini"]),
+  v: z.literal(API_VERSION),
+  menuVersion: MenuVersionSchema.nullable(),
+  parser: z.enum(["rules", "gemini"]),
+  catalog: z.strictObject({ source: CatalogSourceSchema, versionId: MenuVersionSchema.nullable() }),
+  orderPersistence: z.enum(["supabase", "off"]),
 });
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
@@ -361,6 +495,10 @@ export type OrderController = {
   setLocation(value: LocationId): void;
   reset(): void;
   exportLog(): string;
+  persistence: PersistenceStatus;
+  /** Re-attempts a failed server save; a no-op when persistence is off or idle. */
+  retryPersistence(): void;
 };
 
-export type InterpretOptions = { localOnly: boolean; signal?: AbortSignal };
+/** The client-side rules fallback needs the same catalog the server is serving. */
+export type InterpretOptions = { localOnly: boolean; signal?: AbortSignal; catalog: Catalog };

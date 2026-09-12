@@ -18,12 +18,20 @@
     "record:demo": "playwright test --config tests/e2e/record.config.ts",
     "dining:check": "node scripts/check-dining.mjs",
     "test:campus:live": "node scripts/verify-campus-browser.mjs",
-    "test:waits:live": "node scripts/verify-waits-browser.mjs"
+    "test:waits:live": "node scripts/verify-waits-browser.mjs",
+    "db:seed:sql": "node --env-file-if-exists=.env.local --import tsx scripts/seed-catalog.ts --sql supabase/seed.sql",
+    "db:seed:apply": "node --env-file-if-exists=.env.local --import tsx scripts/seed-catalog.ts --apply",
+    "db:verify": "node --env-file-if-exists=.env.local --import tsx scripts/verify-catalog-db.ts",
+    "test:db:live": "node --env-file=.env.local ./node_modules/.bin/vitest run tests/persistence/live.test.ts",
+    "test:e2e:live": "node --env-file=.env.local ./node_modules/.bin/playwright test",
+    "check:build": "node --env-file-if-exists=.env.local scripts/check-build-secrets.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.116.0",
     "next": "16.3.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "0.0.1",
     "zod": "4.6.2"
   },
   "devDependencies": {
@@ -37,6 +45,7 @@
     "eslint-config-next": "16.3.5",
     "fast-check": "4.10.0",
     "jsdom": "30.0.1",
+    "tsx": "4.23.13",
     "typescript": "6.0.3",
     "vitest": "5.0.0"
   }

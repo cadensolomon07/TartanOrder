@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
-import { API_VERSION, MENU_VERSION, type ParseRequest } from "@/contracts";
+import { API_VERSION, type ParseRequest } from "@/contracts";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 import { parseGemini } from "@/parser/gemini.server";
 
 // Explicit opt-in only: real provider evidence, not part of normal tests.
@@ -19,7 +20,7 @@ it.skipIf(process.env.RUN_CONTEXT_LIVE !== "1")("real contextual provider interp
     }
     return response;
   };
-  const outcome = await parseGemini(request, { apiKey: key, model: process.env.GEMINI_MODEL || "gemini-3.6-flash", timeoutMs: 14000, fetchImpl });
+  const outcome = await parseGemini(request, { apiKey: key, model: process.env.GEMINI_MODEL || "gemini-3.6-flash", timeoutMs: 14000, fetchImpl }, CATALOG);
   console.info(JSON.stringify({ model: process.env.GEMINI_MODEL || "gemini-3.6-flash", result: outcome.result, usage: outcome.usage, latencyMs: outcome.latencyMs }));
   expect(outcome.result).toMatchObject({ kind: "proposal", ops: [
     { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },

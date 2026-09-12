@@ -1,5 +1,5 @@
 import { LIMITS, type ItemId, type ModifierId, type Op } from "@/contracts";
-import { SOLE_ITEM_FOR_MODIFIER, type ModifierChange } from "./lexicon";
+import { type Lexicon, type ModifierChange } from "./lexicon";
 import { MESSAGES, reject, type Rejection } from "./messages";
 import { applyChanges, parseClause, type Clause, type ModelRef } from "./clauses";
 import { stripMarkers, tokenizeClause } from "./normalize";
@@ -87,18 +87,18 @@ function remodify(state: BatchState, ref: ModelRef, changes: readonly ModifierCh
 }
 
 /** A bare modifier phrase is inline for the ADD it follows; otherwise it targets the sole accepting item or the last line (D2). */
-function applyBareMod(state: BatchState, changes: readonly ModifierChange[]): BatchState {
+function applyBareMod(state: BatchState, changes: readonly ModifierChange[], lexicon: Lexicon): BatchState {
   const index = pendingAddIndex(state.pending, { by: "last" });
   if (index >= 0) return attach(state, index, changes);
   return changes.reduce((current, change) => {
-    const sole = SOLE_ITEM_FOR_MODIFIER[change.modifier];
+    const sole = lexicon.soleItemForModifier[change.modifier];
     const target: ModelRef = sole ? { by: "item", itemId: sole } : { by: "last" };
     return push(current, { type: "MOD", ref: target, modifier: change.modifier, enabled: change.enabled });
   }, state);
 }
 
-function applyMod(state: BatchState, clause: ModClause, corrected: boolean): BatchState {
-  if (clause.ref === null) return applyBareMod(state, clause.changes);
+function applyMod(state: BatchState, clause: ModClause, corrected: boolean, lexicon: Lexicon): BatchState {
+  if (clause.ref === null) return applyBareMod(state, clause.changes, lexicon);
   const resolved = resolveTopic(state, clause.ref);
   return corrected ? remodify(resolved.state, resolved.ref, clause.changes) : pushMods(resolved.state, resolved.ref, clause.changes);
 }
@@ -110,7 +110,7 @@ function applyAdd(state: BatchState, clause: Extract<Clause, { kind: "add" }>, c
 }
 
 /** Corrections rewrite the pending batch; plain REMOVE/SET_QTY/MOD commands keep their references for the engine. */
-function applyParsed(state: BatchState, clause: Clause, corrected: boolean): Step {
+function applyParsed(state: BatchState, clause: Clause, corrected: boolean, lexicon: Lexicon): Step {
   switch (clause.kind) {
     case "reject": return fail(clause);
     case "undo": return ok(push(state, { type: "UNDO" }));
@@ -126,11 +126,11 @@ function applyParsed(state: BatchState, clause: Clause, corrected: boolean): Ste
       const { ref, state: current } = resolveTopic(state, clause.ref);
       return ok(corrected ? requantify(current, ref, clause.qty) : push(current, { type: "SET_QTY", ref, qty: clause.qty }));
     }
-    case "mod": return ok(applyMod(state, clause, corrected));
+    case "mod": return ok(applyMod(state, clause, corrected, lexicon));
   }
 }
 
-function applyClause(state: BatchState, tokens: readonly string[], flags: Flags): Step {
+function applyClause(state: BatchState, tokens: readonly string[], flags: Flags, lexicon: Lexicon): Step {
   const corrected = flags.corrected || state.carry;
   let pending = state.pending;
   if (flags.drop) {
@@ -138,11 +138,11 @@ function applyClause(state: BatchState, tokens: readonly string[], flags: Flags)
     pending = pending.slice(0, -1);
   }
   if (tokens.length === 0) return ok({ ...state, pending, carry: corrected && !flags.drop });
-  const clause = parseClause(tokens);
+  const clause = parseClause(tokens, lexicon);
   // After "not the fries", only a marker or a replacement topic ("I mean the lemonade") may follow.
   if (state.awaitingCorrection && !corrected && clause.kind !== "topic") return fail(UNSUPPORTED);
   const topicAfterNegation = clause.kind === "topic" && state.awaitingCorrection;
-  return applyParsed({ ...state, pending, carry: false, awaitingCorrection: false }, clause, corrected || topicAfterNegation);
+  return applyParsed({ ...state, pending, carry: false, awaitingCorrection: false }, clause, corrected || topicAfterNegation, lexicon);
 }
 
 function toOp(entry: Pending): Op {
@@ -160,11 +160,11 @@ function finalize(state: BatchState): Op[] | Rejection {
 }
 
 /** Processes clauses left to right with correction markers; fails closed on anything unclaimed. */
-export function buildBatch(clauses: readonly string[]): Op[] | Rejection {
+export function buildBatch(clauses: readonly string[], lexicon: Lexicon): Op[] | Rejection {
   let state = INITIAL;
   for (const clause of clauses) {
-    const marked = stripMarkers(tokenizeClause(clause));
-    const step = applyClause(state, marked.tokens, { corrected: marked.corrected, drop: marked.drop });
+    const marked = stripMarkers(tokenizeClause(clause), lexicon);
+    const step = applyClause(state, marked.tokens, { corrected: marked.corrected, drop: marked.drop }, lexicon);
     if (!step.ok) return step.rejection;
     state = step.state;
   }

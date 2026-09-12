@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { API_VERSION, MENU_VERSION, type ParseRequest, type ParseResponse } from "../../src/contracts";
+import { API_VERSION, type ParseRequest, type ParseResponse } from "../../src/contracts";
 import { WAIT_FIXTURE_CONFIG, WAIT_FIXTURE_OFFER } from "../../src/contracts/fixtures";
 import { createOrderController } from "../../src/controller/controller";
 import { replayLog } from "../../src/core/engine";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 
 describe("wait controller integration", () => {
   it("sends the accepted item and selected vendor in subsequent context without wait recommendations", async () => {
@@ -11,7 +12,7 @@ describe("wait controller integration", () => {
       baseRevision: request.baseRevision, parser: "fixture", fallbackReason: null,
       result: { kind: "proposal", ops: [{ type: "SET_QTY", ref: { by: "last" }, qty: 2 }] },
     }));
-    const store = createOrderController({ interpret, locationId: "188", waitConfig: WAIT_FIXTURE_CONFIG });
+    const store = createOrderController({ catalog: CATALOG, interpret, locationId: "188", waitConfig: WAIT_FIXTURE_CONFIG });
     store.getSnapshot().act({ type: "MANUAL", ops: [{ type: "ADD", itemId: WAIT_FIXTURE_OFFER.original.itemId, qty: 1, modifiers: [] }] });
     const offer = store.getSnapshot().state.swapOffer!;
     store.getSnapshot().act({ type: "ACCEPT_SWAP", offerId: offer.offerId, revision: offer.revision });
@@ -24,12 +25,12 @@ describe("wait controller integration", () => {
     expect(JSON.stringify(request)).not.toMatch(/waitSnapshot|waitMinutes|Simulated wait|swapOffer|quicker option/);
     expect(store.getSnapshot().state.totalCents).toBe(1998);
     expect(store.getSnapshot().state.wait?.estimateMinutes).toBe(4);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
     store.dispose();
   });
 
   it("dismisses before capture, rejects an old acceptance and resets the session suppression", () => {
-    const store = createOrderController({ locationId: "188", waitConfig: WAIT_FIXTURE_CONFIG });
+    const store = createOrderController({ catalog: CATALOG, locationId: "188", waitConfig: WAIT_FIXTURE_CONFIG });
     const add = () => store.getSnapshot().act({ type: "MANUAL", ops: [{ type: "ADD", itemId: WAIT_FIXTURE_OFFER.original.itemId, qty: 1, modifiers: [] }] });
     add();
     const offer = store.getSnapshot().state.swapOffer!;

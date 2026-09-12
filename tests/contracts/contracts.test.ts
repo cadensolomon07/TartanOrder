@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  API_VERSION, MENU_VERSION, LIMITS, ApiErrorSchema, AuditEntrySchema, ExportLogSchema,
+  API_VERSION, LIMITS, ApiErrorSchema, AuditEntrySchema, ExportLogSchema,
   HealthResponseSchema, IdSchema, LineSchema, LinesSchema, ModelParseResultSchema,
   ModelRefSchema, OpSchema, OpsSchema, OrderViewSchema, ParseRequestSchema,
   ParseResponseSchema, ParseResultSchema, ReceiptSchema, RefSchema, ReviewSchema,
@@ -9,7 +9,9 @@ import {
   UnavailableNoticeSchema, UnavailableOptionNoticeSchema, ItemIdSchema, ModifierIdSchema,
 } from "../../src/contracts";
 import { FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_REQUEST, FIXTURE_RESPONSE, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION } from "../../src/contracts/fixtures";
-import { DEMO_DISCLOSURE, DEMO_MENU, MENU, MODIFIERS } from "../../src/contracts/menu";
+import { DEMO_MENU, MODIFIERS } from "../../src/contracts/menu";
+import { DEMO_DISCLOSURE } from "../../src/contracts/index";
+import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 
 const addBurger = { type: "ADD", itemId: "burger", qty: 1, modifiers: [] } as const;
 const line = { lineId: "u1:0", itemId: "burger", qty: 1, modifiers: [] };
@@ -17,9 +19,10 @@ const review = { id: "session:review:2", revision: 2, lines: [line], totalCents:
 const receipt = { id: "session:receipt:2", reviewId: review.id, lines: [line], totalCents: 800, simulated: true };
 const audit = { seq: 1, event: { type: "INPUT_STARTED" }, outcome: "applied", code: null };
 
-describe("shared strict contract V2", () => {
+describe("shared strict contract V3", () => {
   it("exports the agreed API and menu versions and honest fixture envelopes", () => {
-    expect(API_VERSION).toBe(2);
+    expect(API_VERSION).toBe(3);
+    expect(CATALOG.versionId).toBe(MENU_VERSION);
     expect(MENU_VERSION).toBe("cmu-shortlist-2026-09-12");
     expect(ParseRequestSchema.parse(FIXTURE_REQUEST).source).toBe("fixture");
     for (const response of [FIXTURE_RESPONSE, FIXTURE_CLARIFICATION, FIXTURE_REJECTION, FIXTURE_MIXED_ORDER, FIXTURE_RESOLUTION]) {
@@ -48,7 +51,7 @@ describe("shared strict contract V2", () => {
     [AuditEntrySchema, audit],
     [ExportLogSchema, { v: API_VERSION, menuVersion: MENU_VERSION, sessionId: "session", audit: [] }],
     [ApiErrorSchema, { v: API_VERSION, requestId: null, error: { code: "INVALID_REQUEST", message: "Invalid request.", retryable: false } }],
-    [HealthResponseSchema, { v: API_VERSION, menuVersion: MENU_VERSION, parser: "rules" }],
+    [HealthResponseSchema, { v: API_VERSION, menuVersion: MENU_VERSION, parser: "rules", catalog: { source: "bundled", versionId: MENU_VERSION }, orderPersistence: "off" }],
     [UnavailableNoticeSchema, { kind: "unavailable", item: "pizza" }],
     [UnavailableOptionNoticeSchema, { kind: "unavailable_option", itemId: "fries", option: "extra salt" }],
     [ConversationTurnSchema, { role: "user", text: "A burger please." }],
@@ -101,7 +104,10 @@ describe("shared strict contract V2", () => {
   });
 
   it("restricts menu IDs and disallows duplicate modifiers", () => {
-    expect(OpSchema.safeParse({ ...addBurger, itemId: "pizza" }).success).toBe(false);
+    // V3: the schema bounds the id's shape; a well-formed unlisted id is rejected by the engine (OFF_MENU), not here.
+    expect(OpSchema.safeParse({ ...addBurger, itemId: "pizza" }).success).toBe(true);
+    expect(OpSchema.safeParse({ ...addBurger, itemId: "Pizza Pie!" }).success).toBe(false);
+    expect(OpSchema.safeParse({ ...addBurger, itemId: "" }).success).toBe(false);
     expect(OpSchema.safeParse({ ...addBurger, modifiers: ["bacon"] }).success).toBe(false);
     expect(OpSchema.safeParse({ ...addBurger, modifiers: ["double", "double"] }).success).toBe(false);
     expect(OpSchema.safeParse({ ...addBurger, modifiers: ["double", "no_onions", "extra_cheese", "no_lettuce", "no_mayo"] }).success).toBe(true);
@@ -132,7 +138,7 @@ describe("shared strict contract V2", () => {
   });
 
   it("requires exact versions, nonnegative integer revisions, and diagnostic confidence within 0..1", () => {
-    for (const replacement of [{ v: 1 }, { v: 3 }, { menuVersion: "demo-v1" }, { baseRevision: -1 }, { baseRevision: 1.5 }, { asrConfidence: -0.1 }, { asrConfidence: 1.1 }]) {
+    for (const replacement of [{ v: 2 }, { v: 4 }, { menuVersion: "Demo V1!" }, { baseRevision: -1 }, { baseRevision: 1.5 }, { asrConfidence: -0.1 }, { asrConfidence: 1.1 }]) {
       expect(ParseRequestSchema.safeParse({ ...FIXTURE_REQUEST, ...replacement }).success).toBe(false);
     }
     for (const asrConfidence of [null, 0, 0.5, 1]) {
@@ -197,7 +203,7 @@ describe("V2 bounded conversation and interpretation", () => {
       expect(schema.safeParse({ kind: "reject", code: "INVALID_MODIFIER", message: "Unavailable option", notices: [notice] }).success).toBe(true);
       expect(schema.safeParse({ kind: "proposal", ops: [{ ...addBurger, modifiers: ["extra_salt"] }], notices: [notice] }).success).toBe(false);
     }
-    for (const value of [{ ...notice, itemId: "pizza" }, { ...notice, option: " " }, { ...notice, option: "x".repeat(61) }, { ...notice, priceCents: 0 }]) {
+    for (const value of [{ ...notice, itemId: "Pizza Pie!" }, { ...notice, option: " " }, { ...notice, option: "x".repeat(61) }, { ...notice, priceCents: 0 }]) {
       expect(UnavailableOptionNoticeSchema.safeParse(value).success).toBe(false);
     }
   });
@@ -258,51 +264,57 @@ describe("agreed error codes", () => {
 });
 
 describe("authoritative seeded menu", () => {
+  const item = (id: string) => MENU.item(id)!;
   it("has exactly the specified illustrative prices and aliases", () => {
-    expect(Object.keys(MENU)).toEqual(ItemIdSchema.options);
+    expect(MENU.itemIds).toEqual(CATALOG.items.map((entry) => entry.id));
     expect(Object.keys(DEMO_MENU)).toHaveLength(11);
-    expect(Object.fromEntries(Object.values(DEMO_MENU).map((item) => [item.id, item.priceCents]))).toEqual({
+    expect(Object.fromEntries(Object.values(DEMO_MENU).map((entry) => [entry.id, entry.priceCents]))).toEqual({
       burger: 800, chicken_sandwich: 850, veggie_wrap: 750, grilled_cheese: 650,
       fries: 300, onion_rings: 350, side_salad: 400,
       lemonade: 250, iced_tea: 250, cola: 250, water: 150,
     });
-    expect(MENU.burger.priceCents + MENU.fries.priceCents + MENU.lemonade.priceCents).toBe(1350);
+    expect(item("burger").priceCents + item("fries").priceCents + item("lemonade").priceCents).toBe(1350);
     expect(MODIFIERS.double.priceCents).toBe(250);
     expect(MODIFIERS.extra_cheese.priceCents).toBe(100);
     expect(MODIFIERS.no_onions.priceCents).toBe(0);
-    expect(MENU.burger.aliases).toEqual(["burger", "cheeseburger", "beef burger"]);
-    expect(MENU.fries.aliases).toEqual(["fries", "french fries"]);
-    expect(MENU.lemonade.aliases).toEqual(["lemonade", "lemon drink"]);
-    expect(MENU.burger.allowedModifiers).toEqual(["no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo"]);
-    expect(MENU.fries.allowedModifiers).toEqual([]);
-    expect(MENU.lemonade.allowedModifiers).toEqual(["no_ice"]);
+    expect(MENU.modifier("double")!.priceCents).toBe(250);
+    expect(item("burger").aliases).toEqual(["burger", "cheeseburger", "beef burger"]);
+    expect(item("fries").aliases).toEqual(["fries", "french fries"]);
+    expect(item("lemonade").aliases).toEqual(["lemonade", "lemon drink"]);
+    expect(item("burger").allowedModifiers).toEqual(["no_onions", "double", "extra_cheese", "no_lettuce", "no_mayo"]);
+    expect(item("fries").allowedModifiers).toEqual([]);
+    expect(item("lemonade").allowedModifiers).toEqual(["no_ice"]);
     expect(DEMO_DISCLOSURE).toBe("TartanOrder Demo Counter · Seeded menu · No real purchase.");
   });
 
   it("defines coherent categories and item-specific options with pizza unavailable", () => {
-    expect(Object.values(DEMO_MENU).filter((item) => item.category === "mains")).toHaveLength(4);
-    expect(Object.values(DEMO_MENU).filter((item) => item.category === "sides")).toHaveLength(3);
-    expect(Object.values(DEMO_MENU).filter((item) => item.category === "drinks")).toHaveLength(4);
-    for (const item of Object.values(MENU)) {
-      expect(item.description.length).toBeGreaterThan(0);
-      expect(item.description.length).toBeLessThanOrEqual(100);
-      expect(new Set(item.allowedModifiers).size).toBe(item.allowedModifiers.length);
-      for (const modifier of item.allowedModifiers) expect(ModifierIdSchema.safeParse(modifier).success).toBe(true);
+    expect(Object.values(DEMO_MENU).filter((entry) => entry.category === "mains")).toHaveLength(4);
+    expect(Object.values(DEMO_MENU).filter((entry) => entry.category === "sides")).toHaveLength(3);
+    expect(Object.values(DEMO_MENU).filter((entry) => entry.category === "drinks")).toHaveLength(4);
+    for (const entry of CATALOG.items) {
+      expect(entry.description.length).toBeGreaterThan(0);
+      expect(entry.description.length).toBeLessThanOrEqual(100);
+      expect(new Set(entry.allowedModifiers).size).toBe(entry.allowedModifiers.length);
+      for (const modifier of entry.allowedModifiers) expect(ModifierIdSchema.safeParse(modifier).success).toBe(true);
     }
-    expect(Object.values(MENU).filter((item) => item.allowedModifiers.includes("double")).map((item) => item.id)).toEqual(["burger"]);
-    expect(Object.values(MENU).filter((item) => item.allowedModifiers.includes("no_lettuce")).map((item) => item.id)).toEqual(["burger", "chicken_sandwich", "veggie_wrap"]);
-    expect(Object.values(MENU).filter((item) => item.allowedModifiers.includes("no_ice")).map((item) => item.id)).toEqual(["lemonade", "iced_tea", "cola"]);
-    expect(MENU.grilled_cheese.allowedModifiers).toEqual(["extra_cheese"]);
-    expect(MENU.side_salad.allowedModifiers).toEqual(["dressing_on_side"]);
-    expect(ItemIdSchema.safeParse("pizza").success).toBe(false);
+    const accepting = (modifier: string) => CATALOG.items.filter((entry) => entry.allowedModifiers.includes(modifier as never)).map((entry) => entry.id);
+    expect(accepting("double")).toEqual(["burger"]);
+    expect(accepting("no_lettuce")).toEqual(["burger", "chicken_sandwich", "veggie_wrap"]);
+    expect(accepting("no_ice")).toEqual(["lemonade", "iced_tea", "cola"]);
+    expect(item("grilled_cheese").allowedModifiers).toEqual(["extra_cheese"]);
+    expect(item("side_salad").allowedModifiers).toEqual(["dressing_on_side"]);
+    // V3: the id shape is validated by the schema; membership is decided against the loaded catalog.
+    expect(ItemIdSchema.safeParse("pizza").success).toBe(true);
+    expect(MENU.item("pizza")).toBeUndefined();
     for (const modifier of ["no_lettuce", "no_mayo", "dressing_on_side", "no_ice"] as const) expect(MODIFIERS[modifier].priceCents).toBe(0);
   });
 
-  it("freezes menu records and nested values to preserve the source of truth", () => {
-    expect(Object.isFrozen(MENU)).toBe(true);
-    expect(Object.isFrozen(MENU.burger)).toBe(true);
-    expect(Object.isFrozen(MENU.burger.allowedModifiers)).toBe(true);
-    expect(Object.isFrozen(MENU.fries.aliases)).toBe(true);
+  it("freezes the loaded catalog and nested values to preserve the source of truth", () => {
+    expect(Object.isFrozen(CATALOG)).toBe(true);
+    expect(Object.isFrozen(CATALOG.items)).toBe(true);
+    expect(Object.isFrozen(item("burger"))).toBe(true);
+    expect(Object.isFrozen(item("burger").allowedModifiers)).toBe(true);
+    expect(Object.isFrozen(item("fries").aliases)).toBe(true);
     expect(Object.isFrozen(MODIFIERS.double)).toBe(true);
   });
 });

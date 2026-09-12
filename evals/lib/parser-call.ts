@@ -1,5 +1,5 @@
 import { POST } from "@/app/api/interpret/route";
-import { ApiErrorSchema, LIMITS, type ParseRequest, type ParseResponse } from "@/contracts";
+import { ApiErrorSchema, LIMITS, type Catalog, type ParseRequest, type ParseResponse } from "@/contracts";
 import { interpretWith } from "@/parser/client";
 import { parseRules } from "@/parser/rules";
 import type { EvalTransport } from "../types";
@@ -47,11 +47,11 @@ export function errorCode(body: unknown): string | null {
  * is then labelled `rules` with a `fallbackReason`. Non-transient errors still throw and are
  * recorded as harness errors.
  */
-export function parserCallFor(transport: EvalTransport): ParserCall {
-  if (transport.kind === "in-process") return async (req) => parseRules(req);
+export function parserCallFor(transport: EvalTransport, catalog: Catalog): ParserCall {
+  if (transport.kind === "in-process") return async (req) => parseRules(req, catalog);
   const baseUrl = transport.baseUrl;
   return (req) =>
-    interpretWith(req, { localOnly: false }, {
+    interpretWith(req, { localOnly: false, catalog }, {
       fetchImpl: (input, init) => fetch(`${baseUrl}${String(input)}`, init),
       timeoutMs: LIMITS.clientTimeoutMs,
       isOnline: () => true,

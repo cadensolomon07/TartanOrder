@@ -1,7 +1,7 @@
 import { LIMITS, type CoreCode, type ItemId, type ModifierId } from "@/contracts";
 import {
-  ALIAS_TOKENS, DETERMINERS, ITEM_ALIASES, LAST_PHRASES, MODIFIER_PHRASES, REMOVE_VERBS, RETRACT_VERBS, UNDO_PHRASES, VOCABULARY,
-  type ModifierChange,
+  DETERMINERS, LAST_PHRASES, MODIFIER_PHRASES, REMOVE_VERBS, RETRACT_VERBS, UNDO_PHRASES,
+  type Lexicon, type ModifierChange,
 } from "./lexicon";
 import { MESSAGES, deferralMessage, reject } from "./messages";
 import { startsWith } from "./normalize";
@@ -29,8 +29,8 @@ const TARGET_PREPOSITIONS: ReadonlySet<string> = new Set(["on", "for", "to"]);
 const WORD = /^[a-z']+$/;
 const UNSUPPORTED = reject("UNSUPPORTED", MESSAGES.unsupported);
 
-export function matchItem(tokens: readonly string[], index: number): Span<ItemId> | null {
-  const alias = ITEM_ALIASES.find((candidate) => startsWith(tokens, index, candidate.tokens));
+export function matchItem(tokens: readonly string[], index: number, lexicon: Lexicon): Span<ItemId> | null {
+  const alias = lexicon.itemAliases.find((candidate) => startsWith(tokens, index, candidate.tokens));
   return alias ? { value: alias.itemId, next: index + alias.tokens.length } : null;
 }
 
@@ -66,11 +66,11 @@ export function applyChanges(modifiers: readonly ModifierId[], changes: readonly
 }
 
 /** "that", "it", "the last one" → last; "[the] ITEM" → item. */
-function matchTarget(tokens: readonly string[], index: number): Span<ModelRef> | null {
+function matchTarget(tokens: readonly string[], index: number, lexicon: Lexicon): Span<ModelRef> | null {
   const last = matchLast(tokens, index);
   if (last !== null) return { value: { by: "last" }, next: last };
   const start = DETERMINERS.has(tokens[index] ?? "") ? index + 1 : index;
-  const item = matchItem(tokens, start);
+  const item = matchItem(tokens, start, lexicon);
   return item ? { value: { by: "item", itemId: item.value }, next: item.next } : null;
 }
 
@@ -82,14 +82,14 @@ function parseIntent(tokens: readonly string[]): Clause | null {
   return reject("UNSUPPORTED", deferralMessage(topic));
 }
 
-function parseRemove(tokens: readonly string[]): Clause | null {
+function parseRemove(tokens: readonly string[], lexicon: Lexicon): Clause | null {
   let index = 0;
   let needsOff = false;
   if (tokens[0] === "take" && tokens[1] === "off") index = 2;
   else if (tokens[0] === "take") { index = 1; needsOff = true; }
   else if (REMOVE_VERBS.has(tokens[0])) index = 1;
   else return null;
-  const target = matchTarget(tokens, index);
+  const target = matchTarget(tokens, index, lexicon);
   if (!target) return UNSUPPORTED;
   index = target.next;
   if (needsOff) {
@@ -101,9 +101,9 @@ function parseRemove(tokens: readonly string[]): Clause | null {
 }
 
 /** "make that two" is a quantity; "make the burger a double" is a modifier. A trailing "instead" is a marker, stripped earlier. */
-function parseMake(tokens: readonly string[]): Clause | null {
+function parseMake(tokens: readonly string[], lexicon: Lexicon): Clause | null {
   if (tokens[0] !== "make") return null;
-  const target = matchTarget(tokens, 1);
+  const target = matchTarget(tokens, 1, lexicon);
   if (!target) return UNSUPPORTED;
   const articleSkipped = tokens[target.next] === "a" || tokens[target.next] === "an" ? target.next + 1 : target.next;
   const modifier = matchModifier(tokens, target.next) ?? matchModifier(tokens, articleSkipped);
@@ -116,14 +116,14 @@ function parseMake(tokens: readonly string[]): Clause | null {
 }
 
 /** A clause that is only modifier phrases ("no onions", "a double"), optionally "on the burger" / "on that". */
-function parseModifierOnly(tokens: readonly string[]): Clause | null {
+function parseModifierOnly(tokens: readonly string[], lexicon: Lexicon): Clause | null {
   const start = (tokens[0] === "a" || tokens[0] === "an") && matchModifier(tokens, 1) ? 1 : 0;
   const modifiers = readModifiers(tokens, start);
   if (modifiers.value.length === 0) return null;
   let ref: ModelRef | null = null;
   let next = modifiers.next;
   if (TARGET_PREPOSITIONS.has(tokens[next] ?? "")) {
-    const target = matchTarget(tokens, next + 1);
+    const target = matchTarget(tokens, next + 1, lexicon);
     if (!target) return UNSUPPORTED;
     ref = target.value;
     next = target.next;
@@ -132,28 +132,28 @@ function parseModifierOnly(tokens: readonly string[]): Clause | null {
 }
 
 /** "the lemonade" names a topic; "not the fries" negates one (used by "not X, I mean Y, remove it"). */
-function parseTopic(tokens: readonly string[]): Clause | null {
+function parseTopic(tokens: readonly string[], lexicon: Lexicon): Clause | null {
   const negated = tokens[0] === "not";
   const start = negated ? 1 : 0;
   if (tokens[start] !== "the") return null;
-  const item = matchItem(tokens, start + 1);
+  const item = matchItem(tokens, start + 1, lexicon);
   return item && item.next === tokens.length ? { kind: "topic", itemId: item.value, negated } : null;
 }
 
-function isUnknownNounWord(token: string): boolean {
-  return WORD.test(token) && (!VOCABULARY.has(token) || ALIAS_TOKENS.has(token));
+function isUnknownNounWord(token: string, lexicon: Lexicon): boolean {
+  return WORD.test(token) && (!lexicon.vocabulary.has(token) || lexicon.aliasTokens.has(token));
 }
 
 /** `[qty] <unknown noun>` is off-menu; anything else left over is unsupported. */
-function rejectLeftover(tokens: readonly string[], index: number): Clause {
+function rejectLeftover(tokens: readonly string[], index: number, lexicon: Lexicon): Clause {
   let end = index;
-  while (end < tokens.length && end - index < MAX_UNKNOWN_NOUN_WORDS && isUnknownNounWord(tokens[end])) end += 1;
+  while (end < tokens.length && end - index < MAX_UNKNOWN_NOUN_WORDS && isUnknownNounWord(tokens[end], lexicon)) end += 1;
   if (end === index) return UNSUPPORTED;
   const trailing = readModifiers(tokens, end);
   return trailing.next === tokens.length ? reject("OFF_MENU", MESSAGES.offMenu) : UNSUPPORTED;
 }
 
-function parseAdd(tokens: readonly string[]): Clause {
+function parseAdd(tokens: readonly string[], lexicon: Lexicon): Clause {
   let index = tokens[0] === "add" ? 1 : 0;
   let qty = 1;
   const number = readNumber(tokens, index);
@@ -171,18 +171,18 @@ function parseAdd(tokens: readonly string[]): Clause {
     leading.push({ modifier: "double", enabled: true });
     index += 1;
   }
-  const item = matchItem(tokens, index);
-  if (!item) return rejectLeftover(tokens, index);
+  const item = matchItem(tokens, index, lexicon);
+  if (!item) return rejectLeftover(tokens, index, lexicon);
   const trailing = readModifiers(tokens, item.next);
   if (trailing.next !== tokens.length) return UNSUPPORTED;
   return { kind: "add", itemId: item.value, qty, modifiers: applyChanges([], [...leading, ...trailing.value]) };
 }
 
 /** Matchers run in priority order; the first that claims the clause wins. Nothing is guessed. */
-export function parseClause(tokens: readonly string[]): Clause {
+export function parseClause(tokens: readonly string[], lexicon: Lexicon): Clause {
   if (UNDO_PHRASES.has(tokens.join(" "))) return { kind: "undo" };
-  const claimed = parseIntent(tokens) ?? parseRemove(tokens) ?? parseMake(tokens) ?? parseModifierOnly(tokens) ?? parseTopic(tokens);
+  const claimed = parseIntent(tokens) ?? parseRemove(tokens, lexicon) ?? parseMake(tokens, lexicon) ?? parseModifierOnly(tokens, lexicon) ?? parseTopic(tokens, lexicon);
   if (claimed) return claimed;
-  if (tokens[0] === "no" && matchItem(tokens, 1)) return reject("UNSUPPORTED", MESSAGES.noItem);
-  return parseAdd(tokens);
+  if (tokens[0] === "no" && matchItem(tokens, 1, lexicon)) return reject("UNSUPPORTED", MESSAGES.noItem);
+  return parseAdd(tokens, lexicon);
 }

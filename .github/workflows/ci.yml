@@ -16,5 +16,12 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run check:build
       - run: npx playwright install --with-deps chromium
+      # CI holds no Supabase key: the app under test serves the labelled bundled
+      # catalog with server saving off. Database-backed checks run locally only,
+      # via `npm run test:db:live` and `npm run test:e2e:live` with .env.local.
       - run: npm run test:e2e
+        env:
+          CATALOG_SOURCE: bundled
+          ORDER_PERSISTENCE: "off"

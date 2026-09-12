@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Op, OrderController, UiAction, LocationId } from "@/contracts";
+import { CAMPUS_DISCLOSURE, DEMO_DISCLOSURE } from "@/contracts";
 import { useSpeech, type FailureContext, type SpeechFailure } from "@/voice/useSpeech";
 import { cancelSpeech, speak, useSpeaking, useTtsAvailable } from "@/voice/tts";
 import styles from "./Kiosk.module.css";
@@ -21,12 +22,21 @@ import { reviewToSpeech } from "./reviewSpeech";
 import { formatCents } from "./labels";
 import { WaitEstimate } from "./WaitEstimate";
 import { SwapOfferPanel, swapOfferToSpeech } from "./SwapOfferPanel";
-import { DEMO_DISCLOSURE, CAMPUS_DISCLOSURE, itemsForLocation } from "@/contracts/menu";
+import { catalogSourceLabel, useCatalog } from "./CatalogContext";
+
 
 export type KioskProps = {
   controller: OrderController;
   // Optional read-only replay view supplied by A. Never calls live APIs.
   replay?: ReactNode;
+};
+
+/** Customer-facing save state. Ordering never waits on it; a failure only means the server copy is behind. */
+export const PERSISTENCE_TEXT: Record<OrderController["persistence"]["state"], string> = {
+  saved: "Saved to server",
+  saving: "Saving to server…",
+  failed: "Not saved to server",
+  off: "Server saving off",
 };
 
 const MIC_MESSAGES: Record<SpeechFailure, string> = {
@@ -64,6 +74,7 @@ export function micFailureMessage(reason: SpeechFailure, ctx: Pick<FailureContex
 
 export function Kiosk({ controller, replay }: KioskProps) {
   const { state, busy, parser, notice, localOnly, assistant, locationId } = controller;
+  const { menu, source: catalogSource } = useCatalog();
   const phase = state.phase;
 
   const [draft, setDraft] = useState("");
@@ -81,7 +92,7 @@ export function Kiosk({ controller, replay }: KioskProps) {
   const changed = useChangedLines(state.lines);
   const spokenOffers = useRef(new Set<string>());
   const offer = phase === "editing" && state.wait ? state.swapOffer : null;
-  const offerSpeech = offer && state.wait ? swapOfferToSpeech(offer, state.wait.source) : null;
+  const offerSpeech = offer && state.wait ? swapOfferToSpeech(offer, state.wait.source, menu) : null;
   const offerSpeechId = offer ? `${state.sessionId}:${offer.offerId}` : null;
 
   // ---- voice -----------------------------------------------------------
@@ -240,14 +251,14 @@ export function Kiosk({ controller, replay }: KioskProps) {
 
   // Read the review snapshot aloud (menu-generated text only).
   const readAloud = useCallback(() => {
-    if (state.review) speak(reviewToSpeech(state.review));
-  }, [state.review]);
+    if (state.review) speak(reviewToSpeech(state.review, menu));
+  }, [state.review, menu]);
 
   // Read only the accepted controller reply or the exact immutable review.
   // A new input, mode switch, reset, or unmount cancels the old utterance.
   const replyId = phase === "committed" ? undefined : phase === "reviewing" ? state.review?.id : offerSpeechId ?? assistant?.id;
   const replyText = phase === "committed" ? undefined : phase === "reviewing" && state.review
-    ? reviewToSpeech(state.review)
+    ? reviewToSpeech(state.review, menu)
     : [assistant?.text, offerSpeech].filter(Boolean).join(" ");
   const abortCapture = speech.abort;
   const endCapture = controller.endInput;
@@ -299,6 +310,11 @@ export function Kiosk({ controller, replay }: KioskProps) {
           <span className={styles.badge} data-testid="badge-input">
             input: {inputMode === "voice" ? `voice (${speech.engine})` : "text"}
           </span>
+          <span className={styles.badge} data-testid="catalog-source">{catalogSourceLabel(catalogSource, menu.catalog.versionId)}</span>
+          <span className={`${styles.badge}${controller.persistence.state === "failed" ? ` ${styles.badgeWarn}` : ""}`} data-testid="persistence" data-state={controller.persistence.state} title={controller.persistence.message ?? undefined}>
+            {PERSISTENCE_TEXT[controller.persistence.state]}
+            {controller.persistence.state === "failed" && <>{" "}<button type="button" className={styles.linkBtn} data-testid="persistence-retry" onClick={controller.retryPersistence}>Retry</button></>}
+          </span>
           {localOnly && <span className={styles.badge}>local only</span>}
           {parser === "fixture" && <span className={`${styles.badge} ${styles.badgeWarn}`}>fixture</span>}
           {busy && (
@@ -332,25 +348,25 @@ export function Kiosk({ controller, replay }: KioskProps) {
                 {assistant?.text || "What sounds good? Tell me your order, or choose from the menu."}
               </p>
               {offer && state.wait && <SwapOfferPanel offer={offer} source={state.wait.source} disabled={busy || speech.active} onAction={act} />}
-            <InputBar
-              example={locationId === "demo" ? undefined : itemsForLocation(locationId)[0] ? `Try: “one ${itemsForLocation(locationId)[0].label}”. Include the item’s name and size.` : "Choose a location with published prices to add food, or edit items already in your cart."}
-              draft={draft}
-              draftOpen={draftStarted}
-              onDraftChange={onDraftChange}
-              onSubmit={submitDraft}
-              onDiscard={discardDraft}
-              onCancelParsing={cancelParsing}
-              parsing={parsing}
-              voiceSupported={speech.supported}
-              voiceActive={speech.active}
-              listening={speech.listening}
-              interim={speech.interim}
-              onTalk={talk}
-              onStopTalking={speech.stop}
-              onCancelTalking={cancelTalk}
-              lastTranscript={lastTranscript}
-              micNotice={micNotice}
-            />
+              <InputBar
+                example={locationId === "demo" ? undefined : menu.itemsForLocation(locationId)[0] ? `Try: “one ${menu.itemsForLocation(locationId)[0].label}”. Include the item’s name and size.` : "Choose a location with published prices to add food, or edit items already in your cart."}
+                draft={draft}
+                draftOpen={draftStarted}
+                onDraftChange={onDraftChange}
+                onSubmit={submitDraft}
+                onDiscard={discardDraft}
+                onCancelParsing={cancelParsing}
+                parsing={parsing}
+                voiceSupported={speech.supported}
+                voiceActive={speech.active}
+                listening={speech.listening}
+                interim={speech.interim}
+                onTalk={talk}
+                onStopTalking={speech.stop}
+                onCancelTalking={cancelTalk}
+                lastTranscript={lastTranscript}
+                micNotice={micNotice}
+              />
             </section>
             <MenuButtons key={locationId} locationId={locationId} disabled={!editable} onOps={manual} />
           </div>

@@ -1,13 +1,14 @@
-import { LIMITS, type ItemId, type Op, type ParseRequest, type ParseResult, type Ref } from "@/contracts";
-import { MENU, itemsForLocation, locationName, type MenuItem } from "@/contracts/menu";
+import { LIMITS, type Catalog, type CatalogItem, type ItemId, type Op, type ParseRequest, type ParseResult, type Ref } from "@/contracts";
+import { indexCatalog, type CatalogIndex } from "@/catalog/lookup";
 import { guardExplicitQuantities } from "./rules/guards";
 import { readNumber } from "./rules/numbers";
 
-type Item = Readonly<MenuItem>;
+type Item = CatalogItem;
 type Rejection = Extract<ParseResult, { kind: "reject" }>;
 type Addition = { items: Item[]; qty: number } | Rejection;
 const reject = (code: Rejection["code"], message: string): Rejection => ({ kind: "reject", code, message });
 const proposal = (ops: Op[]): ParseResult => ({ kind: "proposal", ops });
+const known = (item: Item | undefined): item is Item => item !== undefined;
 
 export function normalizeCampusName(text: string): string {
   return text.normalize("NFKC").toLowerCase().replace(/[’']/g, "").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
@@ -74,15 +75,19 @@ function askForItem(items: readonly Item[], qty: number): ParseResult {
 }
 
 /** A simple ambiguous name remains ambiguous even if a model picked one variant. */
-export function campusAdditionAmbiguity(req: ParseRequest): ParseResult | null {
+export function campusAdditionAmbiguity(req: ParseRequest, catalog: Catalog): ParseResult | null {
   if ((req.locationId ?? "demo") === "demo") return null;
-  const parsed = addition(req.text, itemsForLocation(req.locationId!));
+  const parsed = addition(req.text, indexCatalog(catalog).itemsForLocation(req.locationId!));
   return parsed && !("kind" in parsed) && parsed.items.length > 1 ? askForItem(parsed.items, parsed.qty) : null;
 }
 
 /** Ignore only intrinsic menu-name numbers; an explicit leading quantity remains. */
-export function guardCampusQuantities(req: ParseRequest): Rejection | null {
-  const items = [...itemsForLocation(req.locationId ?? "demo"), ...(req.context?.lines.map((line) => MENU[line.itemId]) ?? [])];
+export function guardCampusQuantities(req: ParseRequest, catalog: Catalog): Rejection | null {
+  const menu = indexCatalog(catalog);
+  const items = [
+    ...menu.itemsForLocation(req.locationId ?? "demo"),
+    ...(req.context?.lines.map((line) => menu.item(line.itemId)).filter(known) ?? []),
+  ];
   let text = req.text.normalize("NFKC").toLowerCase().replace(/[’']/g, "").replace(/&/g, " and ");
   const aliases = [...new Set(items.flatMap((item) => [item.label, ...item.aliases]))]
     .filter((alias) => /\d/.test(alias)).sort((a, b) => b.length - a.length);
@@ -104,18 +109,18 @@ export function guardCampusQuantities(req: ParseRequest): Rejection | null {
 
 function escapePattern(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
-function reference(text: string, req: ParseRequest, make: (ref: Ref) => Op): ParseResult {
+function reference(text: string, req: ParseRequest, make: (ref: Ref) => Op, menu: CatalogIndex): ParseResult {
   const name = clean(text).replace(/^(?:the|my)\s+/, "");
   if (["last", "last item", "last one", "it", "that", "that one"].includes(name)) return proposal([make({ by: "last" })]);
   const cart = req.context?.lines ?? [];
-  const cartItems = [...new Set(cart.map((line) => line.itemId))].map((id) => MENU[id]);
+  const cartItems = [...new Set(cart.map((line) => line.itemId))].map((id) => menu.item(id)).filter(known);
   const matches = matchingItems(name, cartItems);
   if (matches.length === 1) return proposal([make({ by: "item", itemId: matches[0].id })]);
   if (matches.length > 1) {
     const ids = new Set<ItemId>(matches.map((item) => item.id));
     const lines = cart.filter((line) => ids.has(line.itemId));
     return { kind: "clarify", question: "Which cart item did you mean?", choices: lines.length > LIMITS.choices ? [] : lines.map((line, index) => ({
-      id: `campus-line-${index + 1}`, label: `${MENU[line.itemId].label} (cart row ${cart.indexOf(line) + 1})`.slice(0, LIMITS.labelChars),
+      id: `campus-line-${index + 1}`, label: `${menu.item(line.itemId)?.label ?? line.itemId} (cart row ${cart.indexOf(line) + 1})`.slice(0, LIMITS.labelChars),
       ops: [make({ by: "line", lineId: line.lineId })],
     })) };
   }
@@ -123,11 +128,12 @@ function reference(text: string, req: ParseRequest, make: (ref: Ref) => Op): Par
 }
 
 /** Narrow offline grammar over the canonical selected menu; no network or prices. */
-export function parseCampusText(req: ParseRequest): ParseResult {
+export function parseCampusText(req: ParseRequest, catalog: Catalog): ParseResult {
+  const menu = indexCatalog(catalog);
   const text = clean(req.text);
   if (["undo", "undo that", "undo it", "go back"].includes(text)) return proposal([{ type: "UNDO" }]);
   if (/^(?:remove|delete|take off)\s+/.test(text)) {
-    return reference(text.replace(/^(?:remove|delete|take off)\s+/, ""), req, (ref) => ({ type: "REMOVE", ref }));
+    return reference(text.replace(/^(?:remove|delete|take off)\s+/, ""), req, (ref) => ({ type: "REMOVE", ref }), menu);
   }
   const set = text.match(/^(?:make|set)\s+(.+)$/);
   if (set) {
@@ -136,12 +142,12 @@ export function parseCampusText(req: ParseRequest): ParseResult {
       const count = quantity(words.slice(index).join(" "));
       if (count === null) continue;
       if (typeof count !== "number") return count;
-      return reference(words.slice(0, index).join(" ").replace(/\s+(?:to|quantity)$/, ""), req, (ref) => ({ type: "SET_QTY", ref, qty: count }));
+      return reference(words.slice(0, index).join(" ").replace(/\s+(?:to|quantity)$/, ""), req, (ref) => ({ type: "SET_QTY", ref, qty: count }), menu);
     }
   }
-  const items = itemsForLocation(req.locationId ?? "demo");
-  if (!items.length) return reject("OFF_MENU", `We don't have a verified priced menu for ${locationName(req.locationId ?? "demo")}. Use its official menu link or choose another location.`);
-  const guarded = guardCampusQuantities(req);
+  const items = menu.itemsForLocation(req.locationId ?? "demo");
+  if (!items.length) return reject("OFF_MENU", `We don't have a verified priced menu for ${menu.locationName(req.locationId ?? "demo")}. Use its official menu link or choose another location.`);
+  const guarded = guardCampusQuantities(req, catalog);
   if (guarded) return guarded;
   const parsed = addition(text, items);
   if (!parsed) return reject("UNSUPPORTED", "Local rules support one exact menu item and quantity at a time, remove, make an item a quantity, and undo. Use the menu or enable Gemini for other wording.");

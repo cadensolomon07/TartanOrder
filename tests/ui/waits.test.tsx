@@ -11,6 +11,8 @@ import { SwapOfferPanel } from "@/ui/SwapOfferPanel";
 import { WaitEstimate } from "@/ui/WaitEstimate";
 import { cancelSpeech } from "@/voice/tts";
 import { makeFake, type FakeController } from "./fakeController";
+import { CATALOG } from "../helpers/catalog";
+import { withCatalog } from "./withCatalog";
 
 class Recognition {
   static last: Recognition | null = null;
@@ -44,7 +46,7 @@ function mountFake() {
     if (!controller) controller = makeFake(initial, () => update((value) => value + 1), {
       locationId: "188", assistant: { id: "added", text: "Added two Nashville sandwiches." },
     });
-    return <Kiosk controller={controller} />;
+    return withCatalog(<Kiosk controller={controller} />);
   }
   render(<StrictMode><Host /></StrictMode>);
   return () => controller;
@@ -55,10 +57,10 @@ function mountReal() {
     ...FIXTURE_RESPONSE, requestId: request.requestId, baseRevision: request.baseRevision,
     result: { kind: "proposal" as const, ops: [{ type: "ADD" as const, itemId: WAIT_FIXTURE_OFFER.original.itemId, qty: 2, modifiers: [] }] },
   }));
-  const store = createOrderController({ sessionId: () => "wait-ui", locationId: "188", waitConfig: WAIT_FIXTURE_CONFIG, interpret });
+  const store = createOrderController({ catalog: CATALOG, sessionId: () => "wait-ui", locationId: "188", waitConfig: WAIT_FIXTURE_CONFIG, interpret });
   function Host() {
     const controller = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-    return <Kiosk controller={controller} />;
+    return withCatalog(<Kiosk controller={controller} />);
   }
   const rendered = render(<Host />);
   return { store, interpret, ...rendered };
@@ -116,19 +118,19 @@ describe("wait and swap presentation", () => {
 
   it("does not claim a whole-order saving when another line still determines the wait", () => {
     const offer = SwapOfferSchema.parse({ ...WAIT_FIXTURE_OFFER, projectedCartEstimateMinutes: 14, cartWaitReductionMinutes: 0 });
-    const { rerender } = render(<SwapOfferPanel offer={offer} source="seeded" disabled={false} onAction={vi.fn()} />);
+    const { rerender } = render(withCatalog(<SwapOfferPanel offer={offer} source="seeded" disabled={false} onAction={vi.fn()} />));
     expect(screen.getByTestId("swap-cart-change").textContent).toContain("stays 14 min");
     expect(screen.getByTestId("swap-cart-change").textContent).toContain("complete order is not");
     expect(screen.getByTestId("swap-cart-change").textContent).not.toContain("10 min less");
     const unknown = SwapOfferSchema.parse({ ...WAIT_FIXTURE_OFFER, currentCartEstimateMinutes: null, projectedCartEstimateMinutes: null, cartWaitReductionMinutes: null });
-    rerender(<SwapOfferPanel offer={unknown} source="seeded" disabled={false} onAction={vi.fn()} />);
+    rerender(withCatalog(<SwapOfferPanel offer={unknown} source="seeded" disabled={false} onAction={vi.fn()} />));
     expect(screen.getByTestId("swap-cart-change").textContent).toContain("no whole-order wait reduction is claimed");
   });
 
   it("discloses the retained and removed modifier fields before a customer accepts", () => {
     // A schema-valid presentation variation, not a claim that this campus pair supports modifiers.
     const offer = SwapOfferSchema.parse({ ...WAIT_FIXTURE_OFFER, retainedModifiers: ["no_onions"], removedModifiers: ["extra_cheese"] });
-    render(<SwapOfferPanel offer={offer} source="seeded" disabled={false} onAction={vi.fn()} />);
+    render(withCatalog(<SwapOfferPanel offer={offer} source="seeded" disabled={false} onAction={vi.fn()} />));
     expect(screen.getByText("Keeps: No onions.")).toBeTruthy();
     expect(screen.getByText("Removes: Extra cheese.")).toBeTruthy();
     expect(screen.getByTestId("accept-swap")).toBeTruthy();

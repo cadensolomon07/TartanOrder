@@ -1,9 +1,10 @@
 import type { ItemId, ModifierId } from "./index";
 import { DEMO_ITEM_IDS } from "./index";
-import { CAMPUS_ITEMS, DINING_LOCATIONS } from "./campus";
 
-export const DEMO_DISCLOSURE = "TartanOrder Demo Counter · Seeded menu · No real purchase.";
-export const CAMPUS_DISCLOSURE = "TartanOrder · CMU published menus · No real purchase.";
+// Seeded Demo Counter data and the modifier table. Runtime code reads the
+// released catalog (a Catalog value) instead; these constants feed only
+// src/catalog/bundled.ts and the seed generator.
+
 export type MenuCategory = "mains" | "sides" | "drinks";
 
 export type MenuItem = {
@@ -90,25 +91,6 @@ export const DEMO_MENU: Readonly<Record<(typeof DEMO_ITEM_IDS)[number], Readonly
     aliases: ["water", "bottled water", "still water"], allowedModifiers: [],
   }),
 });
-
-/** One immutable released catalog. No remote update can reprice a live review or replay. */
-export const MENU: Readonly<Record<ItemId, Readonly<MenuItem>>> = Object.freeze({
-  ...DEMO_MENU,
-  ...Object.fromEntries(CAMPUS_ITEMS.map(entry => [entry.id, item({ ...entry, allowedModifiers: [] })])),
-}) as Readonly<Record<ItemId, Readonly<MenuItem>>>;
-
-export function itemsForLocation(locationId: string): readonly Readonly<MenuItem>[] {
-  return Object.values(MENU).filter(entry => entry.locationId === locationId);
-}
-
-export function locationName(locationId: string): string {
-  return locationId === "demo" ? "Demo Counter" : DINING_LOCATIONS.find(entry => entry.id === locationId)?.name ?? "Unknown location";
-}
-
-export function fullItemLabel(itemId: ItemId): string {
-  const entry = MENU[itemId];
-  return entry.locationId === "demo" ? entry.label : `${entry.label} · ${locationName(entry.locationId)}`;
-}
 
 export const MODIFIERS: Readonly<Record<ModifierId, Readonly<MenuModifier>>> = Object.freeze({
   no_onions: Object.freeze({ id: "no_onions", label: "No onions", priceCents: 0 }),

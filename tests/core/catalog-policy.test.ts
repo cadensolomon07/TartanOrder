@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { API_VERSION, MENU_VERSION, type ItemId, type LocationId, type Op, type ParseResult, type UiAction, type WaitEngineConfig } from "@/contracts";
+import { API_VERSION, type ItemId, type LocationId, type Op, type ParseResult, type UiAction, type WaitEngineConfig } from "@/contracts";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 import { createEngine, exportLog, getView, reduceEngine, replayLog, type EngineState } from "@/core/engine";
 
 const venues: readonly LocationId[] = ["110", "92", "174", "82", "188", "179", "113", "114", "155", "109", "108"];
@@ -32,7 +33,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("recorded engine venue policy", () => {
   it("keeps internal demo/archive fixtures available only when no policy is supplied", () => {
-    let state = act(createEngine("internal"), { type: "MANUAL", ops: [add("burger"), add(archived)] });
+    let state = act(createEngine("internal", { catalog: CATALOG }), { type: "MANUAL", ops: [add("burger"), add(archived)] });
     expect(state.lastOutcome).toBe("applied");
     expect(getView(state).totalCents).toBe(1000);
     expect(JSON.parse(exportLog(state))).not.toHaveProperty("allowedLocationIds");
@@ -40,11 +41,11 @@ describe("recorded engine venue policy", () => {
     const review = getView(state).review!;
     state = act(state, { type: "CONFIRM", reviewId: review.id, revision: review.revision });
     expect(getView(state).receipt?.totalCents).toBe(1000);
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
   });
 
   it.each(["burger", archived] as const)("rejects %s atomically after an allowed manual ADD and retains the previous Undo boundary", (itemId) => {
-    let state = act(createEngine("manual-policy", undefined, venues), { type: "MANUAL", ops: [add(burger)] });
+    let state = act(createEngine("manual-policy", { catalog: CATALOG, allowedLocationIds: venues }), { type: "MANUAL", ops: [add(burger)] });
     const before = getView(state);
     state = act(state, { type: "MANUAL", ops: [add(india), add(itemId)] });
     expect(state.lastCode).toBe("OFF_MENU");
@@ -52,13 +53,13 @@ describe("recorded engine venue policy", () => {
     expect(getView(state).lines).toEqual(before.lines);
     expect(getView(state).lastLineId).toBe(before.lastLineId);
     expect(getView(state).totalCents).toBe(920);
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
     state = act(state, { type: "UNDO" });
     expect(getView(state).lines).toEqual([]);
   });
 
   it("rejects a late forbidden ADD in a parsed batch and invalidates an earlier review", () => {
-    let state = act(createEngine("parser-policy", undefined, venues), { type: "MANUAL", ops: [add(burger)] });
+    let state = act(createEngine("parser-policy", { catalog: CATALOG, allowedLocationIds: venues }), { type: "MANUAL", ops: [add(burger)] });
     state = act(state, { type: "REVIEW" });
     const before = getView(state).lines;
     state = reduceEngine(state, { type: "INPUT_STARTED" });
@@ -66,21 +67,21 @@ describe("recorded engine venue policy", () => {
     expect(state.lastCode).toBe("OFF_MENU");
     expect(getView(state).lines).toEqual(before);
     expect(getView(state).review).toBeNull();
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
   });
 
   it("cannot hide a forbidden ADD behind an engine-generated ambiguous reference", () => {
-    let state = act(createEngine("ambiguous-policy", undefined, venues), { type: "MANUAL", ops: [add(burger), add(burger)] });
+    let state = act(createEngine("ambiguous-policy", { catalog: CATALOG, allowedLocationIds: venues }), { type: "MANUAL", ops: [add(burger), add(burger)] });
     const before = getView(state).lines;
     state = receive(state, { kind: "proposal", ops: [{ type: "REMOVE", ref: { by: "item", itemId: burger } }, add(archived)] });
     expect(state.lastCode).toBe("OFF_MENU");
     expect(getView(state).lines).toEqual(before);
     expect(getView(state).pending).toBeNull();
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
   });
 
   it("rejects a parser clarification containing a forbidden choice before displaying any choice", () => {
-    let state = act(createEngine("choice-policy", undefined, venues), { type: "MANUAL", ops: [add(burger)] });
+    let state = act(createEngine("choice-policy", { catalog: CATALOG, allowedLocationIds: venues }), { type: "MANUAL", ops: [add(burger)] });
     const before = getView(state).lines;
     state = receive(state, { kind: "clarify", question: "Which water?", choices: [
       { id: "active", label: "Taste of India water", ops: [add(india)] },
@@ -89,12 +90,12 @@ describe("recorded engine venue policy", () => {
     expect(state.lastCode).toBe("OFF_MENU");
     expect(getView(state).pending).toBeNull();
     expect(getView(state).lines).toEqual(before);
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
   });
 
   it.each(["CHOOSE", "resolve"] as const)("revalidates every ADD when resolving a stored batch through %s", (resolution) => {
     // A stored archive choice cannot bypass a policy applied to that engine state.
-    let state = receive(createEngine("stored-choice"), { kind: "clarify", question: "Which water?", choices: [
+    let state = receive(createEngine("stored-choice", { catalog: CATALOG }), { kind: "clarify", question: "Which water?", choices: [
       { id: "water", label: "Water", ops: [add(india), add(archived)] },
     ] });
     const pending = getView(state).pending!;
@@ -109,7 +110,7 @@ describe("recorded engine venue policy", () => {
   });
 
   it("keeps stale-response priority and rejects the stale result without leaking its allowed first operation", () => {
-    let state = createEngine("stale-policy", undefined, venues);
+    let state = createEngine("stale-policy", { catalog: CATALOG, allowedLocationIds: venues });
     const response = {
       v: API_VERSION, menuVersion: MENU_VERSION, requestId: "old", baseRevision: state.view.revision,
       parser: "fixture" as const, fallbackReason: null,
@@ -121,26 +122,26 @@ describe("recorded engine venue policy", () => {
     expect(state.lastOutcome).toBe("ignored");
     expect(state.lastCode).toBe("STALE_RESPONSE");
     expect(getView(state).lines).toEqual(before);
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
   });
 
   it("skips the fastest archived swap and selects the best permitted alternative", () => {
-    const internal = act(createEngine("internal-swap", waits), { type: "MANUAL", ops: [add(india, 2)] });
+    const internal = act(createEngine("internal-swap", { catalog: CATALOG, waitConfig: waits }), { type: "MANUAL", ops: [add(india, 2)] });
     expect(getView(internal).swapOffer?.alternative.itemId).toBe(archived);
-    let state = act(createEngine("public-swap", waits, venues), { type: "MANUAL", ops: [add(india, 2)] });
+    let state = act(createEngine("public-swap", { catalog: CATALOG, waitConfig: waits, allowedLocationIds: venues }), { type: "MANUAL", ops: [add(india, 2)] });
     const offer = getView(state).swapOffer!;
     expect(offer.alternative.itemId).toBe(exchange);
     state = act(state, { type: "ACCEPT_SWAP", offerId: offer.offerId, revision: offer.revision });
     expect(state.lastOutcome).toBe("applied");
     expect(getView(state).lines.map(row => [row.itemId, row.qty])).toEqual([[exchange, 2]]);
     expect(getView(state).totalCents).toBe(470);
-    expect(replayLog(exportLog(state))).toEqual(getView(state));
-    const noAlternatives = act(createEngine("no-active-swap", waits, ["114"]), { type: "MANUAL", ops: [add(india)] });
+    expect(replayLog(exportLog(state), CATALOG)).toEqual(getView(state));
+    const noAlternatives = act(createEngine("no-active-swap", { catalog: CATALOG, waitConfig: waits, allowedLocationIds: ["114"] }), { type: "MANUAL", ops: [add(india)] });
     expect(getView(noAlternatives).swapOffer).toBeNull();
   });
 
   it("rechecks a displayed archived alternative at acceptance and leaves the cart unchanged", () => {
-    let state = act(createEngine("revalidate-swap", waits), { type: "MANUAL", ops: [add(india)] });
+    let state = act(createEngine("revalidate-swap", { catalog: CATALOG, waitConfig: waits }), { type: "MANUAL", ops: [add(india)] });
     const before = getView(state);
     const offer = before.swapOffer!;
     state = { ...state, allowedLocationIds: venues };
@@ -151,7 +152,7 @@ describe("recorded engine venue policy", () => {
 
   it("copies and validates the policy, then exports and replays it without any network calls", () => {
     const supplied: LocationId[] = [...venues];
-    let state = createEngine("recorded-policy", waits, supplied);
+    let state = createEngine("recorded-policy", { catalog: CATALOG, waitConfig: waits, allowedLocationIds: supplied });
     supplied.push("demo", "136");
     state = act(state, { type: "MANUAL", ops: [add(india)] });
     state = act(state, { type: "MANUAL", ops: [add(archived)] });
@@ -159,10 +160,11 @@ describe("recorded engine venue policy", () => {
     const log = exportLog(state);
     expect(JSON.parse(log).allowedLocationIds).toEqual(venues);
     const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Replay must not call a provider."));
-    expect(replayLog(log)).toEqual(getView(state));
+    expect(replayLog(log, CATALOG)).toEqual(getView(state));
     expect(fetch).not.toHaveBeenCalled();
     const widened = { ...JSON.parse(log), allowedLocationIds: [...venues, "136"] };
-    expect(() => replayLog(JSON.stringify(widened))).toThrow(/audit outcome differs/);
-    expect(() => createEngine("unknown-venue", undefined, ["not-a-venue" as LocationId])).toThrow();
+    expect(() => replayLog(JSON.stringify(widened), CATALOG)).toThrow(/audit outcome differs/);
+    expect(() => createEngine("unknown-venue", { catalog: CATALOG, allowedLocationIds: ["not-a-venue" as LocationId] })).toThrow();
+    expect(() => createEngine("unlisted-venue", { catalog: CATALOG, allowedLocationIds: ["999"] })).toThrow(/not in catalog/);
   });
 });

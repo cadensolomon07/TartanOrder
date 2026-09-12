@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { AuditEntry, OrderController } from "@/contracts";
 import styles from "./Kiosk.module.css";
+import { catalogSourceLabel, useCatalog } from "./CatalogContext";
 
 export type EngineeringProps = {
   controller: OrderController;
@@ -35,18 +36,41 @@ function describe(e: AuditEntry): string {
 
 export function EngineeringPanel(p: EngineeringProps) {
   const [open, setOpen] = useState(false);
+  const { menu, source } = useCatalog();
   const { state } = p.controller;
   const recent = state.audit.slice(-MAX_ROWS);
 
-  function exportLog() {
-    const json = p.controller.exportLog();
+  const [serverCopy, setServerCopy] = useState<string | null>(null);
+
+  function download(json: string, filename: string) {
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `tartanorder-${state.sessionId}.json`;
+    a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportLog() {
+    download(p.controller.exportLog(), `tartanorder-${state.sessionId}.json`);
+  }
+
+  /** The server's copy of this session, fetched on demand; never blocks ordering and never replaces the local log. */
+  async function fetchServerLog() {
+    const sessionId = state.sessionId;
+    setServerCopy("Fetching the server copy…");
+    try {
+      const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export`, { headers: { accept: "application/json" } });
+      if (!response.ok) {
+        setServerCopy(response.status === 404 ? "The server has no copy of this session yet." : `Server copy unavailable (HTTP ${response.status}).`);
+        return;
+      }
+      download(await response.text(), `tartanorder-${sessionId}-server.json`);
+      setServerCopy("Server copy downloaded.");
+    } catch {
+      setServerCopy("Server copy unavailable: the server could not be reached.");
+    }
   }
 
   return (
@@ -76,6 +100,10 @@ export function EngineeringPanel(p: EngineeringProps) {
                 {p.isBrave ? " · Brave detected (no cloud speech backend)" : ""}
               </span>
             </dd>
+            <dt>Menu catalog</dt>
+            <dd data-testid="eng-catalog">{catalogSourceLabel(source, menu.catalog.versionId)}</dd>
+            <dt>Order saving</dt>
+            <dd data-testid="eng-persistence">{p.controller.persistence.state}{p.controller.persistence.message ? ` · ${p.controller.persistence.message}` : ""}</dd>
             <dt>Phase</dt>
             <dd>{state.phase}</dd>
             <dt>Session</dt>
@@ -127,6 +155,10 @@ export function EngineeringPanel(p: EngineeringProps) {
           <button type="button" className={styles.secondaryBtn} onClick={exportLog} data-testid="export-log">
             Export full log (JSON)
           </button>
+          <button type="button" className={styles.secondaryBtn} onClick={() => { void fetchServerLog(); }} data-testid="fetch-server-log" disabled={p.controller.persistence.state === "off"}>
+            Fetch server copy (JSON)
+          </button>
+          {serverCopy && <p className={styles.muted} role="status" data-testid="server-log-notice">{serverCopy}</p>}
           {p.replay && (
             <div className={styles.replayBox}>
               <div className={styles.simTag}>Read-only replay</div>

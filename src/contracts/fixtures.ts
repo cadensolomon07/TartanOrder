@@ -1,4 +1,5 @@
-import { API_VERSION, MENU_VERSION, ParseRequestSchema, ParseResponseSchema, WaitEngineConfigSchema, SwapOfferSchema, type ParseResponse } from "./index";
+import { API_VERSION, ParseRequestSchema, ParseResponseSchema, WaitEngineConfigSchema, SwapOfferSchema, type ParseResponse } from "./index";
+import { BUNDLED_VERSION_ID as MENU_VERSION } from "@/catalog/bundled";
 import seedWaits from "../../config/wait-times.seed.json";
 import equivalents from "../../config/equivalents.json";
 

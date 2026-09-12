@@ -4,6 +4,7 @@ import {
   ParseRequestSchema,
   ParseResponseSchema,
   type ApiError,
+  type Catalog,
   type HttpCode,
   type InterpretOptions,
   type ParseRequest,
@@ -88,14 +89,14 @@ export async function interpretWith(
   const signal = options.signal;
   throwIfCancelled(signal);
   const request = checked.data;
-  if (options.localOnly) return parseRules(request);
-  if (!deps.isOnline()) return fallback(request, "PROVIDER_UNAVAILABLE", signal);
+  if (options.localOnly) return parseRules(request, options.catalog);
+  if (!deps.isOnline()) return fallback(request, "PROVIDER_UNAVAILABLE", signal, options.catalog);
 
   const transport = await exchange(request, signal, deps);
   throwIfCancelled(signal);
-  if (transport.kind === "timeout") return fallback(request, "PARSE_TIMEOUT", signal);
-  if (transport.kind === "network") return fallback(request, "PROVIDER_UNAVAILABLE", signal);
-  return settle(request, transport.status, transport.body, signal);
+  if (transport.kind === "timeout") return fallback(request, "PARSE_TIMEOUT", signal, options.catalog);
+  if (transport.kind === "network") return fallback(request, "PROVIDER_UNAVAILABLE", signal, options.catalog);
+  return settle(request, transport.status, transport.body, signal, options.catalog);
 }
 
 async function exchange(
@@ -136,16 +137,16 @@ async function exchange(
  * mismatch, invalid model output, a code that disagrees with the status, or someone
  * else's requestId — fails closed with the envelope's own code and retryable flag.
  */
-function settle(request: ParseRequest, status: number, body: unknown, signal: AbortSignal | undefined): ParseResponse {
+function settle(request: ParseRequest, status: number, body: unknown, signal: AbortSignal | undefined, catalog: Catalog): ParseResponse {
   if (status === 200) return accept(request, body, signal);
   const parsed = ApiErrorSchema.safeParse(body);
   if (!parsed.success) {
     const code = codeForStatus(status);
-    if (FALLBACK_STATUSES.has(status)) return fallback(request, code, signal);
+    if (FALLBACK_STATUSES.has(status)) return fallback(request, code, signal, catalog);
     throw new InterpretError({ code, status, retryable: false, apiError: null });
   }
   const apiError = parsed.data;
-  if (permitsFallback(request, status, apiError)) return fallback(request, apiError.error.code, signal);
+  if (permitsFallback(request, status, apiError)) return fallback(request, apiError.error.code, signal, catalog);
   throw new InterpretError({ code: apiError.error.code, status, retryable: apiError.error.retryable, apiError });
 }
 
@@ -180,9 +181,9 @@ function echoesRequest(response: ParseResponse, request: ParseRequest): boolean 
 }
 
 /** Runs the local rules parser for the same request — never once the user has cancelled. */
-function fallback(request: ParseRequest, reason: HttpCode, signal: AbortSignal | undefined): ParseResponse {
+function fallback(request: ParseRequest, reason: HttpCode, signal: AbortSignal | undefined, catalog: Catalog): ParseResponse {
   throwIfCancelled(signal);
-  return { ...parseRules(request), fallbackReason: reason };
+  return { ...parseRules(request, catalog), fallbackReason: reason };
 }
 
 function codeForStatus(status: number): HttpCode {

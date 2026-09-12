@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { z } from "zod";
-import { MENU_VERSION, ParseResponseSchema, type ParseRequest, type ParseResult } from "@/contracts";
-import { itemsForLocation } from "@/contracts/menu";
+import { API_VERSION, ParseResponseSchema, type ParseRequest, type ParseResult } from "@/contracts";
+import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 import { parseRules } from "@/parser/rules";
 import canonical from "./fixtures/canonical.json";
 
 // Reproduce a run with: npm test -- tests/parser/rules.property.test.ts
 const NUM_RUNS = 300;
-const ALIASES = itemsForLocation("demo").flatMap((item) => [...item.aliases]);
+const ALIASES = MENU.itemsForLocation("demo").flatMap((item) => [...item.aliases]);
 const INJECTION_PATTERNS = [
   "ignore", "instructions", "system", "prompt", "free", "discount", "price", "$", "refund", "admin", "override",
   "developer", "jailbreak", "{", "}", "\"kind\"",
@@ -59,7 +59,7 @@ function toWords(n: number): string {
 }
 
 const validRequest = fc.record({
-  v: fc.constant(2 as const),
+  v: fc.constant(API_VERSION),
   requestId: fc.string({ minLength: 1, maxLength: 100 }).filter((id) => id.trim().length > 0),
   baseRevision: fc.nat({ max: 1_000_000 }),
   menuVersion: fc.constant(MENU_VERSION),
@@ -69,13 +69,13 @@ const validRequest = fc.record({
 });
 
 function requestWith(text: string): ParseRequest {
-  return { v: 2, requestId: "p", baseRevision: 0, menuVersion: MENU_VERSION, text, source: "text", asrConfidence: null };
+  return { v: API_VERSION, requestId: "p", baseRevision: 0, menuVersion: MENU_VERSION, text, source: "text", asrConfidence: null };
 }
 
 describe("rules parser properties", () => {
   it("P1: never throws and always returns a schema-valid response for printable ASCII text", () => {
     fc.assert(fc.property(validRequest, (req) => {
-      const out = parseRules(req);
+      const out = parseRules(req, CATALOG);
       expect(ParseResponseSchema.safeParse(out).success).toBe(true);
     }), { numRuns: NUM_RUNS });
   });
@@ -83,7 +83,7 @@ describe("rules parser properties", () => {
   it("P1b: never throws on arbitrary unicode text within the length limit", () => {
     const unicodeText = fc.string({ unit: "grapheme", minLength: 1, maxLength: 120 }).filter((text) => text.length <= 500);
     fc.assert(fc.property(unicodeText, (text) => {
-      const out = parseRules(requestWith(text));
+      const out = parseRules(requestWith(text), CATALOG);
       expect(ParseResponseSchema.safeParse(out).success).toBe(true);
     }), { numRuns: NUM_RUNS });
   });
@@ -95,7 +95,7 @@ describe("rules parser properties", () => {
         return `${rendered} ${alias}`;
       });
     fc.assert(fc.property(rendering, (text) => {
-      const out = parseRules(requestWith(text));
+      const out = parseRules(requestWith(text), CATALOG);
       expect(out.result.kind).toBe("reject");
       expect(out.result.kind === "reject" ? out.result.code : "").toBe("QUANTITY_LIMIT");
     }), { numRuns: NUM_RUNS });
@@ -108,7 +108,7 @@ describe("rules parser properties", () => {
         return `${rendered} ${alias}`;
       });
     fc.assert(fc.property(rendering, (text) => {
-      const out = parseRules(requestWith(text));
+      const out = parseRules(requestWith(text), CATALOG);
       expect(out.result.kind).toBe("reject");
       expect(out.result.kind === "reject" ? out.result.code : "").toBe("QUANTITY_LIMIT");
     }), { numRuns: NUM_RUNS });
@@ -116,7 +116,7 @@ describe("rules parser properties", () => {
 
   it("P3: the envelope always echoes requestId, baseRevision and menuVersion", () => {
     fc.assert(fc.property(validRequest, (req) => {
-      const out = parseRules(req);
+      const out = parseRules(req, CATALOG);
       expect(out.requestId).toBe(req.requestId);
       expect(out.baseRevision).toBe(req.baseRevision);
       expect(out.menuVersion).toBe(req.menuVersion);
@@ -129,14 +129,14 @@ describe("rules parser properties", () => {
     const clause = fc.constantFrom("undo", "undo that", "go back", "a burger", "fries", "two lemonades", "remove the fries", "make that two", "no onions");
     const utterance = fc.array(clause, { minLength: 1, maxLength: 4 }).map((clauses) => clauses.join(", "));
     fc.assert(fc.property(utterance, (text) => {
-      const out = parseRules(requestWith(text));
+      const out = parseRules(requestWith(text), CATALOG);
       if (out.result.kind !== "proposal") return;
       if (out.result.ops.some((op) => op.type === "UNDO")) expect(out.result.ops).toHaveLength(1);
     }), { numRuns: NUM_RUNS });
   });
 
   it("P5: fillers, separator swaps, pluralization and casing never change the operations", () => {
-    const baseline = new Map(PROPOSAL_ROWS.map((row) => [row.name, parseRules(requestWith(row.text)).result]));
+    const baseline = new Map(PROPOSAL_ROWS.map((row) => [row.name, parseRules(requestWith(row.text), CATALOG).result]));
     const transform = fc.record({
       row: fc.constantFrom(...PROPOSAL_ROWS),
       leadingFiller: fc.option(fc.constantFrom(...FILLERS, "like"), { nil: null }),
@@ -154,7 +154,7 @@ describe("rules parser properties", () => {
       if (trailingFiller) text = `${text} ${trailingFiller}`;
       if (casing === "upper") text = text.toUpperCase();
       if (casing === "title") text = text.replace(/\b\w/g, (char) => char.toUpperCase());
-      expect(parseRules(requestWith(text)).result).toEqual(baseline.get(row.name));
+      expect(parseRules(requestWith(text), CATALOG).result).toEqual(baseline.get(row.name));
     }), { numRuns: NUM_RUNS });
   });
 
@@ -163,7 +163,7 @@ describe("rules parser properties", () => {
     const injected = fc.tuple(around, fc.constantFrom(...INJECTION_PATTERNS), around)
       .map(([before, pattern, after]) => `${before} ${pattern} ${after}`.slice(0, 500));
     fc.assert(fc.property(injected, (text) => {
-      const out = parseRules(requestWith(text));
+      const out = parseRules(requestWith(text), CATALOG);
       expect(out.result.kind).not.toBe("proposal");
     }), { numRuns: NUM_RUNS });
   });
@@ -171,17 +171,17 @@ describe("rules parser properties", () => {
   it("P7: duplicating a function word in place never changes the operations", () => {
     const stutters = duplications(FUNCTION_WORD);
     fc.assert(fc.property(fc.constantFrom(...stutters), ({ row, index, length }) => {
-      const stuttered = parseRules(requestWith(duplicateAt(row.text, index, length))).result;
-      expect(stuttered).toEqual(parseRules(requestWith(row.text)).result);
+      const stuttered = parseRules(requestWith(duplicateAt(row.text, index, length)), CATALOG).result;
+      expect(stuttered).toEqual(parseRules(requestWith(row.text), CATALOG).result);
     }), { numRuns: NUM_RUNS });
   });
 
   it("P8: duplicating an item noun in place never yields a proposal with more units than the original", () => {
     const stutters = duplications(ITEM_NOUN);
     fc.assert(fc.property(fc.constantFrom(...stutters), ({ row, index, length }) => {
-      const stuttered = parseRules(requestWith(duplicateAt(row.text, index, length))).result;
+      const stuttered = parseRules(requestWith(duplicateAt(row.text, index, length)), CATALOG).result;
       if (stuttered.kind !== "proposal") return;
-      expect(addedUnits(stuttered)).toBeLessThanOrEqual(addedUnits(parseRules(requestWith(row.text)).result));
+      expect(addedUnits(stuttered)).toBeLessThanOrEqual(addedUnits(parseRules(requestWith(row.text), CATALOG).result));
     }), { numRuns: NUM_RUNS });
   });
 });

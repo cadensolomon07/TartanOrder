@@ -1,5 +1,6 @@
-import { test, expect } from "@playwright/test";
-import { API_VERSION, MENU_VERSION } from "../../src/contracts/index";
+import { test, expect } from "./fixtures";
+import { API_VERSION } from "../../src/contracts/index";
+import { BUNDLED_VERSION_ID as MENU_VERSION } from "../../src/catalog/bundled";
 
 test("published campus prices survive an offline typed journey, review and simulated receipt", async ({ page, context }) => {
   const requests: string[] = [];

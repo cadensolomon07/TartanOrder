@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { API_VERSION, LIMITS } from "@/contracts";
 import { FIXTURE_REQUEST, FIXTURE_RESPONSE } from "@/contracts/fixtures";
 import { InterpretError } from "@/parser/client";
+import { CATALOG } from "../helpers/catalog";
 import { parserCallFor } from "../../evals/lib/parser-call";
 
 const transport = { kind: "http", baseUrl: "https://test.invalid" } as const;
-const parserCall = () => parserCallFor(transport)(FIXTURE_REQUEST);
+const parserCall = () => parserCallFor(transport, CATALOG)(FIXTURE_REQUEST);
 
 afterEach(() => {
   vi.unstubAllGlobals();

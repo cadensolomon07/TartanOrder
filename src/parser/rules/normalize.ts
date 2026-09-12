@@ -1,5 +1,5 @@
 import {
-  ALIAS_TOKENS, CORRECTION_MARKERS, DROP_MARKERS, STUTTER_COMMAND_VERBS, STUTTER_WORDS, TRAILING_CORRECTION_MARKERS,
+  CORRECTION_MARKERS, DROP_MARKERS, STUTTER_COMMAND_VERBS, STUTTER_WORDS, TRAILING_CORRECTION_MARKERS, type Lexicon,
 } from "./lexicon";
 import { readNumber } from "./numbers";
 
@@ -59,23 +59,23 @@ export function startsWith(tokens: readonly string[], index: number, phrase: rea
 }
 
 /** An item alias or a quantity (a bare article is neither): repeating one may be a count, so it is never collapsed. */
-function isContentToken(tokens: readonly string[], index: number): boolean {
-  if (ALIAS_TOKENS.has(tokens[index])) return true;
+function isContentToken(tokens: readonly string[], index: number, lexicon: Lexicon): boolean {
+  if (lexicon.aliasTokens.has(tokens[index])) return true;
   const number = readNumber(tokens, index);
   return number !== null && number.form !== "article";
 }
 
 /** A prefix is a collapsible stutter only when it opens with a command verb or correction marker and names no item or quantity. */
-function isCommandPrefix(prefix: readonly string[]): boolean {
+function isCommandPrefix(prefix: readonly string[], lexicon: Lexicon): boolean {
   const opensCommand = STUTTER_COMMAND_VERBS.has(prefix[0]) || CORRECTION_MARKERS.some((marker) => startsWith(prefix, 0, marker));
-  return opensCommand && !prefix.some((_, index) => isContentToken(prefix, index));
+  return opensCommand && !prefix.some((_, index) => isContentToken(prefix, index, lexicon));
 }
 
 /** "make that make that two" → "make that two": drops the first copy of an immediately repeated command prefix. */
-function collapseStutteredPrefix(tokens: readonly string[]): string[] {
+function collapseStutteredPrefix(tokens: readonly string[], lexicon: Lexicon): string[] {
   const length = STUTTER_PREFIX_LENGTHS.find((candidate) => {
     const prefix = tokens.slice(0, candidate);
-    return prefix.length === candidate && startsWith(tokens, candidate, prefix) && isCommandPrefix(prefix);
+    return prefix.length === candidate && startsWith(tokens, candidate, prefix) && isCommandPrefix(prefix, lexicon);
   });
   return tokens.slice(length ?? 0);
 }
@@ -102,12 +102,12 @@ function trailingMarker(tokens: readonly string[], markers: readonly (readonly s
  * A stuttered command prefix is peeled in the same loop, so "actually make that make that two"
  * collapses behind its marker as well as at a bare clause start.
  */
-export function stripMarkers(tokens: readonly string[]): MarkedTokens {
+export function stripMarkers(tokens: readonly string[], lexicon: Lexicon): MarkedTokens {
   let rest = tokens;
   let corrected = false;
   let drop = false;
   for (;;) {
-    const collapsed = collapseStutteredPrefix(rest);
+    const collapsed = collapseStutteredPrefix(rest, lexicon);
     if (collapsed.length < rest.length) { rest = collapsed; continue; }
     const dropLength = leadingMarker(rest, DROP_MARKERS);
     if (dropLength > 0) { drop = true; rest = rest.slice(dropLength); continue; }

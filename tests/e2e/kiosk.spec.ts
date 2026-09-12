@@ -1,8 +1,10 @@
 // End-to-end flows against the running app (A's real controller, rules parser).
 // VOICE EVENTS ARE MOCKED via an injected SpeechRecognition; nothing here
 // exercises a real microphone. Run: npx playwright test tests/e2e
-import { test, expect, type Page } from "@playwright/test";
-import { API_VERSION, MENU_VERSION } from "../../src/contracts/index";
+import { test, expect } from "./fixtures";
+import type { Page } from "@playwright/test";
+import { API_VERSION } from "../../src/contracts/index";
+import { BUNDLED_VERSION_ID as MENU_VERSION } from "../../src/catalog/bundled";
 
 const BURGER = "cmu_188_smash_d_burger";
 const FRIES = "cmu_188_fresh_cut_fries";

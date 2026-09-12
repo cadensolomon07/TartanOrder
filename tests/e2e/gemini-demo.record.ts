@@ -3,8 +3,14 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { MENU_VERSION, PublicParseRequestSchema, ParseResponseSchema, type ParseResponse } from "../../src/contracts";
-import { ACTIVE_LOCATION_IDS } from "../../src/contracts/campus";
+import { ParseResponseSchema, type ParseResponse } from "../../src/contracts";
+import { bundledCatalog } from "../../src/catalog/bundled";
+import { catalogGuard, indexCatalog } from "../../src/catalog/lookup";
+
+const CATALOG = bundledCatalog();
+const MENU_VERSION = CATALOG.versionId;
+const ACTIVE_LOCATION_IDS = indexCatalog(CATALOG).activeLocationIds;
+const PublicParseRequestSchema = catalogGuard(CATALOG).publicParseRequestSchema;
 
 test.skip(
   process.env.GEMINI_LIVE !== "1" || process.env.RECORDING_PARSER !== "gemini" || !process.env.PLAYWRIGHT_BASE_URL,

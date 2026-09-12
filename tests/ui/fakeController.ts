@@ -1,7 +1,8 @@
 // Test-only fake of A's OrderController. Uses the SHARED types; never a copy
 // of production logic. Records every call so tests can assert on them.
 import type { Line, OrderController, OrderView, ParseRequest, UiAction } from "@/contracts";
-import { API_VERSION, MENU_VERSION } from "@/contracts";
+import { API_VERSION } from "@/contracts";
+import { MENU_VERSION } from "../helpers/catalog";
 
 export type FakeCall =
   | { fn: "startInput" }
@@ -101,6 +102,8 @@ export function makeFake(
       fake.calls.push({ fn: "exportLog" });
       return JSON.stringify({ v: API_VERSION, menuVersion: MENU_VERSION, sessionId: fake.state.sessionId, audit: fake.state.audit });
     },
+    persistence: { state: "off", savedSeq: 0, pendingCount: 0, message: null },
+    retryPersistence() {},
     ...overrides,
   };
   return fake;

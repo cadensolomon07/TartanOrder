@@ -3,10 +3,23 @@ import { POST } from "../../src/app/api/interpret/route";
 import { ApiErrorSchema, LIMITS, ParseResponseSchema, type ApiError, type ParseResult } from "../../src/contracts";
 import { PUBLIC_FIXTURE_REQUEST as FIXTURE_REQUEST, PUBLIC_FIXTURE_RESPONSE as FIXTURE_RESPONSE } from "../../src/contracts/fixtures";
 import { GeminiError, parseGemini, type GeminiConfig, type GeminiOutcome } from "../../src/parser/gemini.server";
+import { loadCatalogConfig } from "../../src/catalog/config.server";
 
 vi.mock("@/parser/gemini.server", () => {
   class MockGeminiError extends Error {}
   return { GeminiError: MockGeminiError, parseGemini: vi.fn() };
+});
+
+// The route reads the catalog through the config loader; tests serve the bundled release
+// (never the database) and can make it unavailable per test.
+vi.mock("@/catalog/config.server", async () => {
+  const { bundledCatalog } = await import("@/catalog/bundled");
+  return {
+    loadCatalogConfig: vi.fn(async () => {
+      const catalog = bundledCatalog();
+      return { catalog, source: "bundled", versionId: catalog.versionId, unavailableReason: null };
+    }),
+  };
 });
 
 // The rules module is used unmocked: the fixture and guard tests exercise the real grammar.
@@ -468,6 +481,26 @@ describe("POST /api/interpret: gemini mode", () => {
   });
 });
 
+
+describe("POST /api/interpret: catalog availability", () => {
+  it("answers 503 PROVIDER_UNAVAILABLE non-retryable when no catalog is loaded and never calls the provider", async () => {
+    vi.stubEnv("PARSER_MODE", "gemini");
+    vi.stubEnv("GEMINI_API_KEY", KEY);
+    vi.mocked(loadCatalogConfig).mockResolvedValueOnce({ catalog: null, source: "unavailable", versionId: null, unavailableReason: "test" });
+    const res = await postJson(FIXTURE_REQUEST);
+    const body = await expectApiError(res, 503, "PROVIDER_UNAVAILABLE", false);
+    expect(body.requestId).toBeNull();
+    expect(body.error.message).toBe("The menu catalog is unavailable.");
+    expect(parseGemini).not.toHaveBeenCalled();
+    expect(loggedLine()).toMatchObject({ mode: "gemini", outcome: "error", code: "PROVIDER_UNAVAILABLE" });
+  });
+
+  it("names the served menu version in a 409 and binds the check to the loaded catalog", async () => {
+    const res = await postJson({ ...FIXTURE_REQUEST, menuVersion: "demo-v0" });
+    const body = await expectApiError(res, 409, "MENU_VERSION_MISMATCH", false);
+    expect(body.error.message).toContain(FIXTURE_REQUEST.menuVersion);
+  });
+});
 
 describe("public restaurant shortlist admission", () => {
   it.each(["demo", "115", "94", "190", "84", "180", "91"])("rejects retired location %s before a provider call", async (locationId) => {

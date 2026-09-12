@@ -10,6 +10,8 @@ import { Kiosk } from "@/ui/Kiosk";
 import { FIXTURE_RESPONSE } from "@/contracts/fixtures";
 import type { InterpretOptions, ParseRequest, ParseResponse } from "@/contracts";
 import { interpret } from "@/parser/client";
+import { CATALOG } from "../helpers/catalog";
+import { withCatalog } from "./withCatalog";
 
 vi.mock("@/parser/client", () => ({ interpret: vi.fn() }));
 
@@ -29,8 +31,8 @@ function proposalFor(call: PendingCall, itemId: "burger" | "fries" | "lemonade")
 }
 
 function Host() {
-  const controller = useOrderController();
-  return <Kiosk controller={controller} />;
+  const controller = useOrderController(CATALOG);
+  return withCatalog(<Kiosk controller={controller} />);
 }
 
 beforeEach(() => {

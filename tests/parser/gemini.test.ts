@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { MENU_VERSION, CORE_CODES, LIMITS, DEMO_ITEM_IDS, ModifierIdSchema, type ParseRequest } from "@/contracts";
-import { MODIFIERS, itemsForLocation } from "@/contracts/menu";
+import { API_VERSION, CORE_CODES, LIMITS, DEMO_ITEM_IDS, ModifierIdSchema, type ParseRequest } from "@/contracts";
+import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 import {
   GeminiError,
   buildProviderSchema,
@@ -19,7 +19,7 @@ const MODEL = "gemini-2.5-flash";
 const TRANSCRIPT = "a burger, fries and lemonade";
 
 const request: ParseRequest = {
-  v: 2,
+  v: API_VERSION,
   requestId: "u1",
   baseRevision: 1,
   menuVersion: MENU_VERSION,
@@ -64,7 +64,7 @@ function config(fetchImpl: typeof fetch, overrides: Partial<GeminiConfig> = {}):
 
 async function failure(fetchImpl: typeof fetch, overrides: Partial<GeminiConfig> = {}): Promise<GeminiError> {
   try {
-    await parseGemini(request, config(fetchImpl, overrides));
+    await parseGemini(request, config(fetchImpl, overrides), CATALOG);
   } catch (error) {
     if (error instanceof GeminiError) return error;
     throw new Error(`Expected GeminiError, received ${String(error)}`);
@@ -105,7 +105,7 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("buildProviderSchema", () => {
-  const schema = buildProviderSchema();
+  const schema = buildProviderSchema(undefined, CATALOG);
   const serialized = JSON.stringify(schema);
 
   it("uses anyOf and documented keywords only", () => {
@@ -168,15 +168,15 @@ describe("buildProviderSchema", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildSystemInstruction", () => {
-  const instruction = buildSystemInstruction();
+  const instruction = buildSystemInstruction(undefined, CATALOG);
 
   it("lists every item id, alias, label, and modifier id", () => {
-    for (const item of itemsForLocation("demo")) {
+    for (const item of MENU.itemsForLocation("demo")) {
       expect(instruction).toContain(item.id);
       expect(instruction).toContain(item.label);
       for (const alias of item.aliases) expect(instruction).toContain(alias);
     }
-    for (const modifier of Object.values(MODIFIERS)) {
+    for (const modifier of CATALOG.modifiers) {
       expect(instruction).toContain(modifier.id);
       expect(instruction).toContain(modifier.label);
     }
@@ -206,7 +206,7 @@ describe("buildSystemInstruction", () => {
 describe("provider request", () => {
   it("posts the transcript, bounded context, menu, and schema to the model endpoint with the key in the header", async () => {
     const fetchImpl = modelReturns(threeItemProposal);
-    await parseGemini(request, config(fetchImpl));
+    await parseGemini(request, config(fetchImpl), CATALOG);
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = vi.mocked(fetchImpl).mock.calls[0] as [string, FetchInit];
@@ -228,9 +228,9 @@ describe("provider request", () => {
       generationConfig: Record<string, unknown>;
     };
     expect(JSON.parse(body.contents[0].parts[0].text)).toEqual({ utterance: TRANSCRIPT, locationId: "demo", context: { lines: [], lastLineId: null, pending: null, recent: [] } });
-    expect(body.systemInstruction.parts[0].text).toBe(buildSystemInstruction());
+    expect(body.systemInstruction.parts[0].text).toBe(buildSystemInstruction(undefined, CATALOG));
     expect(body.generationConfig.responseMimeType).toBe("application/json");
-    expect(body.generationConfig.responseJsonSchema).toEqual(buildProviderSchema());
+    expect(body.generationConfig.responseJsonSchema).toEqual(buildProviderSchema(undefined, CATALOG));
     expect(body.generationConfig.temperature).toBe(0);
     expect(body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
     expect(body.generationConfig.maxOutputTokens).toBe(4096);
@@ -243,7 +243,7 @@ describe("provider request", () => {
 
 describe("successful parse", () => {
   it("returns the validated candidate JSON, usage, raw text, and latency", async () => {
-    const outcome = await parseGemini(request, config(modelReturns(threeItemProposal)));
+    const outcome = await parseGemini(request, config(modelReturns(threeItemProposal)), CATALOG);
     expect(outcome.result).toEqual(threeItemProposal);
     expect(outcome.usage).toEqual({ promptTokens: 900, candidateTokens: 40, totalTokens: 940 });
     expect(outcome.rawText).toBe(JSON.stringify(threeItemProposal));
@@ -252,7 +252,7 @@ describe("successful parse", () => {
 
   it("reports usage as null when the provider omits usageMetadata", async () => {
     const body = providerBody(JSON.stringify(threeItemProposal), { usageMetadata: undefined });
-    const outcome = await parseGemini(request, config(respond(200, body)));
+    const outcome = await parseGemini(request, config(respond(200, body)), CATALOG);
     expect(outcome.usage).toBeNull();
   });
 
@@ -261,7 +261,7 @@ describe("successful parse", () => {
     const body = {
       candidates: [{ content: { parts: [{ text: "thinking", thought: true }, { text: text.slice(0, 10) }, { text: text.slice(10) }] }, finishReason: "STOP" }],
     };
-    const outcome = await parseGemini(request, config(respond(200, body)));
+    const outcome = await parseGemini(request, config(respond(200, body)), CATALOG);
     expect(outcome.result).toEqual(threeItemProposal);
   });
 
@@ -284,7 +284,7 @@ describe("successful parse", () => {
     // D1: pairings are the engine's job; the adapter only enforces shape, enums, and bounds.
     ["double on lemonade (engine rejects later)", { kind: "proposal", ops: [{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: ["double"] }] }],
   ])("passes a valid %s result through unchanged", async (_label, result) => {
-    const outcome = await parseGemini(request, config(modelReturns(result)));
+    const outcome = await parseGemini(request, config(modelReturns(result)), CATALOG);
     expect(outcome.result).toEqual(result);
   });
 });
@@ -338,7 +338,7 @@ describe("transport failures", () => {
     const fetchImpl = modelReturns(threeItemProposal);
     const controller = new AbortController();
     controller.abort();
-    const attempt = parseGemini(request, config(fetchImpl, { signal: controller.signal }));
+    const attempt = parseGemini(request, config(fetchImpl, { signal: controller.signal }), CATALOG);
     await expect(attempt).rejects.toMatchObject({ name: "AbortError" });
     await expect(attempt).rejects.not.toBeInstanceOf(GeminiError);
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -353,7 +353,7 @@ describe("transport failures", () => {
           init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
         }),
     );
-    const attempt = parseGemini(request, config(fetchImpl, { signal: controller.signal }));
+    const attempt = parseGemini(request, config(fetchImpl, { signal: controller.signal }), CATALOG);
     setTimeout(() => controller.abort(reason), 5);
     await expect(attempt).rejects.toBe(reason);
   });
@@ -361,7 +361,7 @@ describe("transport failures", () => {
   it("does not misreport an external abort as a timeout or provider failure", async () => {
     const controller = new AbortController();
     const fetchImpl: typeof fetch = vi.fn(() => new Promise<Response>(() => undefined));
-    const attempt = parseGemini(request, config(fetchImpl, { signal: controller.signal, timeoutMs: 5_000 }));
+    const attempt = parseGemini(request, config(fetchImpl, { signal: controller.signal, timeoutMs: 5_000 }), CATALOG);
     setTimeout(() => controller.abort(new Error("user cancelled")), 5);
     await expect(attempt).rejects.toThrow("user cancelled");
     await expect(attempt).rejects.not.toBeInstanceOf(GeminiError);
@@ -501,7 +501,7 @@ describe("contextual structured interpretation (mock provider, not live understa
       { type: "MOD", ref: { by: "line", lineId: "cart:burger" }, modifier: "no_lettuce", enabled: false },
     ] };
     const fetchImpl = modelReturns(result);
-    const outcome = await parseGemini({ ...request, text: "Actually make that two lemonades and put the lettuce back on the burger", context }, config(fetchImpl));
+    const outcome = await parseGemini({ ...request, text: "Actually make that two lemonades and put the lettuce back on the burger", context }, config(fetchImpl), CATALOG);
     expect(outcome.result).toEqual(result);
     const body = JSON.parse(String(vi.mocked(fetchImpl).mock.calls[0][1]?.body));
     expect(JSON.parse(body.contents[0].parts[0].text).context).toEqual(context);
@@ -514,7 +514,7 @@ describe("contextual structured interpretation (mock provider, not live understa
       { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
     ] };
     const text = "Hi I would like to order a burger and um also some fries and a lemonade too, actually wait can you make it a double burger with no lettuce.";
-    expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini({ ...request, text }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 
   it("preserves unavailable notices separately from clear valid operations", async () => {
@@ -522,7 +522,7 @@ describe("contextual structured interpretation (mock provider, not live understa
       { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
       { type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] },
     ], notices: [{ kind: "unavailable", item: "pizza" }] };
-    expect((await parseGemini({ ...request, text: "Can I get a pizza, a burger, and a lemonade?" }, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini({ ...request, text: "Can I get a pizza, a burger, and a lemonade?" }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 
   it("passes expanded menu items and item-specific options through shared schemas", async () => {
@@ -531,7 +531,7 @@ describe("contextual structured interpretation (mock provider, not live understa
       { type: "ADD", itemId: "side_salad", qty: 1, modifiers: ["dressing_on_side"] },
       { type: "ADD", itemId: "iced_tea", qty: 1, modifiers: ["no_ice"] },
     ] };
-    expect((await parseGemini({ ...request, text: "A chicken sandwich without mayo, salad dressing separately, and an iced tea without ice" }, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini({ ...request, text: "A chicken sandwich without mayo, salad dressing separately, and an iced tea without ice" }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 
   it("accepts only the supplied pending choice when a natural answer resolves ambiguity", async () => {
@@ -539,26 +539,26 @@ describe("contextual structured interpretation (mock provider, not live understa
       { id: "first", label: "Double burger", ops: [{ type: "REMOVE", ref: { by: "line", lineId: "cart:burger" } }] },
     ] };
     const result = { kind: "resolve", pendingId: "pending-7", choiceId: "first" };
-    expect((await parseGemini({ ...request, text: "The double one, please", context: { ...context, pending } }, config(modelReturns(result)))).result).toEqual(result);
-    await expect(parseGemini({ ...request, text: "The first one", context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
-    await expect(parseGemini({ ...request, context: { ...context, pending } }, config(modelReturns({ ...result, choiceId: "invented" })))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    expect((await parseGemini({ ...request, text: "The double one, please", context: { ...context, pending } }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
+    await expect(parseGemini({ ...request, text: "The first one", context }, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini({ ...request, context: { ...context, pending } }, config(modelReturns({ ...result, choiceId: "invented" })), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
   it("rejects invented line IDs inside clarification choices as well as proposals", async () => {
     const result = { kind: "clarify", question: "Which item?", choices: [{ id: "c1", label: "First", ops: [{ type: "REMOVE", ref: { by: "line", lineId: "invented" } }] }] };
-    await expect(parseGemini({ ...request, context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini({ ...request, context }, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
   it.each(["-2 lemonades", "negative two burgers", "18,000 lemonades", "six fries"])("rejects %s even if a model clamps the proposed quantity", async (text) => {
     const fetchImpl = modelReturns(threeItemProposal);
-    const result = (await parseGemini({ ...request, text }, config(fetchImpl))).result;
+    const result = (await parseGemini({ ...request, text }, config(fetchImpl), CATALOG)).result;
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ kind: "reject", code: "QUANTITY_LIMIT" });
   });
 
   it("does not send the incompatible 2.5 thinkingBudget to Gemini 3 models", async () => {
     const fetchImpl = modelReturns(threeItemProposal);
-    await parseGemini(request, config(fetchImpl, { model: "gemini-3.6-flash" }));
+    await parseGemini(request, config(fetchImpl, { model: "gemini-3.6-flash" }), CATALOG);
     const body = JSON.parse(String(vi.mocked(fetchImpl).mock.calls[0][1]?.body));
     expect(body.generationConfig).not.toHaveProperty("thinkingConfig");
     expect(body.generationConfig.maxOutputTokens).toBeGreaterThanOrEqual(4096);
@@ -577,9 +577,9 @@ describe("open contextual clarification", () => {
 
   it("accepts an open question without invented cart operations", async () => {
     const result = { kind: "clarify", question, choices: [] };
-    const outcome = await parseGemini({ ...request, context: { ...context, pending: null }, text: "Can you swap my burger for a pizza?" }, config(modelReturns(result)));
+    const outcome = await parseGemini({ ...request, context: { ...context, pending: null }, text: "Can you swap my burger for a pizza?" }, config(modelReturns(result)), CATALOG);
     expect(outcome.result).toEqual(result);
-    expect(buildSystemInstruction()).toContain("choices:[]");
+    expect(buildSystemInstruction(undefined, CATALOG)).toContain("choices:[]");
   });
 
   it("accepts a now-clear replacement interpreted from the open question and current cart", async () => {
@@ -588,14 +588,14 @@ describe("open contextual clarification", () => {
       { type: "ADD", itemId: "veggie_wrap", qty: 1, modifiers: [] },
     ] };
     const fetchImpl = modelReturns(result);
-    expect((await parseGemini({ ...request, context, text: "Then a veggie wrap instead, thanks" }, config(fetchImpl))).result).toEqual(result);
+    expect((await parseGemini({ ...request, context, text: "Then a veggie wrap instead, thanks" }, config(fetchImpl), CATALOG)).result).toEqual(result);
     const body = JSON.parse(String(vi.mocked(fetchImpl).mock.calls[0][1]?.body));
     expect(JSON.parse(body.contents[0].parts[0].text).context.pending).toEqual(pending);
   });
 
   it("rejects invented resolution IDs when the open question has no selectable choice", async () => {
     const result = { kind: "resolve", pendingId: pending.id, choiceId: "invented" };
-    await expect(parseGemini({ ...request, context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini({ ...request, context }, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 });
 
@@ -603,12 +603,12 @@ describe("open contextual clarification", () => {
 describe("authoritative availability notices", () => {
   it.each(["burger", "  BURGER  ", "Cheeseburger", "chicken_sandwich", "Chicken  Sandwich", "garden salad"])("rejects a false unavailable notice for %s", async (item) => {
     const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] }], notices: [{ kind: "unavailable", item }] };
-    await expect(parseGemini(request, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT", retryable: false });
+    await expect(parseGemini(request, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT", retryable: false });
   });
 
   it("allows an unavailable pizza notice alongside valid menu operations", async () => {
     const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "lemonade", qty: 1, modifiers: [] }], notices: [{ kind: "unavailable", item: "pizza" }] };
-    expect((await parseGemini(request, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini(request, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 });
 
@@ -628,43 +628,43 @@ describe("unsupported option notices (mock provider)", () => {
       fries,
     ], notices: [friesNotice] };
     const text = "Hi I'd like a burger and a veggie wrap and some fries with extra salt";
-    expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini({ ...request, text }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 
   it("accepts a specific unsupported-option-only rejection for an existing cart item without fake operations", async () => {
     const result = { kind: "reject", code: "INVALID_MODIFIER", message: "Extra salt is not an available option for fries.", notices: [friesNotice] };
-    expect((await parseGemini({ ...request, text: "Put extra salt on my fries", context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
-    await expect(parseGemini(request, config(modelReturns({ kind: "proposal", ops: [], notices: [friesNotice] })))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    expect((await parseGemini({ ...request, text: "Put extra salt on my fries", context: existingFries }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
+    await expect(parseGemini(request, config(modelReturns({ kind: "proposal", ops: [], notices: [friesNotice] })), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
   it("accepts an option notice for an existing row alongside a separate valid item", async () => {
     const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }], notices: [friesNotice] };
-    expect((await parseGemini({ ...request, context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini({ ...request, context: existingFries }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 
   it.each(["proposal", "reject"])("rejects an option notice for an absent item in a %s", async (kind) => {
     const result = kind === "proposal"
       ? { kind, ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }], notices: [friesNotice] }
       : { kind, code: "INVALID_MODIFIER", message: "That option is unavailable.", notices: [friesNotice] };
-    await expect(parseGemini(request, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini(request, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
   it.each(["double", " NO_LETTUCE ", "Extra  cheese"])("rejects a false unsupported burger option notice for %s", async (option) => {
     const result = { kind: "proposal", ops: [{ type: "ADD", itemId: "burger", qty: 1, modifiers: [] }], notices: [{ kind: "unavailable_option", itemId: "burger", option }] };
-    await expect(parseGemini(request, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini(request, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
   it("rejects a false unsupported option in a reject result, too", async () => {
     const context: NonNullable<ParseRequest["context"]> = { ...existingFries, lines: [{ lineId: "cart:drink", itemId: "lemonade", qty: 1, modifiers: [] }], lastLineId: "cart:drink" };
     const result = { kind: "reject", code: "INVALID_MODIFIER", message: "Not available.", notices: [{ kind: "unavailable_option", itemId: "lemonade", option: "No ice" }] };
-    await expect(parseGemini({ ...request, context }, config(modelReturns(result)))).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
+    await expect(parseGemini({ ...request, context }, config(modelReturns(result)), CATALOG)).rejects.toMatchObject({ code: "INVALID_MODEL_OUTPUT" });
   });
 
   it("keeps conditional option requests as open clarification before any edits", async () => {
     const result = { kind: "clarify", question: "Extra salt is not an option. Would you like standard fries?", choices: [] };
     const text = "A burger and fries, but only if the fries can have extra salt; otherwise don't order anything.";
-    expect((await parseGemini({ ...request, text }, config(modelReturns(result)))).result).toEqual(result);
-    expect(buildSystemInstruction()).toContain("before ANY mutation");
+    expect((await parseGemini({ ...request, text }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
+    expect(buildSystemInstruction(undefined, CATALOG)).toContain("before ANY mutation");
   });
 
   it("never filters a raw invalid modifier operation out of a batch", async () => {
@@ -672,6 +672,6 @@ describe("unsupported option notices (mock provider)", () => {
       { type: "ADD", itemId: "burger", qty: 1, modifiers: [] },
       { type: "MOD", ref: { by: "line", lineId: "cart:fries" }, modifier: "double", enabled: true },
     ], notices: [{ kind: "unavailable_option", itemId: "fries", option: "double" }] };
-    expect((await parseGemini({ ...request, context: existingFries }, config(modelReturns(result)))).result).toEqual(result);
+    expect((await parseGemini({ ...request, context: existingFries }, config(modelReturns(result)), CATALOG)).result).toEqual(result);
   });
 });

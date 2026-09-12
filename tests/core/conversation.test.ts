@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { API_VERSION, MENU_VERSION, type ParseRequest, type ParseResult, type ParseResponse } from "@/contracts";
+import { API_VERSION, type ParseRequest, type ParseResult, type ParseResponse } from "@/contracts";
 import { createOrderController } from "@/controller/controller";
 import { replayLog } from "@/core/engine";
+import { CATALOG, MENU_VERSION } from "../helpers/catalog";
 
 // These are labelled fixture interpretations, not evidence of Gemini accuracy.
 function envelope(request: ParseRequest, result: ParseResult): ParseResponse {
@@ -22,7 +23,7 @@ describe("conversation boundary using fixture interpretations", () => {
         { type: "MOD", ref: { by: "item", itemId: "fries" }, modifier: "double", enabled: true },
       ], notices: [notice] },
     ];
-    const store = createOrderController({ sessionId: () => "extras", interpret: async request => envelope(request, replies.shift()!) });
+    const store = createOrderController({ catalog: CATALOG, sessionId: () => "extras", interpret: async request => envelope(request, replies.shift()!) });
     await store.getSnapshot().submit("Hi I'd like a burger and a veggie wrap and some fries with extra salt", "fixture", null);
     expect(store.getSnapshot().state.lines.map(line => line.itemId)).toEqual(["burger", "veggie_wrap", "fries"]);
     expect(store.getSnapshot().state.totalCents).toBe(1850);
@@ -36,10 +37,10 @@ describe("conversation boundary using fixture interpretations", () => {
     await store.getSnapshot().submit("A forged invalid operation batch", "fixture", null);
     expect(store.getSnapshot().state.lines).toEqual(accepted);
     expect(store.getSnapshot().assistant?.text).not.toMatch(/I added|extra salt/);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
     store.getSnapshot().act({ type: "UNDO" });
     expect(store.getSnapshot().state.lines).toEqual([]);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
     store.dispose();
   });
 
@@ -60,7 +61,7 @@ describe("conversation boundary using fixture interpretations", () => {
       ], notices:[{kind:"unavailable",item:"pizza"}] },
     ];
     const calls:ParseRequest[]=[];
-    const store=createOrderController({sessionId:()=>"conversation",interpret:async request=>{calls.push(request);return envelope(request,replies.shift()!);}});
+    const store=createOrderController({catalog:CATALOG,sessionId:()=>"conversation",interpret:async request=>{calls.push(request);return envelope(request,replies.shift()!);}});
     await store.getSnapshot().submit("A corrected order", "fixture", null);
     expect(store.getSnapshot().localOnly).toBe(false);
     expect(store.getSnapshot().state.totalCents).toBe(1600);
@@ -76,13 +77,13 @@ describe("conversation boundary using fixture interpretations", () => {
     expect(store.getSnapshot().state.lines).toEqual(valid);
     expect(store.getSnapshot().assistant?.text).not.toMatch(/I added|don't sell/i);
     expect(store.getSnapshot().assistant?.text).toMatch(/not changed/i);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
     store.dispose();
   });
 
   it("resolves a spoken choice from the exact pending batch after draft input starts and replays it", async () => {
     const requests:ParseRequest[]=[];
-    const store=createOrderController({sessionId:()=>"choices",interpret:async request=>{
+    const store=createOrderController({catalog:CATALOG,sessionId:()=>"choices",interpret:async request=>{
       requests.push(request);
       if(requests.length===1)return envelope(request,{kind:"proposal",ops:[{type:"REMOVE",ref:{by:"item",itemId:"burger"}}]});
       return envelope(request,{kind:"resolve",pendingId:request.context!.pending!.id,choiceId:request.context!.pending!.choices[1].id});
@@ -100,7 +101,7 @@ describe("conversation boundary using fixture interpretations", () => {
     expect(store.getSnapshot().state.lines).toEqual([first]);
     store.getSnapshot().act({type:"UNDO"});
     expect(store.getSnapshot().state.lines).toHaveLength(2);
-    expect(replayLog(store.getSnapshot().exportLog())).toEqual(store.getSnapshot().state);
+    expect(replayLog(store.getSnapshot().exportLog(), CATALOG)).toEqual(store.getSnapshot().state);
     store.dispose();
   });
 
@@ -108,7 +109,7 @@ describe("conversation boundary using fixture interpretations", () => {
     let complete!:(response:ParseResponse)=>void;
     let request!:ParseRequest;
     const parse=vi.fn((req:ParseRequest)=>{request=req;return new Promise<ParseResponse>(resolve=>{complete=resolve;});});
-    const store=createOrderController({interpret:parse});
+    const store=createOrderController({catalog:CATALOG,interpret:parse});
     const first=store.getSnapshot().submit("fries","text",null);
     await store.getSnapshot().submit("fries","text",null);
     expect(parse).toHaveBeenCalledTimes(1);

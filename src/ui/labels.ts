@@ -1,20 +1,18 @@
-// Display helpers over A's shared menu. No private copy of names, prices or
-// modifier rules lives here: everything reads from @/contracts/menu.
-import type { ItemId, ModifierId } from "@/contracts";
-import { MENU, MODIFIERS, fullItemLabel } from "@/contracts/menu";
+// Display helpers over the loaded catalog index. No private copy of names,
+// prices or modifier rules lives here: everything reads from the CatalogIndex.
+import type { ModifierId } from "@/contracts";
+import type { CatalogIndex } from "@/catalog/lookup";
 
-export const ITEM_IDS = Object.keys(MENU) as ItemId[];
+export function itemLabel(menu: CatalogIndex, itemId: string): string {
+  return menu.fullItemLabel(itemId);
+}
 
-export const ITEM_LABEL: Record<ItemId, string> = Object.fromEntries(
-  ITEM_IDS.map((id) => [id, fullItemLabel(id)]),
-) as Record<ItemId, string>;
+export function modifierLabel(menu: CatalogIndex, modifierId: ModifierId): string {
+  return menu.modifier(modifierId)?.label ?? modifierId;
+}
 
-export const MODIFIER_LABEL: Record<ModifierId, string> = Object.fromEntries(
-  (Object.keys(MODIFIERS) as ModifierId[]).map((id) => [id, MODIFIERS[id].label]),
-) as Record<ModifierId, string>;
-
-export function modifiersFor(itemId: ItemId): readonly ModifierId[] {
-  return MENU[itemId].allowedModifiers;
+export function modifiersFor(menu: CatalogIndex, itemId: string): readonly ModifierId[] {
+  return menu.item(itemId)?.allowedModifiers ?? [];
 }
 
 export function formatCents(cents: number): string {

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { MENU_VERSION, OrderViewSchema, type AuditEvent, type ItemId, type ModifierId, type Op, type ParseResponse } from "@/contracts";
-import { MENU, MODIFIERS } from "@/contracts/menu";
+import { API_VERSION, OrderViewSchema, type AuditEvent, type ItemId, type ModifierId, type Op, type ParseResponse } from "@/contracts";
+import { CATALOG, MENU, MENU_VERSION } from "../helpers/catalog";
 import { createEngine, exportLog, getView, reduceEngine, replayLog, type EngineState } from "@/core/engine";
 
 // Reproduce this run with: npm test -- tests/core/engine.property.test.ts
 export const PROPERTY_SEED = 20260912;
-const ITEMS = Object.keys(MENU) as ItemId[];
-const MODIFIERS_IDS = Object.keys(MODIFIERS) as ModifierId[];
+const ITEMS: ItemId[] = CATALOG.items.map((item) => item.id);
+const MODIFIERS_IDS: ModifierId[] = CATALOG.modifiers.map((modifier) => modifier.id);
 type Descriptor = { kind: number; item: number; qty: number; modifier: number; flag: boolean };
 const descriptor = fc.record({
   kind: fc.integer({ min: 0, max: 16 }),
@@ -23,7 +23,7 @@ function add(itemId: ItemId, qty = 1): Op {
 
 function envelope(state: EngineState, requestId: string, ops: Op[]): ParseResponse {
   return {
-    v: 2, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
+    v: API_VERSION, menuVersion: MENU_VERSION, requestId, baseRevision: state.view.revision,
     parser: "rules", fallbackReason: null, result: { kind: "proposal", ops },
   };
 }
@@ -46,8 +46,9 @@ function assertTransition(before: EngineState, event: AuditEvent): EngineState {
   for (const line of view.lines) {
     expect(Number.isInteger(line.qty) && line.qty >= 1 && line.qty <= 5).toBe(true);
     expect(new Set(line.modifiers).size).toBe(line.modifiers.length);
-    expect(line.modifiers.every((modifier) => MENU[line.itemId].allowedModifiers.includes(modifier))).toBe(true);
-    expectedTotal += line.qty * (MENU[line.itemId].priceCents + line.modifiers.reduce((sum, modifier) => sum + MODIFIERS[modifier].priceCents, 0));
+    const item = MENU.item(line.itemId)!;
+    expect(line.modifiers.every((modifier) => item.allowedModifiers.includes(modifier))).toBe(true);
+    expectedTotal += line.qty * (item.priceCents + line.modifiers.reduce((sum, modifier) => sum + MENU.modifier(modifier)!.priceCents, 0));
   }
   expect(view.totalCents).toBe(expectedTotal);
   if (state.lastOutcome === "rejected" || state.lastOutcome === "ignored" || state.lastOutcome === "clarify") {
@@ -71,7 +72,7 @@ function assertTransition(before: EngineState, event: AuditEvent): EngineState {
 }
 
 function runSequence(descriptors: Descriptor[]) {
-  let state = createEngine("property-session");
+  let state = createEngine("property-session", { catalog: CATALOG });
   let latestResponse: ParseResponse | undefined;
   let counter = 0;
   const advance = (event: AuditEvent) => { state = assertTransition(state, event); counter += 1; };
@@ -142,7 +143,7 @@ function runSequence(descriptors: Descriptor[]) {
   }
   expect(counter).toBeLessThanOrEqual(50);
   const live = getView(state);
-  const replay = replayLog(exportLog(state));
+  const replay = replayLog(exportLog(state), CATALOG);
   expect(replay).toEqual(live);
   if (replay.lines.length) replay.lines[0].qty = 5;
   replay.audit.length = 0;

@@ -1,4 +1,4 @@
-import { MENU_VERSION } from "@/contracts";
+import { bundledCatalog } from "@/catalog/bundled";
 import type { EvalCase } from "./cases/schema";
 import { cell, compactActual, compactExpect, GROUP_HEADERS, groupRow, latencyCell, table, transcriptPreview } from "./lib/markdown";
 import { countBy, groupBy, parserLabelKey, summarizeGroup } from "./lib/metrics";
@@ -52,7 +52,7 @@ export function buildRunFile(input: {
     finishedAt: input.finishedAt,
     transport: input.transport,
     label: input.label,
-    menuVersion: MENU_VERSION,
+    menuVersion: bundledCatalog().versionId,
     splits: input.splits,
     records: input.records,
     summary: summarize(input.records),
